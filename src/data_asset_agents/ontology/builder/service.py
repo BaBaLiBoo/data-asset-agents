@@ -71,12 +71,14 @@ class OntologyBuildService:
         *,
         status: ReviewStatus | None = None,
         candidate_type: Literal["concept", "mapping", "join"] | None = None,
+        snapshot_id: str | None = None,
         limit: int = 200,
         offset: int = 0,
     ) -> list[CandidateEnvelope]:
         return self.repository.list_candidates(
             status=status,
             candidate_type=candidate_type,
+            snapshot_id=snapshot_id,
             limit=limit,
             offset=offset,
         )

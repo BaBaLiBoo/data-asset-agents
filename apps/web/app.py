@@ -190,6 +190,9 @@ def ontology_builder_page() -> None:
                 params={
                     "candidate_type": candidate_type,
                     "status_filter": status_filter,
+                    "snapshot_id": (
+                        build["snapshot"]["id"] if build is not None else None
+                    ),
                     "limit": 500,
                 },
             )

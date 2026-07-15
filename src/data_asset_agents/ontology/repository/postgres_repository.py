@@ -182,6 +182,7 @@ class PostgresOntologyRepository:
         *,
         status: ReviewStatus | None = None,
         candidate_type: Literal["concept", "mapping", "join"] | None = None,
+        snapshot_id: str | None = None,
         limit: int = 200,
         offset: int = 0,
     ) -> list[CandidateEnvelope]:
@@ -193,6 +194,9 @@ class PostgresOntologyRepository:
         if candidate_type is not None:
             clauses.append("candidate_type = :candidate_type")
             parameters["candidate_type"] = candidate_type
+        if snapshot_id is not None:
+            clauses.append("snapshot_id = :snapshot_id")
+            parameters["snapshot_id"] = snapshot_id
         where = " WHERE " + " AND ".join(clauses) if clauses else ""
         with self.engine.connect() as connection:
             rows = connection.execute(
@@ -313,9 +317,18 @@ class PostgresOntologyRepository:
         seed_bundle: OntologyBundle,
         request: OntologyPublishRequest,
     ) -> OntologyVersion:
-        verified = self.list_candidates(status=ReviewStatus.VERIFIED, limit=10_000)
+        if request.snapshot_id is None:
+            raise OntologyError("snapshot_id is required for a traceable publication")
+        verified = self.list_candidates(
+            status=ReviewStatus.VERIFIED,
+            snapshot_id=request.snapshot_id,
+            limit=10_000,
+        )
         if not verified:
-            raise OntologyError("At least one verified candidate is required to publish")
+            raise OntologyError(
+                "At least one verified candidate from the selected snapshot is "
+                "required to publish"
+            )
         bundle, attributes = self._merge_verified(seed_bundle, verified, request.version)
         version = OntologyVersion(
             version=request.version,

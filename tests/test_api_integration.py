@@ -73,7 +73,11 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
 
         candidates = client.get(
             "/api/v1/ontology/candidates",
-            params={"status_filter": "CANDIDATE", "candidate_type": "concept"},
+            params={
+                "status_filter": "CANDIDATE",
+                "candidate_type": "concept",
+                "snapshot_id": build_result["snapshot"]["id"],
+            },
         )
         assert candidates.status_code == 200
         concept = candidates.json()[0]
@@ -93,7 +97,11 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
 
         mappings = client.get(
             "/api/v1/ontology/candidates",
-            params={"status_filter": "CANDIDATE", "candidate_type": "mapping"},
+            params={
+                "status_filter": "CANDIDATE",
+                "candidate_type": "mapping",
+                "snapshot_id": build_result["snapshot"]["id"],
+            },
         ).json()
         mapping = next(
             item

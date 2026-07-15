@@ -250,7 +250,7 @@ pytest
 
 1. 开始离线构建，查看元数据快照、字段统计、脱敏样例和历史 SQL 证据。
 2. 分别审核 Concept、Mapping 和 Join 候选；可编辑业务名称、语义属性和同义词。
-3. 只有 `VERIFIED` 候选具备发布资格；`CANDIDATE` 和 `REJECTED` 永远不会被在线查询读取。
+3. 只有所选元数据快照中的 `VERIFIED` 候选具备发布资格；不同快照的审核结果不会混入同一版本，`CANDIDATE` 和 `REJECTED` 永远不会被在线查询读取。
 4. 发布新版本后，API 原子切换到该版本并重建在线 Text-to-SQL Graph。
 
 以下旧脚本仅用于把 YAML 种子概念同步到兼容表，不等同于第二阶段版本发布：

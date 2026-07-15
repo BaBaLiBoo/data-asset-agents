@@ -51,6 +51,12 @@ def test_reviewed_publication_is_versioned_and_candidate_isolated() -> None:
         result = builder.build(
             OntologyBuildRequest(tables=["dim_branch"], sample_limit=3)
         )
+        snapshot_candidates = runtime.list_candidates(snapshot_id=result.snapshot.id)
+        assert snapshot_candidates
+        assert all(
+            item.payload["snapshot_id"] == result.snapshot.id
+            for item in snapshot_candidates
+        )
         by_column = {item.column_name: item for item in result.concepts}
         branch_id_concept = by_column["branch_id"]
         region_concept = by_column["region"]

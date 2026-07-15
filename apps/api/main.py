@@ -179,6 +179,7 @@ def ontology_candidates(
     request: Request,
     status_filter: ReviewStatus | None = None,
     candidate_type: str | None = None,
+    snapshot_id: str | None = None,
     limit: int = 200,
     offset: int = 0,
 ) -> list[CandidateEnvelope]:
@@ -189,6 +190,7 @@ def ontology_candidates(
     return request.app.state.ontology_builder.list_candidates(
         status=status_filter,
         candidate_type=candidate_type,
+        snapshot_id=snapshot_id,
         limit=limit,
         offset=offset,
     )
