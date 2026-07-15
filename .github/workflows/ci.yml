@@ -42,3 +42,11 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - run: ruff check .
       - run: pytest
+
+  compose-acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Docker Compose acceptance
+        shell: pwsh
+        run: ./scripts/acceptance.ps1 -TimeoutSeconds 180

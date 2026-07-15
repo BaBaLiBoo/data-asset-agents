@@ -8,13 +8,13 @@ $ErrorActionPreference = "Stop"
 $exitCode = 0
 
 try {
-    Write-Host "[1/5] Validating Docker Compose configuration..."
+    Write-Host "[1/6] Validating Docker Compose configuration..."
     docker compose -p $ComposeProject config --quiet
 
-    Write-Host "[2/5] Building and starting services..."
+    Write-Host "[2/6] Building and starting services..."
     docker compose -p $ComposeProject up --build -d
 
-    Write-Host "[3/5] Waiting for API health..."
+    Write-Host "[3/6] Waiting for API health..."
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $healthy = $false
     while ((Get-Date) -lt $deadline) {
@@ -33,7 +33,29 @@ try {
         throw "API did not become healthy within $TimeoutSeconds seconds"
     }
 
-    Write-Host "[4/5] Running the target ontology query..."
+    Write-Host "[4/6] Waiting for Streamlit health..."
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $webHealthy = $false
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $webHealth = Invoke-WebRequest `
+                -Uri "http://localhost:8501/_stcore/health" `
+                -TimeoutSec 5 `
+                -UseBasicParsing
+            if ($webHealth.StatusCode -eq 200 -and $webHealth.Content.Trim() -eq "ok") {
+                $webHealthy = $true
+                break
+            }
+        }
+        catch {
+            Start-Sleep -Seconds 2
+        }
+    }
+    if (-not $webHealthy) {
+        throw "Streamlit did not become healthy within $TimeoutSeconds seconds"
+    }
+
+    Write-Host "[5/6] Running the target ontology query..."
     $body = @{
         question = "查询近30天各分行信用卡交易金额和交易笔数。"
         query_mode = "ontology"
@@ -53,13 +75,13 @@ try {
     Write-Host "Returned rows: $($result.execution_result.row_count)"
     Write-Host $result.generated_sql
 
-    Write-Host "[5/5] Container status..."
+    Write-Host "[6/6] Container status..."
     docker compose -p $ComposeProject ps
     Write-Host "Acceptance passed."
 }
 catch {
     $exitCode = 1
-    Write-Error "Acceptance failed: $($_.Exception.Message)"
+    Write-Error "Acceptance failed: $($_.Exception.Message)" -ErrorAction Continue
     try {
         docker compose -p $ComposeProject ps
         docker compose -p $ComposeProject logs --no-color
