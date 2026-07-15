@@ -230,12 +230,19 @@ class MetadataInspector:
             .order_by(desc(count_label), cast(column, String))
             .limit(top_value_limit)
         ).all()
-        sample_rows = connection.execute(
-            select(column)
+        # PostgreSQL requires every ORDER BY expression to appear in a DISTINCT
+        # select list.  Isolating de-duplication in a subquery keeps sampling
+        # deterministic without relying on database-specific DISTINCT rules.
+        distinct_values = (
+            select(column.label("sample_value"))
             .select_from(table)
             .where(column.is_not(None))
-            .order_by(cast(column, String))
             .distinct()
+            .subquery()
+        )
+        sample_rows = connection.execute(
+            select(distinct_values.c.sample_value)
+            .order_by(cast(distinct_values.c.sample_value, String))
             .limit(sample_limit)
         ).scalars()
         denominator = row_count or 1
