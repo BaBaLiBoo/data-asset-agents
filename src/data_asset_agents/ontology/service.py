@@ -10,6 +10,9 @@ from data_asset_agents.ontology.models import (
     TableAsset,
 )
 from data_asset_agents.ontology.repository import YamlOntologyRepository
+from data_asset_agents.ontology.repository.postgres_repository import (
+    PostgresOntologyRepository,
+)
 from data_asset_agents.text2sql.models import (
     MatchedConcept,
     QueryFilter,
@@ -22,14 +25,95 @@ from data_asset_agents.text2sql.models import (
 class OntologyService:
     """Ontology-first parsing, concept lookup, and deterministic physical resolution."""
 
-    def __init__(self, repository: YamlOntologyRepository) -> None:
-        self.bundle: OntologyBundle = repository.load()
-        self.metrics_by_name = {metric.name: metric for metric in self.bundle.metrics}
-        self.dimensions_by_name = {
-            dimension.name: dimension for dimension in self.bundle.dimensions
+    def __init__(
+        self,
+        repository: YamlOntologyRepository,
+        runtime_repository: PostgresOntologyRepository | None = None,
+    ) -> None:
+        self.repository = repository
+        self.runtime_repository = runtime_repository
+        self.seed_bundle: OntologyBundle = repository.load()
+        self.bundle: OntologyBundle = (
+            runtime_repository.load_latest_published_bundle()
+            if runtime_repository is not None
+            else None
+        ) or self.seed_bundle
+        self._refresh_indexes()
+
+    def _refresh_indexes(self) -> None:
+        self.mappings_by_concept_id = {
+            mapping.concept_id: mapping for mapping in self.bundle.mappings
         }
-        self.dimensions_by_id = {dimension.id: dimension for dimension in self.bundle.dimensions}
+        resolved_metrics = [self._resolve_metric(metric) for metric in self.bundle.metrics]
+        resolved_dimensions = [
+            self._resolve_dimension(dimension) for dimension in self.bundle.dimensions
+        ]
+        self.metrics_by_name = {metric.name: metric for metric in resolved_metrics}
+        self.dimensions_by_name = {
+            dimension.name: dimension for dimension in resolved_dimensions
+        }
+        self.dimensions_by_id = {
+            dimension.id: dimension for dimension in resolved_dimensions
+        }
         self.tables_by_name = {table.name: table for table in self.bundle.tables}
+
+    def _resolve_metric(self, metric: Metric) -> Metric:
+        concept_id = f"metric:{metric.id}"
+        mapping = self.mappings_by_concept_id.get(concept_id)
+        if mapping is None:
+            return metric
+        expression = metric.expression.replace(
+            f"{metric.base_table}.", f"{mapping.table}."
+        )
+        seed_mapping = next(
+            (
+                item
+                for item in self.seed_bundle.mappings
+                if item.concept_id == concept_id
+            ),
+            None,
+        )
+        column_renames = (
+            dict(zip(seed_mapping.columns, mapping.columns, strict=False))
+            if seed_mapping is not None
+            else {}
+        )
+        for old_column, new_column in column_renames.items():
+            expression = expression.replace(
+                f"{mapping.table}.{old_column}",
+                f"{mapping.table}.{new_column}",
+            )
+        required_filters = {
+            column_renames.get(field, field): value
+            for field, value in metric.required_filters.items()
+        }
+        return metric.model_copy(
+            update={
+                "base_table": mapping.table,
+                "expression": expression,
+                "required_filters": required_filters,
+            }
+        )
+
+    def _resolve_dimension(self, dimension: Dimension) -> Dimension:
+        mapping = self.mappings_by_concept_id.get(f"dimension:{dimension.id}")
+        if mapping is None or not mapping.columns:
+            return dimension
+        return dimension.model_copy(
+            update={"table": mapping.table, "column": mapping.columns[0]}
+        )
+
+    def reload_published(self) -> bool:
+        """Atomically switch online resolution to the latest published version."""
+
+        if self.runtime_repository is None:
+            return False
+        published = self.runtime_repository.load_latest_published_bundle()
+        if published is None:
+            return False
+        self.bundle = published
+        self._refresh_indexes()
+        return True
 
     @staticmethod
     def _matches(question: str, name: str, synonyms: Iterable[str]) -> tuple[bool, str]:

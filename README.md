@@ -1,6 +1,6 @@
 # Data Asset Agents
 
-Data Asset Agents 是一个面向企业数据资产研发场景的多智能体项目。本分支交付第一阶段 **Text-to-SQL MVP**：以人工审核的本体语义层为事实源，使用 LangGraph 编排“概念理解、确定性资产映射、Join 规划、SQL 生成、校验、执行与解释”闭环。
+Data Asset Agents 是一个面向企业数据资产研发场景的多智能体项目。本分支已完成 **Text-to-SQL MVP**，并实现第二阶段的**本体语义层离线构建、人工审核和版本化发布**：以已发布本体为在线事实源，使用 LangGraph 编排“概念理解、确定性资产映射、Join 规划、SQL 生成、校验、执行与解释”闭环。
 
 > 安全声明：仓库中的 MiniBank、表结构、业务概念、SQL 和数据均为公开演示目的自行构造，与任何真实机构无关。禁止向本仓库提交真实数据、非公开表结构、非公开 SQL、非公开规则或 API Key。
 
@@ -18,6 +18,27 @@ Data Asset Agents 是一个面向企业数据资产研发场景的多智能体�
 - DeepSeek/Qwen OpenAI 兼容客户端配置；无 Key 时默认确定性 mock 模式
 - 固定随机种子 `20260715` 生成的纯虚构 MiniBank 数据
 
+## 第二阶段本体构建能力
+
+- PostgreSQL 表、字段、类型、注释、主键、外键和索引抽取
+- 行数、空值率、唯一率、最小/最大值、高频值及限量脱敏样例 Profiling
+- 表名、Schema 和字段标识符校验；动态查询通过 SQLAlchemy 表达式构建
+- SQLGlot 批量解析历史 SQL 的表、字段、Join、过滤、聚合、Group By 和时间字段
+- 表共现、字段热度与 Join 使用次数统计，并保存结构化结果
+- 基于 LangChain Structured Output 的候选语义生成；mock 模式无 Key 稳定运行
+- `CANDIDATE → VERIFIED/REJECTED` 人工审核状态机和不可变审核记录
+- PostgreSQL 事务化版本发布，正式概念、指标、维度、属性、映射、Join、表生命周期和规则分表保存
+- 在线查询优先读取当前已发布 Physical Mapping；YAML 作为初始化种子和故障回退
+- Streamlit 提供元数据、历史 SQL 证据、候选编辑审核和版本发布工作台
+
+离线与在线边界：
+
+```text
+数据库 + 历史 SQL → 元数据快照/结构化证据 → LLM 候选(CANDIDATE)
+    → 人工 VERIFIED/REJECTED → 显式发布 OntologyVersion
+    → 在线查询只读取当前 PUBLISHED 版本
+```
+
 ## 核心链路
 
 ```text
@@ -34,6 +55,8 @@ apps/api/                    FastAPI
 apps/web/                    Streamlit
 src/data_asset_agents/
   ontology/                  模型、YAML 仓库、发布器与服务
+    builder/                 Profiling 证据编排、候选生成与发布服务
+    repository/              YAML 种子和 PostgreSQL 审核/版本仓库
   text2sql/                  State、Graph、节点和 Join 工具
   validation/                SQLGlot 安全校验
   execution/                 PostgreSQL 只读执行器
@@ -86,6 +109,14 @@ docker compose down
 ```powershell
 docker compose down -v
 docker compose up --build -d
+```
+
+如果需要保留已有演示数据，可在更新 Compose 容器后只执行第二阶段 DDL：
+
+```powershell
+docker compose up -d postgres
+docker compose exec postgres psql -U minibank -d minibank `
+  -f /docker-entrypoint-initdb.d/002_ontology_builder.sql
 ```
 
 ## 本地 Python 开发
@@ -141,6 +172,8 @@ EMBEDDING_API_KEY=your-key
 
 注意：第一阶段在线查询节点尚未启用通用 live LLM 生成。`LLM_MODE=live` 只代表模型客户端配置可被创建，不代表系统已经具备任意问题生成能力；不支持的问题仍返回 HTTP 422 和 `status=unsupported`。
 
+第二阶段在 `LLM_MODE=live` 时通过现有 `ModelFactory` 创建 OpenAI 兼容 Chat Model，并使用 `with_structured_output` 生成候选语义；输出仍是 `CANDIDATE`，必须人工审核和显式发布。mock 模式使用确定性规则生成同结构候选，不需要 API Key。
+
 ## 主要 API
 
 | 方法 | 路径 | 说明 |
@@ -153,6 +186,13 @@ EMBEDDING_API_KEY=your-key
 | GET | `/api/v1/ontology/concepts` | 查看业务概念 |
 | GET | `/api/v1/ontology/metrics` | 查看指标口径 |
 | GET | `/api/v1/ontology/tables` | 查看表资产与生命周期 |
+| POST | `/api/v1/ontology/build` | 抽取物理知识、解析历史 SQL 并生成候选 |
+| GET | `/api/v1/ontology/candidates` | 按类型和状态查看候选 |
+| GET | `/api/v1/ontology/candidates/{id}` | 查看候选及证据 |
+| POST | `/api/v1/ontology/candidates/{id}/verify` | 编辑并审核通过候选 |
+| POST | `/api/v1/ontology/candidates/{id}/reject` | 拒绝候选 |
+| POST | `/api/v1/ontology/publish` | 将已审核内容发布为正式版本 |
+| GET | `/api/v1/ontology/versions` | 查看正式本体版本 |
 | GET | `/api/v1/graph` | 查看节点与边 |
 
 不支持问题的响应示例：
@@ -204,7 +244,16 @@ pytest
 
 真实 PostgreSQL 集成测试由 GitHub Actions 自动初始化 pgvector PostgreSQL、执行 DDL 和 Seed，并设置 `RUN_POSTGRES_INTEGRATION=1`。本地运行集成测试时，应先启动并初始化 Docker 数据库，再设置相同环境变量。
 
-## 发布 YAML 到运行时仓库
+## 本体构建、审核与发布
+
+打开 Streamlit 后，在左侧“工作台”切换到“本体构建与审核”。标准操作顺序：
+
+1. 开始离线构建，查看元数据快照、字段统计、脱敏样例和历史 SQL 证据。
+2. 分别审核 Concept、Mapping 和 Join 候选；可编辑业务名称、语义属性和同义词。
+3. 只有 `VERIFIED` 候选具备发布资格；`CANDIDATE` 和 `REJECTED` 永远不会被在线查询读取。
+4. 发布新版本后，API 原子切换到该版本并重建在线 Text-to-SQL Graph。
+
+以下旧脚本仅用于把 YAML 种子概念同步到兼容表，不等同于第二阶段版本发布：
 
 容器启动后，可把审核后的概念写入 PostgreSQL 运行时表：
 
@@ -212,13 +261,14 @@ pytest
 docker compose exec api python scripts/publish_ontology.py
 ```
 
-YAML 始终是人工审核事实源；数据库是运行时副本。正式环境应在发布前增加审核状态、版本签名、回滚和审计记录。
+YAML 是初始化种子和故障回退；在线事实源是 PostgreSQL 中当前 `PUBLISHED` 的 `OntologyVersion`。
 
 ## 当前边界
 
 - 仅保证已审核指标、维度及其同义表达的确定性 mock 闭环；未识别问题会明确返回 unsupported，不会生成占位 SQL。
 - `ontology` 是第一阶段唯一真实实现的查询模式；`rag`、`schema` 仅保留接口和前端选项，当前复用同一 ontology 链路，不代表独立能力。
 - pgvector 表结构与模型适配已准备，但概念与历史 SQL 仍使用本地规则排序，尚未实现真实向量召回。
-- 尚未开始本体自动构建。当前仅有人工审核 YAML、基础元数据抽取和发布骨架，没有样例值剖析、LLM 候选语义生成或审核 UI。
+- 本轮实现的是受控离线构建，不是无人值守的“自动本体”：业务骨架仍来自人工定义，LLM 只生成候选，发布必须人工审核。
 - 自动修复仅支持补齐校验器明确指出的必要指标过滤条件；字段错误、未审核 Join、禁用表和数据库执行错误不会被猜测性修改。
-- 尚未实现通用 live LLM Structured Output、认证 SQL 管理、语义版本回滚、权限隔离、审计和完整评测平台。
+- 尚未实现本体版本回滚、细粒度权限、多人审批、版本签名、完整审计检索和评测平台。
+- 不实现 OWL、RDF、SPARQL、Neo4j、多事实表 SQL、复杂 LLM SQL 修复或其他 Agent。

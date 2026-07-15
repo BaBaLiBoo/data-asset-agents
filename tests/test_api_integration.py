@@ -57,3 +57,88 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         assert unsupported.json()["status"] == "unsupported"
         assert unsupported.json()["error_code"] == "UNSUPPORTED_QUERY"
 
+        build = client.post(
+            "/api/v1/ontology/build",
+            json={
+                "schema_name": "public",
+                "tables": ["dim_branch"],
+                "sample_limit": 3,
+                "top_value_limit": 3,
+            },
+        )
+        assert build.status_code == 200, build.text
+        build_result = build.json()
+        assert build_result["snapshot"]["tables"][0]["primary_key"] == ["branch_id"]
+        assert build_result["concepts"][0]["status"] == "CANDIDATE"
+
+        candidates = client.get(
+            "/api/v1/ontology/candidates",
+            params={"status_filter": "CANDIDATE", "candidate_type": "concept"},
+        )
+        assert candidates.status_code == 200
+        concept = candidates.json()[0]
+        detail = client.get(f"/api/v1/ontology/candidates/{concept['id']}")
+        assert detail.status_code == 200
+
+        verified = client.post(
+            f"/api/v1/ontology/candidates/{concept['id']}/verify",
+            json={
+                "reviewer": "api-test",
+                "note": "verified in integration test",
+                "edits": {"business_name": "审核后的字段名称"},
+            },
+        )
+        assert verified.status_code == 200, verified.text
+        assert verified.json()["status"] == "VERIFIED"
+
+        mappings = client.get(
+            "/api/v1/ontology/candidates",
+            params={"status_filter": "CANDIDATE", "candidate_type": "mapping"},
+        ).json()
+        mapping = next(
+            item
+            for item in mappings
+            if item["payload"]["candidate_concept_id"] == concept["id"]
+        )
+        verified_mapping = client.post(
+            f"/api/v1/ontology/candidates/{mapping['id']}/verify",
+            json={"reviewer": "api-test", "note": "mapping verified", "edits": {}},
+        )
+        assert verified_mapping.status_code == 200
+
+        rejected_concept = next(
+            item
+            for item in candidates.json()
+            if item["id"] != concept["id"]
+        )
+        rejected = client.post(
+            f"/api/v1/ontology/candidates/{rejected_concept['id']}/reject",
+            json={"reviewer": "api-test", "note": "not accepted", "edits": {}},
+        )
+        assert rejected.status_code == 200
+        assert rejected.json()["status"] == "REJECTED"
+
+        published = client.post(
+            "/api/v1/ontology/publish",
+            json={
+                "version": "api-test-0.2",
+                "description": "API integration ontology",
+                "published_by": "api-test",
+                "snapshot_id": build_result["snapshot"]["id"],
+            },
+        )
+        assert published.status_code == 200, published.text
+        assert published.json()["version"] == "api-test-0.2"
+        versions = client.get("/api/v1/ontology/versions")
+        assert versions.status_code == 200
+        assert versions.json()[0]["is_current"]
+
+        query_after_publish = client.post(
+            "/api/v1/query",
+            json={
+                "question": "查询近30天各分行信用卡交易金额和交易笔数。",
+                "query_mode": "ontology",
+            },
+        )
+        assert query_after_publish.status_code == 200, query_after_publish.text
+        assert query_after_publish.json()["execution_result"]["row_count"] > 0

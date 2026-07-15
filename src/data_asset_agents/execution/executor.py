@@ -38,6 +38,11 @@ class QueryExecutor:
         except SQLAlchemyError:
             return False
 
+    def set_ontology(self, ontology: OntologyBundle) -> None:
+        """Refresh execution validation after an ontology version is published."""
+
+        self.validator = SQLValidator(ontology)
+
     def execute(self, sql: str, allowed_tables: set[str]) -> ExecutionResult:
         report = self.validator.validate(sql, allowed_tables)
         if not report.valid:

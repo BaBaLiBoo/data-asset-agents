@@ -32,10 +32,10 @@ class Settings(BaseSettings):
     embedding_dimensions: int = Field(default=1024, ge=8, le=4096)
 
     ontology_path: Path = Path("ontology/retail_banking")
+    historical_sql_path: Path = Path("data/historical_sql/examples.json")
     api_base_url: str = "http://localhost:8000"
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
-

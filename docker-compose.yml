@@ -10,6 +10,7 @@ services:
     volumes:
       - minibank_data:/var/lib/postgresql/data
       - ./data/ddl/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+      - ./data/ddl/002_ontology_builder.sql:/docker-entrypoint-initdb.d/002_ontology_builder.sql:ro
       - ./data/seed/002_seed.sql:/docker-entrypoint-initdb.d/002_seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -38,6 +39,7 @@ services:
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1024}
       ONTOLOGY_PATH: ${ONTOLOGY_PATH:-ontology/retail_banking}
+      HISTORICAL_SQL_PATH: ${HISTORICAL_SQL_PATH:-data/historical_sql/examples.json}
     ports:
       - "8000:8000"
     depends_on:

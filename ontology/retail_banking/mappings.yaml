@@ -18,3 +18,41 @@
   table: dim_merchant
   columns: [merchant_id, merchant_name, merchant_category]
 
+# Online query resolution prefers these reviewed semantic-to-physical mappings.
+# Metric.base_table and Dimension.table remain compatibility fallbacks only.
+- concept_id: metric:transaction_amount
+  table: dwd_card_transaction
+  columns: [txn_amount_cny, transaction_status]
+- concept_id: metric:credit_card_transaction_amount
+  table: dwd_card_transaction
+  columns: [txn_amount_cny, card_type, transaction_status]
+- concept_id: metric:transaction_count
+  table: dwd_card_transaction
+  columns: [transaction_id, transaction_status]
+- concept_id: metric:credit_card_transaction_count
+  table: dwd_card_transaction
+  columns: [transaction_id, card_type, transaction_status]
+- concept_id: metric:active_customer_count
+  table: dwd_card_transaction
+  columns: [customer_id, transaction_status]
+- concept_id: metric:average_transaction_amount
+  table: dwd_card_transaction
+  columns: [txn_amount_cny, transaction_status]
+- concept_id: dimension:branch
+  table: dim_branch
+  columns: [branch_name]
+- concept_id: dimension:card_type
+  table: dim_card
+  columns: [card_type]
+- concept_id: dimension:transaction_channel
+  table: dwd_card_transaction
+  columns: [transaction_channel]
+- concept_id: dimension:transaction_date
+  table: dwd_card_transaction
+  columns: [transaction_date]
+- concept_id: dimension:customer_type
+  table: dim_customer
+  columns: [customer_type]
+- concept_id: dimension:merchant_category
+  table: dim_merchant
+  columns: [merchant_category]
