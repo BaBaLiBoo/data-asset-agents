@@ -1,7 +1,7 @@
 from typing import Any
 
 from data_asset_agents.core.errors import QueryExecutionError
-from data_asset_agents.execution.executor import ExecutorProtocol
+from data_asset_agents.execution.protocols import ExecutorProtocol
 from data_asset_agents.ontology.models import Dimension, Metric
 from data_asset_agents.ontology.service import OntologyService
 from data_asset_agents.sql_assets.repository import HistoricalSQLRepository

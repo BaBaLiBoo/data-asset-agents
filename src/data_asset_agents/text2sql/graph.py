@@ -3,7 +3,7 @@ from typing import Literal
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from data_asset_agents.execution.executor import ExecutorProtocol
+from data_asset_agents.execution.protocols import ExecutorProtocol
 from data_asset_agents.ontology.service import OntologyService
 from data_asset_agents.sql_assets.repository import HistoricalSQLRepository
 from data_asset_agents.text2sql.nodes import Text2SQLNodes

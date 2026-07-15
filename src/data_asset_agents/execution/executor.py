@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from time import perf_counter
-from typing import Any, Protocol
+from typing import Any
 
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -9,10 +9,6 @@ from data_asset_agents.core.config import Settings
 from data_asset_agents.core.errors import QueryExecutionError
 from data_asset_agents.text2sql.models import ExecutionResult
 from data_asset_agents.validation import SQLValidator
-
-
-class ExecutorProtocol(Protocol):
-    def execute(self, sql: str, allowed_tables: set[str]) -> ExecutionResult: ...
 
 
 class QueryExecutor:
@@ -63,4 +59,3 @@ class QueryExecutor:
             elapsed_ms=round((perf_counter() - started) * 1000, 2),
             explain_plan=[str(row[0]) for row in explain_rows],
         )
-

@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from data_asset_agents.core.config import get_settings
 from data_asset_agents.core.errors import DataAssetAgentsError
-from data_asset_agents.execution import QueryExecutor
+from data_asset_agents.execution.executor import QueryExecutor
 from data_asset_agents.ontology.repository import YamlOntologyRepository
 from data_asset_agents.ontology.service import OntologyService
 from data_asset_agents.text2sql.graph import GRAPH_EDGES, GRAPH_NODES, build_text2sql_graph
