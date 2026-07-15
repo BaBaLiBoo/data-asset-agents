@@ -3,7 +3,7 @@ import re
 from data_asset_agents.core.errors import UnsupportedQueryError
 from data_asset_agents.ontology.models import Dimension, Metric
 from data_asset_agents.ontology.service import OntologyService
-from data_asset_agents.text2sql.models import JoinPlan, SemanticQuery
+from data_asset_agents.text2sql.models import JoinPlan, QueryFilter, SemanticQuery
 
 IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -38,12 +38,31 @@ def _literal(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def _filter_predicate(
+    query_filter: QueryFilter,
+    base_table: str,
+    aliases: dict[str, str],
+) -> str:
+    table = query_filter.table or base_table
+    reference = _qualified(table, query_filter.field, aliases)
+    operator = query_filter.operator.upper()
+    if operator == "IN":
+        values = [item.strip() for item in query_filter.value.split(",") if item.strip()]
+        if not values:
+            raise UnsupportedQueryError("IN 筛选条件不能为空")
+        return f"{reference} IN ({', '.join(_literal(item) for item in values)})"
+    if operator not in {"=", "!=", ">", ">=", "<", "<="}:
+        raise UnsupportedQueryError(f"不支持的筛选操作符：{query_filter.operator}")
+    return f"{reference} {operator} {_literal(query_filter.value)}"
+
+
 def build_select_sql(
     ontology: OntologyService,
     semantic_query: SemanticQuery,
     metrics: list[Metric],
     dimensions: list[Dimension],
     join_plan: JoinPlan,
+    resolved_filters: list[QueryFilter] | None = None,
 ) -> str:
     """Compile reviewed semantic definitions into deterministic PostgreSQL SQL."""
 
@@ -91,12 +110,11 @@ def build_select_sql(
             f"{_qualified(metric.base_table, field, aliases)} = {_literal(value)}"
             for field, value in metric.required_filters.items()
         )
-    for query_filter in semantic_query.filters:
-        table = query_filter.table or base_table
-        predicates.append(
-            f"{_qualified(table, query_filter.field, aliases)} "
-            f"{query_filter.operator} {_literal(query_filter.value)}"
-        )
+    predicates.extend(
+        _filter_predicate(query_filter, base_table, aliases)
+        for query_filter in (resolved_filters or [])
+        if query_filter.source == "user"
+    )
 
     if semantic_query.time_range.kind == "relative_days":
         days = semantic_query.time_range.days
@@ -113,10 +131,38 @@ def build_select_sql(
             f"{_qualified(time_dimension.table, time_dimension.column, aliases)} "
             f">= CURRENT_DATE - INTERVAL '{days} days'"
         )
+    elif semantic_query.time_range.kind == "absolute":
+        time_dimensions = {metric.time_dimension for metric in metrics}
+        if None in time_dimensions or len(time_dimensions) != 1:
+            raise UnsupportedQueryError("指标缺少唯一、有效的审核时间维度")
+        time_dimension = ontology.dimensions_by_id.get(str(next(iter(time_dimensions))))
+        if time_dimension is None:
+            raise UnsupportedQueryError("未找到审核时间维度")
+        reference = _qualified(time_dimension.table, time_dimension.column, aliases)
+        if semantic_query.time_range.start:
+            predicates.append(
+                f"{reference} >= {_literal(str(semantic_query.time_range.start))}"
+            )
+        if semantic_query.time_range.end:
+            predicates.append(
+                f"{reference} <= {_literal(str(semantic_query.time_range.end))}"
+            )
 
     if predicates:
         sql_lines.append("WHERE " + " AND ".join(dict.fromkeys(predicates)))
     if groups:
         sql_lines.append("GROUP BY " + ", ".join(groups))
+    if semantic_query.order_by:
+        allowed_targets = {item.id for item in [*metrics, *dimensions]}
+        ordering: list[str] = []
+        for item in semantic_query.order_by:
+            if item.target not in allowed_targets or not IDENTIFIER.fullmatch(item.target):
+                raise UnsupportedQueryError(f"排序目标不是已选择的业务语义：{item.target}")
+            ordering.append(f"{item.target} {item.direction.upper()}")
+        sql_lines.append("ORDER BY " + ", ".join(ordering))
+    elif groups:
         sql_lines.append("ORDER BY " + ", ".join(groups))
+    limit = semantic_query.top_n or semantic_query.limit
+    if limit:
+        sql_lines.append(f"LIMIT {limit}")
     return "\n".join(sql_lines)

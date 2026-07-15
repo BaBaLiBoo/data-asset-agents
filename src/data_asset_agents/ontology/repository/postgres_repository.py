@@ -23,6 +23,8 @@ from data_asset_agents.ontology.models import (
     PhysicalMapping,
     ReviewStatus,
 )
+from data_asset_agents.ontology.retrieval import published_documents
+from data_asset_agents.text2sql.models import MatchedConcept
 
 CANDIDATE_MODELS = {
     "concept": CandidateConcept,
@@ -45,6 +47,7 @@ CANDIDATE_EDIT_FIELDS = {
         "concept_id",
         "table_name",
         "columns",
+        "column_bindings",
         "condition",
         "confidence",
         "evidence",
@@ -372,9 +375,48 @@ class PostgresOntologyRepository:
                     },
                 )
                 self._publish_rows(connection, version.id, bundle, attributes)
+                connection.execute(
+                    text(
+                        """
+                        INSERT INTO ontology_version_candidate
+                            (version_id, candidate_id, snapshot_id)
+                        VALUES (:version_id, :candidate_id, :snapshot_id)
+                        """
+                    ),
+                    [
+                        {
+                            "version_id": version.id,
+                            "candidate_id": candidate.id,
+                            "snapshot_id": request.snapshot_id,
+                        }
+                        for candidate in verified
+                    ],
+                )
         except SQLAlchemyError as exc:
             raise OntologyError(f"Ontology publication failed: {exc}") from exc
         return version
+
+    def prepare_publication(
+        self,
+        seed_bundle: OntologyBundle,
+        request: OntologyPublishRequest,
+    ) -> tuple[OntologyBundle, list[CandidateConcept], list[CandidateEnvelope]]:
+        if request.snapshot_id is None:
+            raise OntologyError("snapshot_id is required for a traceable publication")
+        verified = self.list_candidates(
+            status=ReviewStatus.VERIFIED,
+            snapshot_id=request.snapshot_id,
+            limit=10_000,
+        )
+        if not verified:
+            raise OntologyError(
+                "At least one verified candidate from the selected snapshot is "
+                "required to publish"
+            )
+        bundle, attributes = self._merge_verified(
+            seed_bundle, verified, request.version
+        )
+        return bundle, attributes, verified
 
     @staticmethod
     def _merge_verified(
@@ -435,6 +477,7 @@ class PostgresOntologyRepository:
                 concept_id=mapping.concept_id,
                 table=mapping.table_name,
                 columns=mapping.columns,
+                column_bindings=mapping.physical_bindings(),
                 condition=mapping.condition,
             )
         domain = dict(seed.domain)
@@ -542,6 +585,181 @@ class PostgresOntologyRepository:
         except SQLAlchemyError:
             return None
         return OntologyBundle.model_validate(payload) if payload is not None else None
+
+    def load_published_bundle(self, version: str) -> OntologyBundle | None:
+        try:
+            with self.engine.connect() as connection:
+                payload = connection.execute(
+                    text(
+                        """
+                        SELECT bundle_json
+                        FROM ontology_version
+                        WHERE version = :version AND status = 'PUBLISHED'
+                        """
+                    ),
+                    {"version": version},
+                ).scalar_one_or_none()
+        except SQLAlchemyError as exc:
+            raise OntologyError(f"Could not load ontology version {version}: {exc}") from exc
+        return OntologyBundle.model_validate(payload) if payload is not None else None
+
+    def get_current_version(self) -> OntologyVersion | None:
+        return next((item for item in self.list_versions() if item.is_current), None)
+
+    def activate_version(self, version: str) -> OntologyVersion:
+        try:
+            with self.engine.begin() as connection:
+                target = connection.execute(
+                    text(
+                        """
+                        SELECT version_id
+                        FROM ontology_version
+                        WHERE version = :version AND status = 'PUBLISHED'
+                        FOR UPDATE
+                        """
+                    ),
+                    {"version": version},
+                ).scalar_one_or_none()
+                if target is None:
+                    raise OntologyError(f"Published ontology version not found: {version}")
+                connection.execute(
+                    text("UPDATE ontology_version SET is_current = false WHERE is_current")
+                )
+                connection.execute(
+                    text(
+                        "UPDATE ontology_version SET is_current = true "
+                        "WHERE version_id = :version_id"
+                    ),
+                    {"version_id": target},
+                )
+        except SQLAlchemyError as exc:
+            raise OntologyError(f"Ontology activation failed: {exc}") from exc
+        activated = next(
+            (item for item in self.list_versions() if item.version == version),
+            None,
+        )
+        if activated is None:
+            raise OntologyError(f"Activated ontology version could not be read: {version}")
+        return activated
+
+    def rebuild_concept_index(
+        self,
+        version_id: str,
+        bundle: OntologyBundle,
+        vectors: list[list[float]],
+    ) -> None:
+        documents = published_documents(bundle)
+        if len(documents) != len(vectors):
+            raise OntologyError("Concept document and embedding counts do not match")
+        try:
+            with self.engine.begin() as connection:
+                connection.execute(text("DELETE FROM semantic_concept_index"))
+                if documents:
+                    connection.execute(
+                        text(
+                            """
+                            INSERT INTO semantic_concept_index
+                                (version_id, concept_id, concept_kind, name,
+                                 description, synonyms, embedding)
+                            VALUES
+                                (:version_id, :concept_id, :kind, :name,
+                                 :description, :synonyms, CAST(:embedding AS vector))
+                            """
+                        ),
+                        [
+                            {
+                                "version_id": version_id,
+                                "concept_id": document.id,
+                                "kind": document.kind,
+                                "name": document.name,
+                                "description": document.description,
+                                "synonyms": document.synonyms,
+                                "embedding": "[" + ",".join(map(str, vector)) + "]",
+                            }
+                            for document, vector in zip(documents, vectors, strict=True)
+                        ],
+                    )
+        except SQLAlchemyError as exc:
+            raise OntologyError(f"Published concept index rebuild failed: {exc}") from exc
+
+    def hybrid_search(
+        self,
+        query: str,
+        query_vector: list[float],
+        limit: int,
+    ) -> list[MatchedConcept]:
+        vector = "[" + ",".join(map(str, query_vector)) + "]"
+        try:
+            with self.engine.connect() as connection:
+                rows = connection.execute(
+                    text(
+                        """
+                        WITH scored AS (
+                            SELECT i.concept_id, i.concept_kind, i.name, i.synonyms,
+                                   CASE WHEN lower(i.name) = lower(:query) THEN 1.0
+                                        WHEN position(lower(i.name) in lower(:query)) > 0
+                                        THEN 0.92 ELSE 0.0 END AS exact_score,
+                                   CASE WHEN EXISTS (
+                                            SELECT 1 FROM unnest(i.synonyms) synonym
+                                            WHERE lower(synonym) = lower(:query)
+                                               OR position(lower(synonym) in lower(:query)) > 0
+                                        ) THEN 1.0 ELSE 0.0 END AS synonym_score,
+                                   LEAST(1.0, ts_rank(
+                                       i.search_document,
+                                       plainto_tsquery('simple', :query)
+                                   ) * 5.0) AS keyword_score,
+                                   GREATEST(0.0, 1 - (
+                                       i.embedding <=> CAST(:embedding AS vector)
+                                   )) AS vector_score
+                            FROM semantic_concept_index i
+                            JOIN ontology_version v ON v.version_id = i.version_id
+                            WHERE v.is_current AND v.status = 'PUBLISHED'
+                        )
+                        SELECT *, GREATEST(
+                            exact_score,
+                            synonym_score * 0.95,
+                            keyword_score * 0.55 + vector_score * 0.35
+                        ) AS score
+                        FROM scored
+                        WHERE GREATEST(
+                            exact_score,
+                            synonym_score * 0.95,
+                            keyword_score * 0.55 + vector_score * 0.35
+                        ) > 0
+                        ORDER BY score DESC, name
+                        LIMIT :limit
+                        """
+                    ),
+                    {"query": query, "embedding": vector, "limit": limit},
+                ).mappings()
+                results: list[MatchedConcept] = []
+                for row in rows:
+                    evidence: list[str] = []
+                    if row["exact_score"]:
+                        evidence.append("标准名称精确匹配")
+                    if row["synonym_score"]:
+                        evidence.append("已发布同义词匹配")
+                    if row["keyword_score"]:
+                        evidence.append(f"PostgreSQL 关键词得分：{row['keyword_score']:.3f}")
+                    if row["vector_score"]:
+                        evidence.append(f"pgvector 相似度：{row['vector_score']:.3f}")
+                    results.append(
+                        MatchedConcept(
+                            id=row["concept_id"],
+                            name=row["name"],
+                            kind=row["concept_kind"],
+                            matched_text=row["name"],
+                            score=float(row["score"]),
+                            evidence=evidence,
+                            exact_score=float(row["exact_score"]),
+                            synonym_score=float(row["synonym_score"]),
+                            keyword_score=float(row["keyword_score"]),
+                            vector_score=float(row["vector_score"]),
+                        )
+                    )
+                return results
+        except SQLAlchemyError as exc:
+            raise OntologyError(f"Published concept hybrid search failed: {exc}") from exc
 
     def list_versions(self) -> list[OntologyVersion]:
         with self.engine.connect() as connection:

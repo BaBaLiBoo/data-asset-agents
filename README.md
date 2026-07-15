@@ -1,6 +1,6 @@
 # Data Asset Agents
 
-Data Asset Agents 是一个面向企业数据资产研发场景的多智能体项目。本分支已完成 **Text-to-SQL MVP**，并实现第二阶段的**本体语义层离线构建、人工审核和版本化发布**：以已发布本体为在线事实源，使用 LangGraph 编排“概念理解、确定性资产映射、Join 规划、SQL 生成、校验、执行与解释”闭环。
+Data Asset Agents 是一个面向企业数据资产研发场景的多智能体项目。本分支已完成 **Text-to-SQL MVP**、**本体语义层离线构建与人工审核**，并加入发布契约、Dry Run、版本回滚、强类型 Semantic Query 和已发布概念混合检索：以当前发布本体为在线事实源，使用 LangGraph 编排“概念理解、确定性资产映射、Join 规划、SQL 生成、校验、执行与解释”闭环。
 
 > 安全声明：仓库中的 MiniBank、表结构、业务概念、SQL 和数据均为公开演示目的自行构造，与任何真实机构无关。禁止向本仓库提交真实数据、非公开表结构、非公开 SQL、非公开规则或 API Key。
 
@@ -30,6 +30,18 @@ Data Asset Agents 是一个面向企业数据资产研发场景的多智能体�
 - PostgreSQL 事务化版本发布，正式概念、指标、维度、属性、映射、Join、表生命周期和规则分表保存
 - 在线查询优先读取当前已发布 Physical Mapping；YAML 作为初始化种子和故障回退
 - Streamlit 提供元数据、历史 SQL 证据、候选编辑审核和版本发布工作台
+
+## 发布安全与在线语义能力
+
+- `PhysicalMapping.column_bindings` 明确描述语义角色到物理字段的绑定，不再按 `columns` 位置猜测；旧 YAML 可自动迁移
+- `OntologyContractValidator` 在发布前检查实际表字段、生命周期、Metric/Dimension 完整性、Join 连通性、候选审核状态和快照一致性
+- 发布 Dry Run 会构造候选 Bundle、编译固定基准问题、执行 SQLGlot 校验和 PostgreSQL `EXPLAIN`
+- 正式版本通过 `ontology_version_candidate` 保留审核候选来源；Dry Run 失败时不会进入发布事务
+- 支持激活或回滚任一已发布版本；切换后同步刷新 OntologyService、QueryExecutor、SQLValidator、概念索引和 LangGraph，并执行健康问题
+- mock/live 均输出强类型 Semantic Query；live 使用 LangChain Structured Output，模型只能选择业务语义 ID 或名称
+- 低置信度或有歧义的领域问题返回 `clarification_required`，不进入物理资产解析和 SQL 生成
+- 当前 `PUBLISHED` 版本的概念、指标、维度、语义属性支持名称、同义词、PostgreSQL 关键词及 pgvector 混合检索
+- mock 模式使用固定 1024 维 CPU 哈希向量；live 模式使用配置的 Embedding 客户端
 
 离线与在线边界：
 
@@ -111,12 +123,14 @@ docker compose down -v
 docker compose up --build -d
 ```
 
-如果需要保留已有演示数据，可在更新 Compose 容器后只执行第二阶段 DDL：
+如果需要保留已有演示数据，可在更新 Compose 容器后依次执行增量 DDL：
 
 ```powershell
 docker compose up -d postgres
 docker compose exec postgres psql -U minibank -d minibank `
   -f /docker-entrypoint-initdb.d/002_ontology_builder.sql
+docker compose exec postgres psql -U minibank -d minibank `
+  -f /docker-entrypoint-initdb.d/003_release_safety_and_search.sql
 ```
 
 ## 本地 Python 开发
@@ -170,7 +184,7 @@ EMBEDDING_API_KEY=your-key
 
 业务代码只依赖 LangChain 的 OpenAI 兼容适配器。`.env` 已被 Git 忽略，仓库只保留无密钥的 `.env.example`。
 
-注意：第一阶段在线查询节点尚未启用通用 live LLM 生成。`LLM_MODE=live` 只代表模型客户端配置可被创建，不代表系统已经具备任意问题生成能力；不支持的问题仍返回 HTTP 422 和 `status=unsupported`。
+`LLM_MODE=live` 会启用在线 Semantic Query Structured Output 和离线候选生成；SQL 仍由已发布本体确定性编译，不允许模型输出物理表、字段或 SQL。系统不具备任意问题生成能力；域外问题返回 `unsupported`，有业务相关词但含义不足的问题返回 `clarification_required`。
 
 第二阶段在 `LLM_MODE=live` 时通过现有 `ModelFactory` 创建 OpenAI 兼容 Chat Model，并使用 `with_structured_output` 生成候选语义；输出仍是 `CANDIDATE`，必须人工审核和显式发布。mock 模式使用确定性规则生成同结构候选，不需要 API Key。
 
@@ -192,7 +206,9 @@ EMBEDDING_API_KEY=your-key
 | POST | `/api/v1/ontology/candidates/{id}/verify` | 编辑并审核通过候选 |
 | POST | `/api/v1/ontology/candidates/{id}/reject` | 拒绝候选 |
 | POST | `/api/v1/ontology/publish` | 将已审核内容发布为正式版本 |
+| POST | `/api/v1/ontology/publish/validate` | 发布 Dry Run：契约、SQLGlot、EXPLAIN |
 | GET | `/api/v1/ontology/versions` | 查看正式本体版本 |
+| POST | `/api/v1/ontology/versions/{version}/activate` | 激活或回滚已发布版本 |
 | GET | `/api/v1/graph` | 查看节点与边 |
 
 不支持问题的响应示例：
@@ -251,7 +267,8 @@ pytest
 1. 开始离线构建，查看元数据快照、字段统计、脱敏样例和历史 SQL 证据。
 2. 分别审核 Concept、Mapping 和 Join 候选；可编辑业务名称、语义属性和同义词。
 3. 只有所选元数据快照中的 `VERIFIED` 候选具备发布资格；不同快照的审核结果不会混入同一版本，`CANDIDATE` 和 `REJECTED` 永远不会被在线查询读取。
-4. 发布新版本后，API 原子切换到该版本并重建在线 Text-to-SQL Graph。
+4. 先执行 Dry Run；只有契约、SQLGlot 和 PostgreSQL `EXPLAIN` 全部通过才能正式发布。
+5. 发布或回滚后，API 切换当前版本，重建概念向量索引、Validator 和 Text-to-SQL Graph，并运行基础健康问题。
 
 以下旧脚本仅用于把 YAML 种子概念同步到兼容表，不等同于第二阶段版本发布：
 
@@ -265,10 +282,10 @@ YAML 是初始化种子和故障回退；在线事实源是 PostgreSQL 中当前
 
 ## 当前边界
 
-- 仅保证已审核指标、维度及其同义表达的确定性 mock 闭环；未识别问题会明确返回 unsupported，不会生成占位 SQL。
+- 仅保证已发布指标、维度及其同义表达的闭环；域外问题返回 unsupported，低置信度问题要求澄清，不会生成占位 SQL。
 - `ontology` 是第一阶段唯一真实实现的查询模式；`rag`、`schema` 仅保留接口和前端选项，当前复用同一 ontology 链路，不代表独立能力。
-- pgvector 表结构与模型适配已准备，但概念与历史 SQL 仍使用本地规则排序，尚未实现真实向量召回。
+- 混合检索只索引当前发布的标准业务语义，绝不使用向量直接搜索或选择物理表；历史 SQL 仍沿用认证示例检索。
 - 本轮实现的是受控离线构建，不是无人值守的“自动本体”：业务骨架仍来自人工定义，LLM 只生成候选，发布必须人工审核。
 - 自动修复仅支持补齐校验器明确指出的必要指标过滤条件；字段错误、未审核 Join、禁用表和数据库执行错误不会被猜测性修改。
-- 尚未实现本体版本回滚、细粒度权限、多人审批、版本签名、完整审计检索和评测平台。
+- 已实现版本激活和回滚，但尚未实现细粒度权限、多人审批、版本签名、完整审计检索和评测平台。
 - 不实现 OWL、RDF、SPARQL、Neo4j、多事实表 SQL、复杂 LLM SQL 修复或其他 Agent。

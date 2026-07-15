@@ -170,11 +170,19 @@ class CandidateMapping(BaseModel):
     concept_id: str
     table_name: str
     columns: list[str]
+    column_bindings: dict[str, str] = Field(default_factory=dict)
     condition: str | None = None
     confidence: float = Field(ge=0, le=1)
     evidence: list[str] = Field(default_factory=list)
     status: ReviewStatus = ReviewStatus.CANDIDATE
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    def physical_bindings(self) -> dict[str, str]:
+        if self.column_bindings:
+            return self.column_bindings
+        if self.concept_id.startswith("dimension:") and len(self.columns) == 1:
+            return {"value": self.columns[0]}
+        return {column: column for column in self.columns}
 
 
 class CandidateJoin(BaseModel):
@@ -245,3 +253,34 @@ class OntologyPublishRequest(BaseModel):
     description: str = Field(default="", max_length=1000)
     published_by: str = Field(min_length=1, max_length=100)
     snapshot_id: str | None = None
+
+
+class ContractCheck(BaseModel):
+    code: str
+    passed: bool
+    message: str
+    candidate_id: str | None = None
+    table: str | None = None
+    column: str | None = None
+
+
+class OntologyContractReport(BaseModel):
+    valid: bool
+    checks: list[ContractCheck] = Field(default_factory=list)
+
+    @property
+    def errors(self) -> list[str]:
+        return [check.message for check in self.checks if not check.passed]
+
+
+class PublishDryRunReport(BaseModel):
+    valid: bool
+    version: str
+    snapshot_id: str
+    candidate_ids: list[str] = Field(default_factory=list)
+    contract: OntologyContractReport
+    generated_sql: str | None = None
+    sqlglot_valid: bool = False
+    explain_passed: bool = False
+    explain_plan: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)

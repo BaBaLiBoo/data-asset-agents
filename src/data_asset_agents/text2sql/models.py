@@ -20,12 +20,45 @@ class QueryFilter(BaseModel):
     source: Literal["user", "metric_policy", "system"] = "user"
 
 
+class SemanticFilter(BaseModel):
+    concept_id: str
+    operator: Literal["=", "!=", ">", ">=", "<", "<=", "IN"] = "="
+    value: str | list[str]
+
+
+class SemanticOrderBy(BaseModel):
+    target: str
+    direction: Literal["asc", "desc"] = "desc"
+
+
 class SemanticQuery(BaseModel):
+    metric_ids: list[str] = Field(default_factory=list)
+    dimension_ids: list[str] = Field(default_factory=list)
     metric_names: list[str] = Field(default_factory=list)
     dimension_names: list[str] = Field(default_factory=list)
-    filters: list[QueryFilter] = Field(default_factory=list)
+    filters: list[SemanticFilter] = Field(default_factory=list)
     time_range: TimeRange = Field(default_factory=TimeRange)
+    order_by: list[SemanticOrderBy] = Field(default_factory=list)
+    limit: int | None = Field(default=None, ge=1, le=1000)
+    top_n: int | None = Field(default=None, ge=1, le=1000)
     intent: Literal["aggregate", "detail", "unknown"] = "unknown"
+    confidence: float = Field(default=0.0, ge=0, le=1)
+    clarification_required: bool = False
+    clarification_question: str | None = None
+
+
+class SemanticQueryDraft(BaseModel):
+    """Provider-neutral Structured Output; physical identifiers are forbidden."""
+
+    metrics: list[str] = Field(default_factory=list)
+    dimensions: list[str] = Field(default_factory=list)
+    filters: list[SemanticFilter] = Field(default_factory=list)
+    time_range: TimeRange = Field(default_factory=TimeRange)
+    order_by: list[SemanticOrderBy] = Field(default_factory=list)
+    limit: int | None = Field(default=None, ge=1, le=1000)
+    top_n: int | None = Field(default=None, ge=1, le=1000)
+    intent: Literal["aggregate", "detail", "unknown"] = "unknown"
+    confidence: float = Field(default=0.0, ge=0, le=1)
 
 
 class MatchedConcept(BaseModel):
@@ -34,6 +67,11 @@ class MatchedConcept(BaseModel):
     kind: str
     matched_text: str
     score: float = Field(ge=0, le=1)
+    evidence: list[str] = Field(default_factory=list)
+    exact_score: float = Field(default=0, ge=0, le=1)
+    synonym_score: float = Field(default=0, ge=0, le=1)
+    keyword_score: float = Field(default=0, ge=0, le=1)
+    vector_score: float = Field(default=0, ge=0, le=1)
 
 
 class RejectedTable(BaseModel):
@@ -117,7 +155,9 @@ class SemanticResolveRequest(BaseModel):
 class QueryResponse(BaseModel):
     question: str
     query_mode: str
-    status: Literal["success", "unsupported", "failed"] = "success"
+    status: Literal["success", "unsupported", "clarification_required", "failed"] = (
+        "success"
+    )
     error_code: str | None = None
     unsupported_reason: str | None = None
     semantic_query: SemanticQuery | None = None

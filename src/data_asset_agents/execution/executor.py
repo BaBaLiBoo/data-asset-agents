@@ -70,3 +70,23 @@ class QueryExecutor:
             elapsed_ms=round((perf_counter() - started) * 1000, 2),
             explain_plan=[str(row[0]) for row in explain_rows],
         )
+
+    def explain(self, sql: str, allowed_tables: set[str]) -> list[str]:
+        """Run PostgreSQL EXPLAIN without executing the proposed query."""
+
+        report = self.validator.validate(sql, allowed_tables)
+        if not report.valid:
+            raise QueryExecutionError("; ".join(report.errors))
+        try:
+            with self.engine.connect() as connection, connection.begin():
+                connection.execute(text("SET TRANSACTION READ ONLY"))
+                connection.execute(
+                    text(
+                        f"SET LOCAL statement_timeout = "
+                        f"{self.settings.sql_statement_timeout_ms}"
+                    )
+                )
+                rows: Sequence[Any] = connection.execute(text(f"EXPLAIN {sql}")).fetchall()
+        except SQLAlchemyError as exc:
+            raise QueryExecutionError(f"PostgreSQL EXPLAIN failed: {exc}") from exc
+        return [str(row[0]) for row in rows]

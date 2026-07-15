@@ -1,58 +1,76 @@
 - concept_id: customer
   table: dim_customer
   columns: [customer_id, customer_type]
+  column_bindings: {customer_id: customer_id, customer_type: customer_type}
 - concept_id: account
   table: dim_account
   columns: [account_id, customer_id, account_type]
+  column_bindings: {account_id: account_id, customer_id: customer_id, account_type: account_type}
 - concept_id: card
   table: dim_card
   columns: [card_id, account_id, card_type]
+  column_bindings: {card_id: card_id, account_id: account_id, card_type: card_type}
 - concept_id: transaction
   table: dwd_card_transaction
   columns: [transaction_id, txn_amount, txn_amount_cny, transaction_status, transaction_date]
+  column_bindings: {transaction_id: transaction_id, amount: txn_amount_cny, status: transaction_status, event_time: transaction_date}
   condition: transaction_status = 'POSTED'
 - concept_id: branch
   table: dim_branch
   columns: [branch_id, branch_name]
+  column_bindings: {branch_id: branch_id, name: branch_name}
 - concept_id: merchant
   table: dim_merchant
   columns: [merchant_id, merchant_name, merchant_category]
+  column_bindings: {merchant_id: merchant_id, name: merchant_name, category: merchant_category}
 
 # Online query resolution prefers these reviewed semantic-to-physical mappings.
 # Metric.base_table and Dimension.table remain compatibility fallbacks only.
 - concept_id: metric:transaction_amount
   table: dwd_card_transaction
   columns: [txn_amount_cny, transaction_status]
+  column_bindings: {amount: txn_amount_cny, status: transaction_status, event_time: transaction_date}
 - concept_id: metric:credit_card_transaction_amount
   table: dwd_card_transaction
   columns: [txn_amount_cny, card_type, transaction_status]
+  column_bindings: {amount: txn_amount_cny, card_type: card_type, status: transaction_status, event_time: transaction_date}
 - concept_id: metric:transaction_count
   table: dwd_card_transaction
   columns: [transaction_id, transaction_status]
+  column_bindings: {transaction_id: transaction_id, status: transaction_status, event_time: transaction_date}
 - concept_id: metric:credit_card_transaction_count
   table: dwd_card_transaction
   columns: [transaction_id, card_type, transaction_status]
+  column_bindings: {transaction_id: transaction_id, card_type: card_type, status: transaction_status, event_time: transaction_date}
 - concept_id: metric:active_customer_count
   table: dwd_card_transaction
   columns: [customer_id, transaction_status]
+  column_bindings: {customer_id: customer_id, status: transaction_status, event_time: transaction_date}
 - concept_id: metric:average_transaction_amount
   table: dwd_card_transaction
   columns: [txn_amount_cny, transaction_status]
+  column_bindings: {amount: txn_amount_cny, status: transaction_status, event_time: transaction_date}
 - concept_id: dimension:branch
   table: dim_branch
   columns: [branch_name]
+  column_bindings: {value: branch_name}
 - concept_id: dimension:card_type
   table: dim_card
   columns: [card_type]
+  column_bindings: {value: card_type}
 - concept_id: dimension:transaction_channel
   table: dwd_card_transaction
   columns: [transaction_channel]
+  column_bindings: {value: transaction_channel}
 - concept_id: dimension:transaction_date
   table: dwd_card_transaction
   columns: [transaction_date]
+  column_bindings: {value: transaction_date}
 - concept_id: dimension:customer_type
   table: dim_customer
   columns: [customer_type]
+  column_bindings: {value: customer_type}
 - concept_id: dimension:merchant_category
   table: dim_merchant
   columns: [merchant_category]
+  column_bindings: {value: merchant_category}

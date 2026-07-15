@@ -1,7 +1,7 @@
 import os
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 from data_asset_agents.core.config import Settings
 from data_asset_agents.core.errors import OntologyError
@@ -82,6 +82,15 @@ def test_reviewed_publication_is_versioned_and_candidate_isolated() -> None:
             )
         )
         assert version.is_current
+        with engine.connect() as connection:
+            linked_candidates = connection.execute(
+                text(
+                    "SELECT count(*) FROM ontology_version_candidate "
+                    "WHERE version_id = :version_id"
+                ),
+                {"version_id": version.id},
+            ).scalar_one()
+        assert linked_candidates == 2
         published = runtime.load_latest_published_bundle()
         assert published is not None
         mapping_ids = {mapping.concept_id for mapping in published.mappings}

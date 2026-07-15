@@ -19,6 +19,7 @@ from data_asset_agents.ontology.models import (
     OntologyBuildResult,
     OntologyPublishRequest,
     OntologyVersion,
+    PublishDryRunReport,
     ReviewStatus,
 )
 from data_asset_agents.ontology.repository import (
@@ -46,17 +47,24 @@ async def lifespan(app: FastAPI):
         connect_args={"connect_timeout": settings.database_connect_timeout},
     )
     runtime_repository = PostgresOntologyRepository(engine)
+    yaml_repository = YamlOntologyRepository(settings.ontology_path)
+    model_factory = ModelFactory(settings)
     ontology = OntologyService(
-        YamlOntologyRepository(settings.ontology_path), runtime_repository
+        yaml_repository,
+        runtime_repository,
+        settings=settings,
+        model_factory=model_factory,
     )
     executor = QueryExecutor(settings, ontology.bundle, engine=engine)
     builder = OntologyBuildService(
         inspector=MetadataInspector(engine),
         sql_parser=HistoricalSQLParser(),
-        generator=CandidateGenerator(settings, ModelFactory(settings)),
+        generator=CandidateGenerator(settings, model_factory),
         repository=runtime_repository,
         seed_bundle=ontology.seed_bundle,
         historical_sql_path=settings.historical_sql_path,
+        executor=executor,
+        yaml_repository=yaml_repository,
     )
     app.state.ontology = ontology
     app.state.executor = executor
@@ -232,19 +240,80 @@ def reject_ontology_candidate(
 def publish_ontology(
     payload: OntologyPublishRequest, request: Request
 ) -> OntologyVersion:
+    previous = request.app.state.ontology_repository.get_current_version()
     version = request.app.state.ontology_builder.publish(payload)
-    if not request.app.state.ontology.reload_published():
-        raise HTTPException(status_code=500, detail="Published ontology could not be loaded")
-    request.app.state.executor.set_ontology(request.app.state.ontology.bundle)
-    request.app.state.graph = build_text2sql_graph(
-        request.app.state.ontology, request.app.state.executor
-    )
+    try:
+        _activate_runtime(request.app, version)
+    except Exception as exc:
+        if previous is not None:
+            request.app.state.ontology_repository.activate_version(previous.version)
+            _activate_runtime(request.app, previous)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Published version failed runtime activation and was rolled back: {exc}",
+        ) from exc
     return version
+
+
+@app.post(
+    "/api/v1/ontology/publish/validate",
+    response_model=PublishDryRunReport,
+)
+def validate_ontology_publish(
+    payload: OntologyPublishRequest,
+    request: Request,
+) -> PublishDryRunReport:
+    return request.app.state.ontology_builder.validate_publish(payload)
 
 
 @app.get("/api/v1/ontology/versions", response_model=list[OntologyVersion])
 def ontology_versions(request: Request) -> list[OntologyVersion]:
     return request.app.state.ontology_builder.versions()
+
+
+@app.post(
+    "/api/v1/ontology/versions/{version}/activate",
+    response_model=OntologyVersion,
+)
+def activate_ontology_version(version: str, request: Request) -> OntologyVersion:
+    previous = request.app.state.ontology_repository.get_current_version()
+    activated = request.app.state.ontology_builder.activate(version)
+    try:
+        _activate_runtime(request.app, activated)
+    except Exception as exc:
+        if previous is not None:
+            request.app.state.ontology_repository.activate_version(previous.version)
+            _activate_runtime(request.app, previous)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ontology activation failed health checks and was rolled back: {exc}",
+        ) from exc
+    return activated
+
+
+def _activate_runtime(app_instance: FastAPI, version: OntologyVersion) -> None:
+    """Reload all online consumers and prove the target benchmark remains healthy."""
+
+    if not app_instance.state.ontology.reload_version(version.version):
+        raise RuntimeError(f"Ontology version could not be loaded: {version.version}")
+    app_instance.state.executor.set_ontology(app_instance.state.ontology.bundle)
+    app_instance.state.ontology.rebuild_search_index(version.id)
+    candidate_graph = build_text2sql_graph(
+        app_instance.state.ontology, app_instance.state.executor
+    )
+    if not app_instance.state.executor.ping():
+        raise RuntimeError("Database health check failed after ontology activation")
+    health_result = candidate_graph.invoke(
+        {
+            "question": "查询近30天各分行信用卡交易金额和交易笔数。",
+            "query_mode": "ontology",
+            "retry_count": 0,
+            "trace_steps": [],
+        }
+    )
+    if health_result.get("status") != "success":
+        raise RuntimeError("Target Text-to-SQL health query failed after activation")
+    app_instance.state.graph = candidate_graph
 
 
 @app.get("/api/v1/graph")

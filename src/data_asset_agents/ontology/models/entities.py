@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -33,10 +33,59 @@ class Dimension(BaseModel):
 
 
 class PhysicalMapping(BaseModel):
+    """Deterministic semantic-role to physical-column binding.
+
+    ``columns`` remains a read-compatible migration field. New code resolves
+    fields exclusively through ``column_bindings`` and never by list position.
+    """
+
     concept_id: str
     table: str
-    columns: list[str]
+    column_bindings: dict[str, str] = Field(default_factory=dict)
+    columns: list[str] = Field(default_factory=list)
     condition: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_columns(cls, value: Any) -> Any:
+        if not isinstance(value, dict) or value.get("column_bindings"):
+            return value
+        migrated = dict(value)
+        columns = list(migrated.get("columns") or [])
+        concept_id = str(migrated.get("concept_id", ""))
+        if concept_id.startswith("dimension:") and len(columns) == 1:
+            migrated["column_bindings"] = {"value": columns[0]}
+        elif concept_id.startswith("metric:"):
+            bindings: dict[str, str] = {}
+            for column in columns:
+                lowered = column.lower()
+                if "amount" in lowered:
+                    bindings["amount"] = column
+                elif lowered == "transaction_id":
+                    bindings["transaction_id"] = column
+                elif lowered == "customer_id":
+                    bindings["customer_id"] = column
+                elif "status" in lowered:
+                    bindings["status"] = column
+                elif lowered == "card_type":
+                    bindings["card_type"] = column
+                elif any(token in lowered for token in ("date", "time")):
+                    bindings["event_time"] = column
+                else:
+                    bindings[column] = column
+            migrated["column_bindings"] = bindings
+        else:
+            migrated["column_bindings"] = {column: column for column in columns}
+        return migrated
+
+    @model_validator(mode="after")
+    def synchronize_compatibility_columns(self) -> "PhysicalMapping":
+        if not self.columns:
+            self.columns = list(dict.fromkeys(self.column_bindings.values()))
+        return self
+
+    def column_for(self, semantic_role: str) -> str | None:
+        return self.column_bindings.get(semantic_role)
 
 
 class JoinDefinition(BaseModel):

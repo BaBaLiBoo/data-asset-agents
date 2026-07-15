@@ -103,6 +103,7 @@ class CandidateGenerator:
                         concept_id=semantic_id,
                         table_name=profile.table_name,
                         columns=[profile.column_name],
+                        column_bindings={"value": profile.column_name},
                         confidence=output.confidence,
                         evidence=[
                             f"来源字段 {profile.table_name}.{profile.column_name}",

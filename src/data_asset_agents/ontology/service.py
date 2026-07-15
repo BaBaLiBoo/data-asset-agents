@@ -1,43 +1,59 @@
-import re
-from collections.abc import Iterable
+from __future__ import annotations
 
+import re
+
+from data_asset_agents.core.config import Settings
 from data_asset_agents.core.errors import OntologyError
+from data_asset_agents.llm.factory import ModelFactory
 from data_asset_agents.ontology.models import (
     BusinessConcept,
     Dimension,
     Metric,
     OntologyBundle,
+    PhysicalMapping,
     TableAsset,
 )
 from data_asset_agents.ontology.repository import YamlOntologyRepository
 from data_asset_agents.ontology.repository.postgres_repository import (
     PostgresOntologyRepository,
 )
+from data_asset_agents.ontology.retrieval import (
+    HybridConceptRetriever,
+    deterministic_embedding,
+    published_documents,
+)
 from data_asset_agents.text2sql.models import (
     MatchedConcept,
     QueryFilter,
     RejectedTable,
     SemanticQuery,
-    TimeRange,
 )
+from data_asset_agents.text2sql.semantic_parser import SemanticQueryParser
 
 
 class OntologyService:
-    """Ontology-first parsing, concept lookup, and deterministic physical resolution."""
+    """Published-ontology parsing, concept retrieval and physical resolution."""
 
     def __init__(
         self,
         repository: YamlOntologyRepository,
         runtime_repository: PostgresOntologyRepository | None = None,
+        settings: Settings | None = None,
+        model_factory: ModelFactory | None = None,
+        bundle_override: OntologyBundle | None = None,
     ) -> None:
         self.repository = repository
         self.runtime_repository = runtime_repository
+        self.settings = settings or Settings()
+        self.model_factory = model_factory or ModelFactory(self.settings)
         self.seed_bundle: OntologyBundle = repository.load()
-        self.bundle: OntologyBundle = (
+        self.bundle: OntologyBundle = bundle_override or (
             runtime_repository.load_latest_published_bundle()
             if runtime_repository is not None
             else None
         ) or self.seed_bundle
+        self.semantic_parser = SemanticQueryParser(self.settings, self.model_factory)
+        self.retriever = HybridConceptRetriever(self.settings.embedding_dimensions)
         self._refresh_indexes()
 
     def _refresh_indexes(self) -> None:
@@ -49,6 +65,7 @@ class OntologyService:
             self._resolve_dimension(dimension) for dimension in self.bundle.dimensions
         ]
         self.metrics_by_name = {metric.name: metric for metric in resolved_metrics}
+        self.metrics_by_id = {metric.id: metric for metric in resolved_metrics}
         self.dimensions_by_name = {
             dimension.name: dimension for dimension in resolved_dimensions
         }
@@ -57,55 +74,58 @@ class OntologyService:
         }
         self.tables_by_name = {table.name: table for table in self.bundle.tables}
 
+    @staticmethod
+    def _compile_expression(metric: Metric, mapping: PhysicalMapping) -> str:
+        expression = metric.expression
+        placeholders = set(re.findall(r"\{([A-Za-z_][A-Za-z0-9_]*)\}", expression))
+        for role in placeholders:
+            physical = mapping.column_for(role)
+            if physical is None:
+                raise OntologyError(
+                    f"Metric {metric.id} is missing physical binding for role {role}"
+                )
+            expression = expression.replace(f"{{{role}}}", f"{mapping.table}.{physical}")
+        if not placeholders:
+            expression = expression.replace(f"{metric.base_table}.", f"{mapping.table}.")
+            for semantic_column, physical_column in mapping.column_bindings.items():
+                expression = expression.replace(
+                    f"{mapping.table}.{semantic_column}",
+                    f"{mapping.table}.{physical_column}",
+                )
+        return expression
+
     def _resolve_metric(self, metric: Metric) -> Metric:
-        concept_id = f"metric:{metric.id}"
-        mapping = self.mappings_by_concept_id.get(concept_id)
+        mapping = self.mappings_by_concept_id.get(f"metric:{metric.id}")
         if mapping is None:
             return metric
-        expression = metric.expression.replace(
-            f"{metric.base_table}.", f"{mapping.table}."
-        )
-        seed_mapping = next(
-            (
-                item
-                for item in self.seed_bundle.mappings
-                if item.concept_id == concept_id
-            ),
-            None,
-        )
-        column_renames = (
-            dict(zip(seed_mapping.columns, mapping.columns, strict=False))
-            if seed_mapping is not None
-            else {}
-        )
-        for old_column, new_column in column_renames.items():
-            expression = expression.replace(
-                f"{mapping.table}.{old_column}",
-                f"{mapping.table}.{new_column}",
-            )
-        required_filters = {
-            column_renames.get(field, field): value
-            for field, value in metric.required_filters.items()
-        }
+        required_filters: dict[str, str] = {}
+        for semantic_role, value in metric.required_filters.items():
+            physical = mapping.column_for(semantic_role)
+            if physical is None:
+                raise OntologyError(
+                    f"Metric {metric.id} is missing filter binding for {semantic_role}"
+                )
+            required_filters[physical] = value
         return metric.model_copy(
             update={
                 "base_table": mapping.table,
-                "expression": expression,
+                "expression": self._compile_expression(metric, mapping),
                 "required_filters": required_filters,
             }
         )
 
     def _resolve_dimension(self, dimension: Dimension) -> Dimension:
         mapping = self.mappings_by_concept_id.get(f"dimension:{dimension.id}")
-        if mapping is None or not mapping.columns:
+        if mapping is None:
             return dimension
-        return dimension.model_copy(
-            update={"table": mapping.table, "column": mapping.columns[0]}
-        )
+        column = mapping.column_for("value")
+        if column is None:
+            raise OntologyError(
+                f"Dimension {dimension.id} must define one explicit value binding"
+            )
+        return dimension.model_copy(update={"table": mapping.table, "column": column})
 
     def reload_published(self) -> bool:
-        """Atomically switch online resolution to the latest published version."""
-
         if self.runtime_repository is None:
             return False
         published = self.runtime_repository.load_latest_published_bundle()
@@ -115,91 +135,106 @@ class OntologyService:
         self._refresh_indexes()
         return True
 
-    @staticmethod
-    def _matches(question: str, name: str, synonyms: Iterable[str]) -> tuple[bool, str]:
-        for phrase in sorted([name, *synonyms], key=len, reverse=True):
-            if phrase.lower() in question.lower():
-                return True, phrase
-        return False, ""
+    def reload_version(self, version: str) -> bool:
+        if self.runtime_repository is None:
+            return False
+        published = self.runtime_repository.load_published_bundle(version)
+        if published is None:
+            return False
+        self.bundle = published
+        self._refresh_indexes()
+        return True
 
     def parse(self, question: str) -> SemanticQuery:
-        metric_names: list[str] = []
-        dimension_names: list[str] = []
-        for metric in self.bundle.metrics:
-            matched, _ = self._matches(question, metric.name, metric.synonyms)
-            if matched:
-                metric_names.append(metric.name)
-        credit_context = any(term in question for term in ("信用卡", "贷记卡", "消费"))
-        if credit_context and "交易笔数" in metric_names:
-            metric_names.remove("交易笔数")
-            metric_names.append("信用卡交易笔数")
-        if credit_context and "交易金额" in metric_names:
-            metric_names.remove("交易金额")
-            metric_names.append("信用卡交易金额")
-        metric_names = list(dict.fromkeys(metric_names))
-        # Prefer the most specific metric when a generic name is a substring.
-        if "信用卡交易金额" in metric_names and "交易金额" in metric_names:
-            metric_names.remove("交易金额")
-        if "信用卡交易笔数" in metric_names and "交易笔数" in metric_names:
-            metric_names.remove("交易笔数")
-        for dimension in self.bundle.dimensions:
-            matched, _ = self._matches(question, dimension.name, dimension.synonyms)
-            if matched:
-                dimension_names.append(dimension.name)
-
-        days = None
-        match = re.search(r"(?:近|最近)\s*(\d+)\s*天", question)
-        if match:
-            days = int(match.group(1))
-        time_range = TimeRange(
-            kind="relative_days" if days else "none",
-            days=days,
-            original_text=match.group(0) if match else None,
-        )
-        return SemanticQuery(
-            metric_names=metric_names,
-            dimension_names=dimension_names,
-            time_range=time_range,
-            intent="aggregate" if metric_names else "unknown",
-        )
+        return self.semantic_parser.parse(question, self.bundle)
 
     def search(self, text: str, limit: int = 10) -> list[MatchedConcept]:
-        results: list[MatchedConcept] = []
-        searchable: list[tuple[str, str, str, list[str]]] = []
-        searchable.extend((c.id, c.name, c.kind, c.synonyms) for c in self.bundle.concepts)
-        searchable.extend((m.id, m.name, "metric", m.synonyms) for m in self.bundle.metrics)
-        searchable.extend((d.id, d.name, "dimension", d.synonyms) for d in self.bundle.dimensions)
-        seen: set[str] = set()
-        for concept_id, name, kind, synonyms in searchable:
-            identity = f"{kind}:{concept_id}"
-            if identity in seen:
-                continue
-            matched, phrase = self._matches(text, name, synonyms)
-            if matched:
-                seen.add(identity)
-                score = 1.0 if phrase == name else 0.95
-                results.append(
-                    MatchedConcept(
-                        id=concept_id,
-                        name=name,
-                        kind=kind,
-                        matched_text=phrase,
-                        score=score,
-                    )
+        if self.runtime_repository is not None and hasattr(
+            self.runtime_repository, "hybrid_search"
+        ):
+            try:
+                results = self.runtime_repository.hybrid_search(
+                    text, self._embed_query(text), limit
                 )
-        return sorted(results, key=lambda item: item.score, reverse=True)[:limit]
+                if results:
+                    return results
+            except OntologyError:
+                pass
+        return self.retriever.search(self.bundle, text, limit)
+
+    def _embed_query(self, text: str) -> list[float]:
+        if (
+            self.settings.llm_mode == "live"
+            and self.settings.embedding_api_key.get_secret_value()
+        ):
+            return self.model_factory.embeddings().embed_query(text)
+        return deterministic_embedding(text, self.settings.embedding_dimensions)
+
+    def rebuild_search_index(self, version_id: str) -> None:
+        if self.runtime_repository is None:
+            return
+        documents = published_documents(self.bundle)
+        texts = [document.text for document in documents]
+        if (
+            self.settings.llm_mode == "live"
+            and self.settings.embedding_api_key.get_secret_value()
+        ):
+            vectors = self.model_factory.embeddings().embed_documents(texts)
+        else:
+            vectors = [
+                deterministic_embedding(text, self.settings.embedding_dimensions)
+                for text in texts
+            ]
+        self.runtime_repository.rebuild_concept_index(
+            version_id, self.bundle, vectors
+        )
 
     def get_metrics(self, semantic_query: SemanticQuery) -> list[Metric]:
         try:
+            if semantic_query.metric_ids:
+                return [self.metrics_by_id[item] for item in semantic_query.metric_ids]
             return [self.metrics_by_name[name] for name in semantic_query.metric_names]
         except KeyError as exc:
-            raise OntologyError(f"Unknown reviewed metric: {exc.args[0]}") from exc
+            raise OntologyError(f"Unknown published metric: {exc.args[0]}") from exc
 
     def get_dimensions(self, semantic_query: SemanticQuery) -> list[Dimension]:
         try:
+            if semantic_query.dimension_ids:
+                return [self.dimensions_by_id[item] for item in semantic_query.dimension_ids]
             return [self.dimensions_by_name[name] for name in semantic_query.dimension_names]
         except KeyError as exc:
-            raise OntologyError(f"Unknown reviewed dimension: {exc.args[0]}") from exc
+            raise OntologyError(f"Unknown published dimension: {exc.args[0]}") from exc
+
+    def _resolve_user_filters(self, semantic_query: SemanticQuery) -> list[QueryFilter]:
+        filters: list[QueryFilter] = []
+        for semantic_filter in semantic_query.filters:
+            mapping = self.mappings_by_concept_id.get(semantic_filter.concept_id)
+            if mapping is None and not semantic_filter.concept_id.startswith("dimension:"):
+                mapping = self.mappings_by_concept_id.get(
+                    f"dimension:{semantic_filter.concept_id}"
+                )
+            if mapping is None:
+                raise OntologyError(
+                    f"Unknown published filter concept: {semantic_filter.concept_id}"
+                )
+            column = mapping.column_for("value")
+            if column is None and len(mapping.column_bindings) == 1:
+                column = next(iter(mapping.column_bindings.values()))
+            if column is None:
+                raise OntologyError(
+                    f"Filter concept {semantic_filter.concept_id} has no unambiguous binding"
+                )
+            value = semantic_filter.value
+            filters.append(
+                QueryFilter(
+                    table=mapping.table,
+                    field=column,
+                    operator=semantic_filter.operator,
+                    value=", ".join(value) if isinstance(value, list) else value,
+                    source="user",
+                )
+            )
+        return filters
 
     def resolve(self, semantic_query: SemanticQuery) -> dict[str, object]:
         metrics = self.get_metrics(semantic_query)
@@ -212,7 +247,7 @@ class OntologyService:
                 dimension = self.dimensions_by_id.get(metric.time_dimension)
                 if dimension is None:
                     raise OntologyError(
-                        f"Unknown reviewed time dimension: {metric.time_dimension}"
+                        f"Unknown published time dimension: {metric.time_dimension}"
                     )
                 time_dimensions.append(dimension)
         selected = list(
@@ -222,8 +257,6 @@ class OntologyService:
                 + [dimension.table for dimension in time_dimensions]
             )
         )
-
-        # Similar-looking distractors are surfaced for auditable lifecycle rejection.
         candidate_names = list(selected)
         if any("transaction" in name for name in selected):
             candidate_names.extend(
@@ -238,7 +271,7 @@ class OntologyService:
         rejected: list[RejectedTable] = []
         for name in candidates:
             asset = self.tables_by_name.get(name)
-            if asset and not asset.selectable:
+            if asset and (asset.status != "ACTIVE" or not asset.selectable):
                 rejected.append(
                     RejectedTable(
                         name=name,
@@ -260,9 +293,14 @@ class OntologyService:
                         reason="粒度不匹配：汇总表不保留 transaction_id，无法支持交易 ID 去重计数",
                     )
                 )
-        selected = [name for name in selected if self.tables_by_name[name].selectable]
+        selected = [
+            name
+            for name in selected
+            if self.tables_by_name[name].status == "ACTIVE"
+            and self.tables_by_name[name].selectable
+        ]
         columns: dict[str, list[str]] = {name: [] for name in selected}
-        filters: list[QueryFilter] = []
+        filters: list[QueryFilter] = self._resolve_user_filters(semantic_query)
         for metric in metrics:
             expression_columns = set(
                 re.findall(
@@ -286,6 +324,9 @@ class OntologyService:
             columns[dimension.table].append(dimension.column)
         for dimension in time_dimensions:
             columns[dimension.table].append(dimension.column)
+        for query_filter in filters:
+            if query_filter.table in columns:
+                columns[query_filter.table].append(query_filter.field)
         for table in columns:
             columns[table] = list(dict.fromkeys(columns[table]))
         return {

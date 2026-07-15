@@ -267,23 +267,54 @@ def ontology_builder_page() -> None:
         version_name = st.text_input("新版本号", "0.2.0")
         description = st.text_area("版本说明", "人工审核后的语义层版本")
         published_by = st.text_input("发布人", "reviewer")
-        if st.button("发布正式本体版本", type="primary"):
+        snapshot_id = build["snapshot"]["id"] if build else None
+        publish_payload = {
+            "version": version_name,
+            "description": description,
+            "published_by": published_by,
+            "snapshot_id": snapshot_id,
+        }
+        dry_col, publish_col = st.columns(2)
+        if dry_col.button("发布前 Dry Run", use_container_width=True):
             try:
-                snapshot_id = build["snapshot"]["id"] if build else None
                 result = api_request(
                     "POST",
-                    "/api/v1/ontology/publish",
-                    json={
-                        "version": version_name,
-                        "description": description,
-                        "published_by": published_by,
-                        "snapshot_id": snapshot_id,
-                    },
+                    "/api/v1/ontology/publish/validate",
+                    json=publish_payload,
+                )
+                st.session_state["publish_dry_run"] = result
+                if result["valid"]:
+                    st.success("契约、SQLGlot 和 PostgreSQL EXPLAIN 均通过。")
+                else:
+                    st.error("Dry Run 未通过，正式发布已被禁止。")
+                st.json(result)
+            except RuntimeError as exc:
+                st.error(str(exc))
+        if publish_col.button(
+            "发布正式本体版本", type="primary", use_container_width=True
+        ):
+            try:
+                result = api_request(
+                    "POST", "/api/v1/ontology/publish", json=publish_payload
                 )
                 st.success(f"本体版本 {result['version']} 已发布并切换为在线版本。")
                 st.rerun()
             except RuntimeError as exc:
                 st.error(str(exc))
+        if versions:
+            inactive_versions = [item["version"] for item in versions if not item["is_current"]]
+            if inactive_versions:
+                rollback_version = st.selectbox("切换或回滚到已发布版本", inactive_versions)
+                if st.button("激活所选版本", use_container_width=True):
+                    try:
+                        result = api_request(
+                            "POST",
+                            f"/api/v1/ontology/versions/{rollback_version}/activate",
+                        )
+                        st.success(f"已激活版本 {result['version']}，在线 Graph 已重建。")
+                        st.rerun()
+                    except RuntimeError as exc:
+                        st.error(str(exc))
 
 
 page = st.sidebar.radio("工作台", ["Text-to-SQL", "本体构建与审核"])

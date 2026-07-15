@@ -39,11 +39,22 @@ class Text2SQLNodes:
     def parse_semantic_query(self, state: Text2SQLState) -> dict[str, Any]:
         semantic_query = self.ontology.parse(state["question"])
         supported = bool(semantic_query.metric_names)
+        clarification = semantic_query.clarification_required
         return {
-            "status": "success" if supported else "unsupported",
-            "error_code": None if supported else "UNSUPPORTED_QUERY",
+            "status": (
+                "clarification_required"
+                if clarification
+                else ("success" if supported else "unsupported")
+            ),
+            "error_code": (
+                "CLARIFICATION_REQUIRED"
+                if clarification
+                else (None if supported else "UNSUPPORTED_QUERY")
+            ),
             "unsupported_reason": (
-                None if supported else "未识别到第一阶段本体支持的业务指标"
+                semantic_query.clarification_question
+                if clarification
+                else (None if supported else "未识别到已发布本体支持的业务指标")
             ),
             "semantic_query": semantic_query,
             "metrics": semantic_query.metric_names,
@@ -123,6 +134,7 @@ class Text2SQLNodes:
                 metrics,
                 dimensions,
                 state["join_plan"],
+                [QueryFilter.model_validate(item) for item in state.get("filters", [])],
             )
         except UnsupportedQueryError as exc:
             return {
@@ -242,7 +254,13 @@ class Text2SQLNodes:
         }
 
     def explain_result(self, state: Text2SQLState) -> dict[str, Any]:
-        if state.get("status") == "unsupported":
+        if state.get("status") == "clarification_required":
+            explanation = (
+                state.get("unsupported_reason")
+                or "问题存在多义性，请补充标准指标或维度。"
+            )
+            confidence = state.get("semantic_query").confidence
+        elif state.get("status") == "unsupported":
             explanation = state.get("unsupported_reason") or "该问题不在第一阶段支持范围内。"
             confidence = 0.0
         elif state.get("execution_result") is not None:

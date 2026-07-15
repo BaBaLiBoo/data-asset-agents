@@ -1,54 +1,54 @@
 - id: transaction_amount
   name: 交易金额
   description: 已入账交易的人民币金额合计
-  expression: SUM(dwd_card_transaction.txn_amount_cny)
+  expression: SUM({amount})
   base_table: dwd_card_transaction
-  required_filters: {transaction_status: POSTED}
+  required_filters: {status: POSTED}
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
   time_dimension: transaction_date
   synonyms: [交易额]
 - id: credit_card_transaction_amount
   name: 信用卡交易金额
   description: 已入账贷记卡交易的人民币金额合计
-  expression: SUM(dwd_card_transaction.txn_amount_cny)
+  expression: SUM({amount})
   base_table: dwd_card_transaction
-  required_filters: {card_type: CREDIT, transaction_status: POSTED}
+  required_filters: {card_type: CREDIT, status: POSTED}
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
   time_dimension: transaction_date
   synonyms: [消费金额, 信用卡消费金额, 贷记卡交易金额]
 - id: transaction_count
   name: 交易笔数
   description: 按交易 ID 去重后的交易数量
-  expression: COUNT(DISTINCT dwd_card_transaction.transaction_id)
+  expression: COUNT(DISTINCT {transaction_id})
   base_table: dwd_card_transaction
-  required_filters: {transaction_status: POSTED}
+  required_filters: {status: POSTED}
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
   time_dimension: transaction_date
   synonyms: [流水笔数]
 - id: credit_card_transaction_count
   name: 信用卡交易笔数
   description: 已入账贷记卡交易 ID 去重数量
-  expression: COUNT(DISTINCT dwd_card_transaction.transaction_id)
+  expression: COUNT(DISTINCT {transaction_id})
   base_table: dwd_card_transaction
-  required_filters: {card_type: CREDIT, transaction_status: POSTED}
+  required_filters: {card_type: CREDIT, status: POSTED}
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
   time_dimension: transaction_date
   synonyms: [信用卡流水笔数, 贷记卡交易笔数]
 - id: active_customer_count
   name: 活跃客户数
   description: 发生过已入账交易的去重客户数
-  expression: COUNT(DISTINCT dwd_card_transaction.customer_id)
+  expression: COUNT(DISTINCT {customer_id})
   base_table: dwd_card_transaction
-  required_filters: {transaction_status: POSTED}
+  required_filters: {status: POSTED}
   supported_dimensions: [branch, transaction_date, customer_type]
   time_dimension: transaction_date
   synonyms: [活跃用户数]
 - id: average_transaction_amount
   name: 平均交易金额
   description: 已入账交易的平均人民币金额
-  expression: AVG(dwd_card_transaction.txn_amount_cny)
+  expression: AVG({amount})
   base_table: dwd_card_transaction
-  required_filters: {transaction_status: POSTED}
+  required_filters: {status: POSTED}
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
   time_dimension: transaction_date
   synonyms: [平均交易额, 客单价]

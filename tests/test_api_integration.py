@@ -57,6 +57,13 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         assert unsupported.json()["status"] == "unsupported"
         assert unsupported.json()["error_code"] == "UNSUPPORTED_QUERY"
 
+        clarification = client.post(
+            "/api/v1/query",
+            json={"question": "查询交易情况", "query_mode": "ontology"},
+        )
+        assert clarification.status_code == 200
+        assert clarification.json()["status"] == "clarification_required"
+
         build = client.post(
             "/api/v1/ontology/build",
             json={
@@ -126,20 +133,57 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         assert rejected.status_code == 200
         assert rejected.json()["status"] == "REJECTED"
 
+        publish_payload = {
+            "version": "api-test-0.2",
+            "description": "API integration ontology",
+            "published_by": "api-test",
+            "snapshot_id": build_result["snapshot"]["id"],
+        }
+        dry_run = client.post(
+            "/api/v1/ontology/publish/validate",
+            json=publish_payload,
+        )
+        assert dry_run.status_code == 200, dry_run.text
+        assert dry_run.json()["valid"]
+        assert dry_run.json()["sqlglot_valid"]
+        assert dry_run.json()["explain_passed"]
+
         published = client.post(
             "/api/v1/ontology/publish",
-            json={
-                "version": "api-test-0.2",
-                "description": "API integration ontology",
-                "published_by": "api-test",
-                "snapshot_id": build_result["snapshot"]["id"],
-            },
+            json=publish_payload,
         )
         assert published.status_code == 200, published.text
         assert published.json()["version"] == "api-test-0.2"
         versions = client.get("/api/v1/ontology/versions")
         assert versions.status_code == 200
         assert versions.json()[0]["is_current"]
+
+        hybrid = client.post(
+            "/api/v1/semantic/search",
+            json={"query": "消费金额", "limit": 5},
+        )
+        assert hybrid.status_code == 200
+        credit_metric = next(
+            item for item in hybrid.json() if item["name"] == "信用卡交易金额"
+        )
+        assert credit_metric["synonym_score"] == 1
+        assert credit_metric["evidence"]
+
+        second_payload = {
+            **publish_payload,
+            "version": "api-test-0.3",
+            "description": "second API integration ontology",
+        }
+        second = client.post("/api/v1/ontology/publish", json=second_payload)
+        assert second.status_code == 200, second.text
+        assert second.json()["is_current"]
+
+        activated = client.post(
+            "/api/v1/ontology/versions/api-test-0.2/activate"
+        )
+        assert activated.status_code == 200, activated.text
+        assert activated.json()["version"] == "api-test-0.2"
+        assert activated.json()["is_current"]
 
         query_after_publish = client.post(
             "/api/v1/query",

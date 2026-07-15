@@ -18,8 +18,13 @@ class StubPublishedRepository:
         mappings.append(
             PhysicalMapping(
                 concept_id="metric:credit_card_transaction_amount",
-                table="dws_branch_transaction_day",
-                columns=["transaction_amount_cny"],
+                table="dwd_card_transaction",
+                column_bindings={
+                    "amount": "posted_amount",
+                    "card_type": "card_type",
+                    "status": "transaction_status",
+                    "event_time": "transaction_date",
+                },
             )
         )
         domain = dict(seed.domain)
@@ -35,5 +40,5 @@ def test_online_metric_uses_published_physical_mapping_instead_of_base_table() -
     metric = service.get_metrics(semantic)[0]
 
     assert service.bundle.domain["version"] == "published-test"
-    assert metric.base_table == "dws_branch_transaction_day"
-    assert metric.expression == "SUM(dws_branch_transaction_day.transaction_amount_cny)"
+    assert metric.base_table == "dwd_card_transaction"
+    assert metric.expression == "SUM(dwd_card_transaction.posted_amount)"
