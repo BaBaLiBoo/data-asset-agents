@@ -14,7 +14,11 @@ class MetadataInspector:
         assets: list[dict[str, Any]] = []
         for table_name in inspector.get_table_names(schema=schema):
             columns = [
-                {"name": column["name"], "type": str(column["type"]), "nullable": column["nullable"]}
+                {
+                    "name": column["name"],
+                    "type": str(column["type"]),
+                    "nullable": column["nullable"],
+                }
                 for column in inspector.get_columns(table_name, schema=schema)
             ]
             assets.append({"table": table_name, "schema": schema, "columns": columns})
@@ -26,4 +30,3 @@ class MetadataInspector:
         with self.engine.connect() as connection:
             count = connection.execute(text(f'SELECT COUNT(*) FROM "{table}"')).scalar_one()
         return {"row_count": int(count)}
-

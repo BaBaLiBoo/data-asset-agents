@@ -25,7 +25,10 @@ class OntologyService:
     def __init__(self, repository: YamlOntologyRepository) -> None:
         self.bundle: OntologyBundle = repository.load()
         self.metrics_by_name = {metric.name: metric for metric in self.bundle.metrics}
-        self.dimensions_by_name = {dimension.name: dimension for dimension in self.bundle.dimensions}
+        self.dimensions_by_name = {
+            dimension.name: dimension for dimension in self.bundle.dimensions
+        }
+        self.dimensions_by_id = {dimension.id: dimension for dimension in self.bundle.dimensions}
         self.tables_by_name = {table.name: table for table in self.bundle.tables}
 
     @staticmethod
@@ -117,7 +120,24 @@ class OntologyService:
     def resolve(self, semantic_query: SemanticQuery) -> dict[str, object]:
         metrics = self.get_metrics(semantic_query)
         dimensions = self.get_dimensions(semantic_query)
-        selected = list(dict.fromkeys([m.base_table for m in metrics] + [d.table for d in dimensions]))
+        time_dimensions: list[Dimension] = []
+        if semantic_query.time_range.kind != "none":
+            for metric in metrics:
+                if not metric.time_dimension:
+                    continue
+                dimension = self.dimensions_by_id.get(metric.time_dimension)
+                if dimension is None:
+                    raise OntologyError(
+                        f"Unknown reviewed time dimension: {metric.time_dimension}"
+                    )
+                time_dimensions.append(dimension)
+        selected = list(
+            dict.fromkeys(
+                [metric.base_table for metric in metrics]
+                + [dimension.table for dimension in dimensions]
+                + [dimension.table for dimension in time_dimensions]
+            )
+        )
 
         # Similar-looking distractors are surfaced for auditable lifecycle rejection.
         candidate_names = list(selected)
@@ -170,10 +190,17 @@ class OntologyService:
                 if column in expression_columns or column in metric.required_filters:
                     columns[metric.base_table].append(column)
             filters.extend(
-                QueryFilter(field=field, value=value, source="metric_policy")
+                QueryFilter(
+                    table=metric.base_table,
+                    field=field,
+                    value=value,
+                    source="metric_policy",
+                )
                 for field, value in metric.required_filters.items()
             )
         for dimension in dimensions:
+            columns[dimension.table].append(dimension.column)
+        for dimension in time_dimensions:
             columns[dimension.table].append(dimension.column)
         for table in columns:
             columns[table] = list(dict.fromkeys(columns[table]))

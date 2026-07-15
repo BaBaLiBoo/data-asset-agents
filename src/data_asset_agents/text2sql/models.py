@@ -13,6 +13,7 @@ class TimeRange(BaseModel):
 
 
 class QueryFilter(BaseModel):
+    table: str | None = None
     field: str
     operator: str = "="
     value: str
@@ -45,6 +46,8 @@ class RejectedTable(BaseModel):
 class JoinStep(BaseModel):
     left_table: str
     right_table: str
+    left_column: str
+    right_column: str
     condition: str
     relationship: str
 
@@ -61,6 +64,14 @@ class HistoricalSQLExample(BaseModel):
     similarity: float = 0.0
 
 
+class ValidationIssue(BaseModel):
+    code: str
+    message: str
+    table: str | None = None
+    column: str | None = None
+    expected_value: str | None = None
+
+
 class ValidationReport(BaseModel):
     valid: bool
     read_only: bool = False
@@ -68,6 +79,7 @@ class ValidationReport(BaseModel):
     statement_type: str | None = None
     tables: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
+    issues: list[ValidationIssue] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     formatted_sql: str | None = None
     explain_passed: bool | None = None
@@ -105,6 +117,9 @@ class SemanticResolveRequest(BaseModel):
 class QueryResponse(BaseModel):
     question: str
     query_mode: str
+    status: Literal["success", "unsupported", "failed"] = "success"
+    error_code: str | None = None
+    unsupported_reason: str | None = None
     semantic_query: SemanticQuery | None = None
     matched_concepts: list[MatchedConcept] = Field(default_factory=list)
     metrics: list[str] = Field(default_factory=list)
@@ -119,8 +134,9 @@ class QueryResponse(BaseModel):
     validation_report: ValidationReport | None = None
     validation_errors: list[str] = Field(default_factory=list)
     retry_count: int = 0
+    repairable: bool = False
+    sql_changed: bool = False
     execution_result: ExecutionResult | None = None
     explanation: str | None = None
     confidence: float = 0.0
     trace_steps: list[TraceStep] = Field(default_factory=list)
-

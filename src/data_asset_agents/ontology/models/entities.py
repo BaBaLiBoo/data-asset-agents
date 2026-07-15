@@ -19,6 +19,7 @@ class Metric(BaseModel):
     base_table: str
     required_filters: dict[str, str] = Field(default_factory=dict)
     supported_dimensions: list[str] = Field(default_factory=list)
+    time_dimension: str | None = None
     synonyms: list[str] = Field(default_factory=list)
 
 
@@ -81,4 +82,3 @@ class OntologyBundle(BaseModel):
     tables: list[TableAsset]
     policies: dict[str, object]
     glossary: dict[str, list[str]]
-

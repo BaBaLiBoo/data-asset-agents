@@ -1,14 +1,19 @@
 from typing import Any
 
-from data_asset_agents.core.errors import QueryExecutionError
+from data_asset_agents.core.errors import QueryExecutionError, UnsupportedQueryError
 from data_asset_agents.execution.protocols import ExecutorProtocol
 from data_asset_agents.ontology.models import Dimension, Metric
 from data_asset_agents.ontology.service import OntologyService
 from data_asset_agents.sql_assets.repository import HistoricalSQLRepository
-from data_asset_agents.text2sql.models import TraceStep
+from data_asset_agents.text2sql.models import (
+    QueryFilter,
+    TraceStep,
+    ValidationIssue,
+    ValidationReport,
+)
 from data_asset_agents.text2sql.state import Text2SQLState
-from data_asset_agents.text2sql.tools import JoinPlanner
-from data_asset_agents.validation import SQLValidator
+from data_asset_agents.text2sql.tools import JoinPlanner, build_select_sql
+from data_asset_agents.validation import SQLRepairer, SQLValidator
 
 
 def _trace(node: str, summary: str, status: str = "completed") -> list[TraceStep]:
@@ -28,11 +33,18 @@ class Text2SQLNodes:
         self.executor = executor
         self.history = history or HistoricalSQLRepository()
         self.join_planner = JoinPlanner(ontology.bundle.joins)
-        self.validator = SQLValidator()
+        self.validator = SQLValidator(ontology.bundle)
+        self.repairer = SQLRepairer()
 
     def parse_semantic_query(self, state: Text2SQLState) -> dict[str, Any]:
         semantic_query = self.ontology.parse(state["question"])
+        supported = bool(semantic_query.metric_names)
         return {
+            "status": "success" if supported else "unsupported",
+            "error_code": None if supported else "UNSUPPORTED_QUERY",
+            "unsupported_reason": (
+                None if supported else "未识别到第一阶段本体支持的业务指标"
+            ),
             "semantic_query": semantic_query,
             "metrics": semantic_query.metric_names,
             "dimensions": semantic_query.dimension_names,
@@ -74,18 +86,19 @@ class Text2SQLNodes:
 
     def plan_join_path(self, state: Text2SQLState) -> dict[str, Any]:
         plan = self.join_planner.plan(state["selected_tables"])
-        selected_columns = {table: list(columns) for table, columns in state["selected_columns"].items()}
+        selected_columns = {
+            table: list(columns)
+            for table, columns in state["selected_columns"].items()
+        }
         for step in plan.steps:
-            left_reference, right_reference = step.condition.split(" = ")
-            left_table, left_column = left_reference.split(".", maxsplit=1)
-            right_table, right_column = right_reference.split(".", maxsplit=1)
-            selected_columns.setdefault(left_table, []).append(left_column)
-            selected_columns.setdefault(right_table, []).append(right_column)
+            selected_columns.setdefault(step.left_table, []).append(step.left_column)
+            selected_columns.setdefault(step.right_table, []).append(step.right_column)
         selected_columns = {
             table: list(dict.fromkeys(columns)) for table, columns in selected_columns.items()
         }
         return {
             "join_plan": plan,
+            "selected_tables": plan.tables,
             "selected_columns": selected_columns,
             "trace_steps": _trace("plan_join_path", f"规划 {len(plan.steps)} 条 Join 边"),
         }
@@ -103,51 +116,46 @@ class Text2SQLNodes:
         semantic = state["semantic_query"]
         metrics = self.ontology.get_metrics(semantic)
         dimensions = self.ontology.get_dimensions(semantic)
-        if not metrics:
-            sql = "SELECT 1 AS unsupported_query"
-        else:
-            aliases = {"dwd_card_transaction": "t", "dim_branch": "b"}
-            selections: list[str] = []
-            groups: list[str] = []
-            for dimension in dimensions:
-                reference = f"{aliases.get(dimension.table, dimension.table)}.{dimension.column}"
-                selections.append(f"{reference} AS {dimension.id}")
-                groups.append(reference)
-            for metric in metrics:
-                expression = metric.expression
-                for table, alias in aliases.items():
-                    expression = expression.replace(f"{table}.", f"{alias}.")
-                selections.append(f"{expression} AS {metric.id}")
-            base_table = metrics[0].base_table
-            sql_lines = [f"SELECT {', '.join(selections)}", f"FROM {base_table} {aliases.get(base_table, '')}"]
-            for step in state["join_plan"].steps:
-                right = step.right_table
-                condition = step.condition
-                for table, alias in aliases.items():
-                    condition = condition.replace(f"{table}.", f"{alias}.")
-                sql_lines.append(f"JOIN {right} {aliases.get(right, '')} ON {condition}")
-            predicates: list[str] = []
-            for metric in metrics:
-                for field, value in metric.required_filters.items():
-                    predicates.append(f"{aliases.get(metric.base_table, metric.base_table)}.{field} = '{value}'")
-            if semantic.time_range.kind == "relative_days" and semantic.time_range.days:
-                predicates.append(
-                    f"{aliases.get(base_table, base_table)}.transaction_date "
-                    f">= CURRENT_DATE - INTERVAL '{semantic.time_range.days} days'"
-                )
-            if predicates:
-                sql_lines.append("WHERE " + " AND ".join(dict.fromkeys(predicates)))
-            if groups:
-                sql_lines.append("GROUP BY " + ", ".join(groups))
-                sql_lines.append("ORDER BY " + ", ".join(groups))
-            sql = "\n".join(sql_lines)
+        try:
+            sql = build_select_sql(
+                self.ontology,
+                semantic,
+                metrics,
+                dimensions,
+                state["join_plan"],
+            )
+        except UnsupportedQueryError as exc:
+            return {
+                "status": "unsupported",
+                "error_code": exc.code,
+                "unsupported_reason": str(exc),
+                "generated_sql": None,
+                "trace_steps": _trace("generate_sql", str(exc), "failed"),
+            }
         return {
             "generated_sql": sql,
             "trace_steps": _trace("generate_sql", "根据正式语义映射生成 PostgreSQL SQL"),
         }
 
     def validate_sql(self, state: Text2SQLState) -> dict[str, Any]:
-        report = self.validator.validate(state["generated_sql"], set(state["selected_tables"]))
+        sql = state.get("generated_sql")
+        if not sql:
+            issue = ValidationIssue(
+                code="EMPTY_SQL",
+                message="没有可供校验的 SQL",
+            )
+            report = ValidationReport(
+                valid=False,
+                errors=[issue.message],
+                issues=[issue],
+            )
+        else:
+            required_filters = [QueryFilter.model_validate(item) for item in state["filters"]]
+            report = self.validator.validate(
+                sql,
+                set(state["selected_tables"]),
+                required_filters,
+            )
         return {
             "validation_report": report,
             "validation_errors": report.errors,
@@ -160,28 +168,63 @@ class Text2SQLNodes:
 
     def research_validation_error(self, state: Text2SQLState) -> dict[str, Any]:
         errors = state.get("validation_errors", [])
+        repairable = self.repairer.can_repair(state["validation_report"].issues)
         return {
+            "repairable": repairable,
             "trace_steps": _trace(
-                "research_validation_error", f"定位校验错误：{'；'.join(errors)}"
+                "research_validation_error",
+                f"定位校验错误：{'；'.join(errors)}；"
+                f"确定性修复={'可用' if repairable else '不可用'}",
             )
         }
 
     def repair_sql(self, state: Text2SQLState) -> dict[str, Any]:
-        report = state.get("validation_report")
-        repaired = report.formatted_sql if report and report.formatted_sql else state["generated_sql"]
+        original = state.get("generated_sql")
+        if not original:
+            return {
+                "status": "failed",
+                "error_code": "REPAIR_NOT_POSSIBLE",
+                "repairable": False,
+                "sql_changed": False,
+                "trace_steps": _trace("repair_sql", "没有 SQL 可供修复", "failed"),
+            }
+        repaired, reason = self.repairer.repair(
+            original,
+            state["validation_report"].issues,
+        )
+        if repaired is None or repaired == original:
+            return {
+                "status": "failed",
+                "error_code": "REPAIR_NOT_POSSIBLE",
+                "repairable": False,
+                "sql_changed": False,
+                "trace_steps": _trace("repair_sql", reason, "failed"),
+            }
         return {
             "generated_sql": repaired,
             "retry_count": state.get("retry_count", 0) + 1,
-            "trace_steps": _trace("repair_sql", "使用解析结果和允许表集合修复 SQL"),
+            "sql_changed": True,
+            "trace_steps": _trace("repair_sql", reason),
         }
 
     def execute_sql(self, state: Text2SQLState) -> dict[str, Any]:
         try:
-            result = self.executor.execute(state["generated_sql"], set(state["selected_tables"]))
+            sql = state.get("generated_sql")
+            if not sql:
+                raise QueryExecutionError("没有通过校验的 SQL 可供执行")
+            result = self.executor.execute(sql, set(state["selected_tables"]))
         except QueryExecutionError as exc:
             errors = [*state.get("validation_errors", []), str(exc)]
             report = state["validation_report"].model_copy(
-                update={"valid": False, "explain_passed": False, "errors": errors}
+                update={
+                    "valid": False,
+                    "explain_passed": False,
+                    "errors": errors,
+                    "issues": [
+                        *state["validation_report"].issues,
+                        ValidationIssue(code="EXECUTION_ERROR", message=str(exc)),
+                    ],
+                }
             )
             return {
                 "validation_report": report,
@@ -190,6 +233,7 @@ class Text2SQLNodes:
             }
         report = state["validation_report"].model_copy(update={"explain_passed": True})
         return {
+            "status": "success",
             "execution_result": result,
             "validation_report": report,
             "trace_steps": _trace(
@@ -198,7 +242,10 @@ class Text2SQLNodes:
         }
 
     def explain_result(self, state: Text2SQLState) -> dict[str, Any]:
-        if state.get("execution_result") is not None:
+        if state.get("status") == "unsupported":
+            explanation = state.get("unsupported_reason") or "该问题不在第一阶段支持范围内。"
+            confidence = 0.0
+        elif state.get("execution_result") is not None:
             rejected = "、".join(item.name for item in state.get("rejected_tables", []))
             explanation = (
                 f"已按本体口径计算{'、'.join(state.get('metrics', []))}，"
@@ -211,6 +258,7 @@ class Text2SQLNodes:
             explanation = "SQL 在最大修复次数内未通过安全校验，未执行数据库查询。"
             confidence = 0.2
         return {
+            "status": state.get("status", "failed") if confidence != 0.2 else "failed",
             "explanation": explanation,
             "confidence": confidence,
             "trace_steps": _trace("explain_result", explanation),

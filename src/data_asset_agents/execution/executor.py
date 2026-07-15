@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from data_asset_agents.core.config import Settings
 from data_asset_agents.core.errors import QueryExecutionError
+from data_asset_agents.ontology.models import OntologyBundle
 from data_asset_agents.text2sql.models import ExecutionResult
 from data_asset_agents.validation import SQLValidator
 
@@ -14,7 +15,12 @@ from data_asset_agents.validation import SQLValidator
 class QueryExecutor:
     """EXPLAIN and execute validated SQL inside a read-only PostgreSQL transaction."""
 
-    def __init__(self, settings: Settings, engine: Engine | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        ontology: OntologyBundle | None = None,
+        engine: Engine | None = None,
+    ) -> None:
         self.settings = settings
         self.engine = engine or create_engine(
             settings.database_url,
@@ -22,7 +28,7 @@ class QueryExecutor:
             pool_timeout=settings.database_connect_timeout,
             connect_args={"connect_timeout": settings.database_connect_timeout},
         )
-        self.validator = SQLValidator()
+        self.validator = SQLValidator(ontology)
 
     def ping(self) -> bool:
         try:

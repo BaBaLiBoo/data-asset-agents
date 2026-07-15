@@ -13,3 +13,10 @@ class UnsafeSQLError(DataAssetAgentsError):
 class QueryExecutionError(DataAssetAgentsError):
     """Raised when EXPLAIN or read-only query execution fails."""
 
+
+class UnsupportedQueryError(DataAssetAgentsError):
+    """Raised when the reviewed MVP ontology cannot answer a question."""
+
+    def __init__(self, message: str, code: str = "UNSUPPORTED_QUERY") -> None:
+        super().__init__(message)
+        self.code = code

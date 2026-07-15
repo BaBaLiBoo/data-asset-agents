@@ -1,12 +1,12 @@
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 
 from data_asset_agents.core.config import get_settings
-from data_asset_agents.core.errors import DataAssetAgentsError
+from data_asset_agents.core.errors import DataAssetAgentsError, UnsupportedQueryError
 from data_asset_agents.execution.executor import QueryExecutor
 from data_asset_agents.ontology.repository import YamlOntologyRepository
 from data_asset_agents.ontology.service import OntologyService
@@ -23,7 +23,7 @@ from data_asset_agents.text2sql.models import (
 async def lifespan(app: FastAPI):
     settings = get_settings()
     ontology = OntologyService(YamlOntologyRepository(settings.ontology_path))
-    executor = QueryExecutor(settings)
+    executor = QueryExecutor(settings, ontology.bundle)
     app.state.ontology = ontology
     app.state.executor = executor
     app.state.graph = build_text2sql_graph(ontology, executor)
@@ -52,9 +52,25 @@ async def domain_error_handler(_: Request, exc: DataAssetAgentsError):
     return JSONResponse(status_code=422, content={"detail": str(exc)})
 
 
+@app.exception_handler(UnsupportedQueryError)
+async def unsupported_query_handler(_: Request, exc: UnsupportedQueryError):
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={
+            "status": "unsupported",
+            "error_code": exc.code,
+            "detail": str(exc),
+        },
+    )
+
+
 @app.get("/health")
-def health(request: Request) -> dict[str, str]:
+def health(request: Request, response: Response) -> dict[str, str]:
     database = "up" if request.app.state.executor.ping() else "down"
+    if database == "down":
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return {"status": "ok" if database == "up" else "degraded", "database": database}
 
 
@@ -69,6 +85,11 @@ def query(payload: QueryRequest, request: Request) -> QueryResponse:
                 "trace_steps": [],
             }
         )
+        if result.get("status") == "unsupported":
+            raise UnsupportedQueryError(
+                result.get("unsupported_reason") or "该问题不在第一阶段支持范围内",
+                result.get("error_code") or "UNSUPPORTED_QUERY",
+            )
         return QueryResponse.model_validate(result)
     except DataAssetAgentsError:
         raise

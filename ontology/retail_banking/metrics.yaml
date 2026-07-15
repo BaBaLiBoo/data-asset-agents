@@ -5,6 +5,7 @@
   base_table: dwd_card_transaction
   required_filters: {transaction_status: POSTED}
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
+  time_dimension: transaction_date
   synonyms: [交易额]
 - id: credit_card_transaction_amount
   name: 信用卡交易金额
@@ -13,6 +14,7 @@
   base_table: dwd_card_transaction
   required_filters: {card_type: CREDIT, transaction_status: POSTED}
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
+  time_dimension: transaction_date
   synonyms: [消费金额, 信用卡消费金额, 贷记卡交易金额]
 - id: transaction_count
   name: 交易笔数
@@ -21,6 +23,7 @@
   base_table: dwd_card_transaction
   required_filters: {transaction_status: POSTED}
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
+  time_dimension: transaction_date
   synonyms: [流水笔数]
 - id: credit_card_transaction_count
   name: 信用卡交易笔数
@@ -29,6 +32,7 @@
   base_table: dwd_card_transaction
   required_filters: {card_type: CREDIT, transaction_status: POSTED}
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
+  time_dimension: transaction_date
   synonyms: [信用卡流水笔数, 贷记卡交易笔数]
 - id: active_customer_count
   name: 活跃客户数
@@ -37,6 +41,7 @@
   base_table: dwd_card_transaction
   required_filters: {transaction_status: POSTED}
   supported_dimensions: [branch, transaction_date, customer_type]
+  time_dimension: transaction_date
   synonyms: [活跃用户数]
 - id: average_transaction_amount
   name: 平均交易金额
@@ -45,5 +50,5 @@
   base_table: dwd_card_transaction
   required_filters: {transaction_status: POSTED}
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
+  time_dimension: transaction_date
   synonyms: [平均交易额, 客单价]
-

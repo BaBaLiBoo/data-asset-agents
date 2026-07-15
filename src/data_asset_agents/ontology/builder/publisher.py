@@ -55,6 +55,12 @@ class OntologyPublisher:
                             published_at = now()
                         """
                     ),
-                    {**data, "synonyms": json.dumps(data.get("synonyms", []), ensure_ascii=False), "version": version},
+                    {
+                        **data,
+                        "synonyms": json.dumps(
+                            data.get("synonyms", []), ensure_ascii=False
+                        ),
+                        "version": version,
+                    },
                 )
         return len(concepts)

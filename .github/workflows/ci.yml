@@ -6,13 +6,39 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: minibank
+          POSTGRES_USER: minibank
+          POSTGRES_PASSWORD: minibank
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U minibank -d minibank"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://minibank:minibank@localhost:5432/minibank
+      ONTOLOGY_PATH: ontology/retail_banking
+      LLM_MODE: mock
+      RUN_POSTGRES_INTEGRATION: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Initialize MiniBank schema and seed
+        env:
+          PGPASSWORD: minibank
+        run: |
+          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/001_schema.sql
+          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/seed/002_seed.sql
       - run: python -m pip install -e ".[dev]"
       - run: ruff check .
       - run: pytest
-

@@ -2,9 +2,9 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_DB: minibank
-      POSTGRES_USER: minibank
-      POSTGRES_PASSWORD: minibank
+      POSTGRES_DB: ${POSTGRES_DB:-minibank}
+      POSTGRES_USER: ${POSTGRES_USER:-minibank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-minibank}
     ports:
       - "5432:5432"
     volumes:
@@ -12,7 +12,7 @@ services:
       - ./data/ddl/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
       - ./data/seed/002_seed.sql:/docker-entrypoint-initdb.d/002_seed.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U minibank -d minibank"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -20,9 +20,24 @@ services:
   api:
     build: .
     environment:
-      DATABASE_URL: postgresql+psycopg://minibank:minibank@postgres:5432/minibank
-      ONTOLOGY_PATH: ontology/retail_banking
-      LLM_MODE: mock
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql+psycopg://minibank:minibank@postgres:5432/minibank}
+      DATABASE_CONNECT_TIMEOUT: ${DATABASE_CONNECT_TIMEOUT:-5}
+      SQL_STATEMENT_TIMEOUT_MS: ${SQL_STATEMENT_TIMEOUT_MS:-5000}
+      SQL_MAX_ROWS: ${SQL_MAX_ROWS:-200}
+      LLM_MODE: ${LLM_MODE:-mock}
+      LLM_PROVIDER: ${LLM_PROVIDER:-deepseek}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-aliyun}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-v4}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1024}
+      ONTOLOGY_PATH: ${ONTOLOGY_PATH:-ontology/retail_banking}
     ports:
       - "8000:8000"
     depends_on:
@@ -38,7 +53,7 @@ services:
     build: .
     command: ["streamlit", "run", "apps/web/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
     environment:
-      API_BASE_URL: http://api:8000
+      API_BASE_URL: ${WEB_API_BASE_URL:-http://api:8000}
     ports:
       - "8501:8501"
     depends_on:
@@ -47,4 +62,3 @@ services:
 
 volumes:
   minibank_data:
-

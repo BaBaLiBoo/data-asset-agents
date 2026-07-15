@@ -3,7 +3,6 @@ import os
 import httpx
 import streamlit as st
 
-
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 EXAMPLES = [
     "查询近30天各分行信用卡交易金额和交易笔数。",
@@ -33,8 +32,18 @@ if run:
             )
             response.raise_for_status()
             data = response.json()
+    except httpx.HTTPStatusError as exc:
+        try:
+            error = exc.response.json()
+        except ValueError:
+            error = {"detail": str(exc)}
+        if error.get("status") == "unsupported":
+            st.warning(f"暂不支持：{error.get('detail')}")
+        else:
+            st.error(f"API 请求失败：{error.get('detail', exc)}")
+        st.stop()
     except httpx.HTTPError as exc:
-        st.error(f"API 请求失败：{exc}")
+        st.error(f"无法连接 API：{exc}")
         st.stop()
 
     st.subheader("执行概览")
@@ -73,4 +82,3 @@ if run:
     st.dataframe(execution.get("rows", []), use_container_width=True, hide_index=True)
     st.subheader("自然语言解释")
     st.success(data["explanation"])
-

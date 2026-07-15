@@ -13,7 +13,9 @@ class ModelFactory:
     def chat_model(self) -> ChatOpenAI:
         key = self.settings.llm_api_key.get_secret_value()
         if self.settings.llm_mode == "mock" or not key:
-            raise DataAssetAgentsError("Live chat model is disabled; deterministic mock mode is active")
+            raise DataAssetAgentsError(
+                "Live chat model is disabled; deterministic mock mode is active"
+            )
         return ChatOpenAI(
             model=self.settings.llm_model,
             base_url=self.settings.llm_base_url,
@@ -35,4 +37,3 @@ class ModelFactory:
             request_timeout=self.settings.llm_timeout_seconds,
             max_retries=2,
         )
-
