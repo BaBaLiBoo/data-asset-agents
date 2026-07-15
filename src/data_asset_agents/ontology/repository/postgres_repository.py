@@ -660,10 +660,11 @@ class PostgresOntologyRepository:
                             """
                             INSERT INTO semantic_concept_index
                                 (version_id, concept_id, concept_kind, name,
-                                 description, synonyms, embedding)
+                                 description, synonyms, embedding, search_document)
                             VALUES
                                 (:version_id, :concept_id, :kind, :name,
-                                 :description, :synonyms, CAST(:embedding AS vector))
+                                 :description, :synonyms, CAST(:embedding AS vector),
+                                 to_tsvector('simple', :search_text))
                             """
                         ),
                         [
@@ -675,6 +676,7 @@ class PostgresOntologyRepository:
                                 "description": document.description,
                                 "synonyms": document.synonyms,
                                 "embedding": "[" + ",".join(map(str, vector)) + "]",
+                                "search_text": document.text,
                             }
                             for document, vector in zip(documents, vectors, strict=True)
                         ],

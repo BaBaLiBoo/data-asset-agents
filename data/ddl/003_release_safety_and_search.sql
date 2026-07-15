@@ -15,10 +15,7 @@ CREATE TABLE IF NOT EXISTS semantic_concept_index (
     description TEXT NOT NULL DEFAULT '',
     synonyms TEXT[] NOT NULL DEFAULT '{}',
     embedding VECTOR(1024) NOT NULL,
-    search_document TSVECTOR GENERATED ALWAYS AS (
-        to_tsvector('simple', coalesce(name, '') || ' ' || coalesce(description, '') ||
-            ' ' || array_to_string(synonyms, ' '))
-    ) STORED,
+    search_document TSVECTOR NOT NULL,
     PRIMARY KEY (version_id, concept_kind, concept_id)
 );
 CREATE INDEX IF NOT EXISTS idx_semantic_concept_index_search
