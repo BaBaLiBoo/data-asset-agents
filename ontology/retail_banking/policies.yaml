@@ -1,0 +1,13 @@
+selection:
+  deny_statuses: [DEPRECATED, TEMPORARY, TEST]
+  require_selectable: true
+  prefer_certified: true
+grain:
+  distinct_transaction_count_requires: transaction_id
+  reject_summary_without_distinct_key: true
+execution:
+  read_only: true
+  allowed_statement_types: [SELECT]
+  max_rows: 200
+  max_repair_attempts: 2
+

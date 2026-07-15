@@ -1,0 +1,31 @@
+- id: customer
+  name: 客户
+  kind: object
+  description: MiniBank 的虚构零售客户
+  synonyms: [用户, 持卡人]
+- id: account
+  name: 账户
+  kind: object
+  description: 客户持有的结算或储蓄账户
+  synonyms: [银行账户]
+- id: card
+  name: 银行卡
+  kind: object
+  description: 与账户关联的借记卡或贷记卡
+  synonyms: [卡片, 信用卡, 贷记卡]
+- id: transaction
+  name: 交易
+  kind: object
+  description: 已发生的支付、账户或转账流水
+  synonyms: [流水, 消费]
+- id: branch
+  name: 分行
+  kind: object
+  description: MiniBank 的虚构经营机构
+  synonyms: [机构, 网点]
+- id: merchant
+  name: 商户
+  kind: object
+  description: 接受银行卡交易的虚构商户
+  synonyms: [商家]
+

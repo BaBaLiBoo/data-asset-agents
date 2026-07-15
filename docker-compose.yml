@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: minibank
+      POSTGRES_USER: minibank
+      POSTGRES_PASSWORD: minibank
+    ports:
+      - "5432:5432"
+    volumes:
+      - minibank_data:/var/lib/postgresql/data
+      - ./data/ddl/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+      - ./data/seed/002_seed.sql:/docker-entrypoint-initdb.d/002_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U minibank -d minibank"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://minibank:minibank@postgres:5432/minibank
+      ONTOLOGY_PATH: ontology/retail_banking
+      LLM_MODE: mock
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build: .
+    command: ["streamlit", "run", "apps/web/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    environment:
+      API_BASE_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  minibank_data:
+

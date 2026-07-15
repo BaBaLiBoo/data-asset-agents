@@ -1,0 +1,66 @@
+from collections.abc import Sequence
+from time import perf_counter
+from typing import Any, Protocol
+
+from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.exc import SQLAlchemyError
+
+from data_asset_agents.core.config import Settings
+from data_asset_agents.core.errors import QueryExecutionError
+from data_asset_agents.text2sql.models import ExecutionResult
+from data_asset_agents.validation import SQLValidator
+
+
+class ExecutorProtocol(Protocol):
+    def execute(self, sql: str, allowed_tables: set[str]) -> ExecutionResult: ...
+
+
+class QueryExecutor:
+    """EXPLAIN and execute validated SQL inside a read-only PostgreSQL transaction."""
+
+    def __init__(self, settings: Settings, engine: Engine | None = None) -> None:
+        self.settings = settings
+        self.engine = engine or create_engine(
+            settings.database_url,
+            pool_pre_ping=True,
+            pool_timeout=settings.database_connect_timeout,
+            connect_args={"connect_timeout": settings.database_connect_timeout},
+        )
+        self.validator = SQLValidator()
+
+    def ping(self) -> bool:
+        try:
+            with self.engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+            return True
+        except SQLAlchemyError:
+            return False
+
+    def execute(self, sql: str, allowed_tables: set[str]) -> ExecutionResult:
+        report = self.validator.validate(sql, allowed_tables)
+        if not report.valid:
+            raise QueryExecutionError("; ".join(report.errors))
+        started = perf_counter()
+        try:
+            with self.engine.connect() as connection, connection.begin():
+                connection.execute(text("SET TRANSACTION READ ONLY"))
+                connection.execute(
+                    text(f"SET LOCAL statement_timeout = {self.settings.sql_statement_timeout_ms}")
+                )
+                explain_rows: Sequence[Any] = connection.execute(text(f"EXPLAIN {sql}")).fetchall()
+                result = connection.execute(text(sql))
+                columns = list(result.keys())
+                fetched = result.mappings().fetchmany(self.settings.sql_max_rows + 1)
+                truncated = len(fetched) > self.settings.sql_max_rows
+                fetched = fetched[: self.settings.sql_max_rows]
+        except SQLAlchemyError as exc:
+            raise QueryExecutionError(f"PostgreSQL validation/execution failed: {exc}") from exc
+        return ExecutionResult(
+            columns=columns,
+            rows=[dict(row) for row in fetched],
+            row_count=len(fetched),
+            truncated=truncated,
+            elapsed_ms=round((perf_counter() - started) * 1000, 2),
+            explain_plan=[str(row[0]) for row in explain_rows],
+        )
+

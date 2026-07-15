@@ -1,0 +1,109 @@
+- name: dim_customer
+  description: 客户维表
+  status: ACTIVE
+  selectable: true
+  grain: 每个客户一行
+  columns: [customer_id, customer_type, home_branch_id]
+  tags: [dimension, customer]
+- name: dim_account
+  description: 账户维表
+  status: ACTIVE
+  selectable: true
+  grain: 每个账户一行
+  columns: [account_id, customer_id, account_type, branch_id]
+  tags: [dimension, account]
+- name: dim_card
+  description: 银行卡维表
+  status: ACTIVE
+  selectable: true
+  grain: 每张卡一行
+  columns: [card_id, account_id, card_type]
+  tags: [dimension, card]
+- name: dim_branch
+  description: 分行维表
+  status: ACTIVE
+  selectable: true
+  grain: 每个分行一行
+  columns: [branch_id, branch_name, region]
+  tags: [dimension, branch]
+- name: dim_merchant
+  description: 商户维表
+  status: ACTIVE
+  selectable: true
+  grain: 每个商户一行
+  columns: [merchant_id, merchant_name, merchant_category]
+  tags: [dimension, merchant]
+- name: dwd_card_transaction
+  description: 银行卡交易明细事实表
+  status: ACTIVE
+  selectable: true
+  grain: 每个 transaction_id 一行
+  columns: [transaction_id, card_id, customer_id, branch_id, merchant_id, txn_amount, txn_amount_cny, posted_amount, card_type, transaction_status, transaction_channel, transaction_date]
+  tags: [fact, detail, certified]
+- name: dwd_account_transaction
+  description: 账户交易明细事实表
+  status: ACTIVE
+  selectable: true
+  grain: 每个账户流水一行
+  columns: [transaction_id, account_id, txn_amount_cny, transaction_status, transaction_date]
+  tags: [fact, detail]
+- name: dwd_transfer_transaction
+  description: 转账交易明细事实表
+  status: ACTIVE
+  selectable: true
+  grain: 每个转账指令一行
+  columns: [transfer_id, source_account_id, target_account_id, txn_amount_cny, transaction_status, transaction_date]
+  tags: [fact, detail]
+- name: dws_branch_transaction_day
+  description: 分行交易日汇总表，不保留交易 ID
+  status: ACTIVE
+  selectable: true
+  grain: 每分行、卡类型、交易日一行
+  columns: [branch_id, card_type, transaction_date, transaction_amount_cny, transaction_count]
+  tags: [summary, daily, no_distinct_transaction_id]
+- name: dws_customer_transaction_month
+  description: 客户交易月汇总表
+  status: ACTIVE
+  selectable: true
+  grain: 每客户、月份一行
+  columns: [customer_id, transaction_month, transaction_amount_cny, transaction_count]
+  tags: [summary, monthly]
+- name: legacy_card_transaction
+  description: 已下线的旧版卡交易表
+  status: DEPRECATED
+  selectable: false
+  replacement: dwd_card_transaction
+  grain: 历史交易明细
+  columns: [transaction_id, branch_id, txn_amount]
+  tags: [legacy]
+- name: old_account_transaction
+  description: 已下线的旧版账户流水表
+  status: DEPRECATED
+  selectable: false
+  replacement: dwd_account_transaction
+  grain: 历史账户流水明细
+  columns: [transaction_id, account_id, posted_amount]
+  tags: [legacy]
+- name: tmp_transaction_result
+  description: ETL 临时结果表
+  status: TEMPORARY
+  selectable: false
+  grain: 不稳定
+  columns: [transaction_id, txn_amount_cny]
+  tags: [temporary]
+- name: test_transaction_copy
+  description: 开发测试复制表
+  status: TEST
+  selectable: false
+  grain: 不稳定
+  columns: [transaction_id, txn_amount_cny]
+  tags: [test]
+- name: deprecated_branch_summary
+  description: 已废弃分行汇总表
+  status: DEPRECATED
+  selectable: false
+  replacement: dws_branch_transaction_day
+  grain: 旧汇总口径
+  columns: [branch_id, amount, count]
+  tags: [legacy, summary]
+

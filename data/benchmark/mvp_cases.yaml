@@ -1,0 +1,7 @@
+- id: branch_credit_card_30d
+  question: 查询近30天各分行信用卡交易金额和交易笔数。
+  expected_metrics: [信用卡交易金额, 信用卡交易笔数]
+  expected_dimensions: [分行]
+  expected_tables: [dwd_card_transaction, dim_branch]
+  expected_rejected: [legacy_card_transaction, tmp_transaction_result]
+

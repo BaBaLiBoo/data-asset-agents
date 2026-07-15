@@ -1,0 +1,20 @@
+- concept_id: customer
+  table: dim_customer
+  columns: [customer_id, customer_type]
+- concept_id: account
+  table: dim_account
+  columns: [account_id, customer_id, account_type]
+- concept_id: card
+  table: dim_card
+  columns: [card_id, account_id, card_type]
+- concept_id: transaction
+  table: dwd_card_transaction
+  columns: [transaction_id, txn_amount, txn_amount_cny, transaction_status, transaction_date]
+  condition: transaction_status = 'POSTED'
+- concept_id: branch
+  table: dim_branch
+  columns: [branch_id, branch_name]
+- concept_id: merchant
+  table: dim_merchant
+  columns: [merchant_id, merchant_name, merchant_category]
+
