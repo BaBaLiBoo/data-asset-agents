@@ -141,6 +141,7 @@ class TraceStep(BaseModel):
 class QueryRequest(BaseModel):
     question: str = Field(min_length=2, max_length=1000)
     query_mode: Literal["ontology", "rag", "schema"] = "ontology"
+    sql_asset_enabled: bool = True
 
 
 class SemanticSearchRequest(BaseModel):
@@ -155,6 +156,7 @@ class SemanticResolveRequest(BaseModel):
 class QueryResponse(BaseModel):
     question: str
     query_mode: str
+    strategy_variant: str | None = None
     status: Literal["success", "unsupported", "clarification_required", "failed"] = (
         "success"
     )
@@ -176,7 +178,12 @@ class QueryResponse(BaseModel):
     template_rejection_reasons: dict[str, list[str]] = Field(default_factory=dict)
     sql_rewrite: dict[str, Any] | None = None
     generated_sql: str | None = None
+    raw_model_output: str | None = None
+    retrieved_context: list[dict[str, Any]] | None = None
     validation_report: ValidationReport | None = None
+    common_validation_report: ValidationReport | None = None
+    ontology_policy_report: ValidationReport | None = None
+    evaluation_policy_report: dict[str, Any] | None = None
     validation_errors: list[str] = Field(default_factory=list)
     retry_count: int = 0
     repairable: bool = False
@@ -185,3 +192,6 @@ class QueryResponse(BaseModel):
     explanation: str | None = None
     confidence: float = 0.0
     trace_steps: list[TraceStep] = Field(default_factory=list)
+    latency_ms: float = 0.0
+    token_usage: dict[str, int] | None = None
+    mode_metadata: dict[str, Any] = Field(default_factory=dict)

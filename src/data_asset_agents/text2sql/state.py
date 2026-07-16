@@ -45,6 +45,8 @@ class Text2SQLState(TypedDict, total=False):
     sql_rewrite: SQLRewriteResult | None
     generated_sql: str | None
     validation_report: ValidationReport
+    common_validation_report: ValidationReport
+    ontology_policy_report: ValidationReport
     validation_errors: list[str]
     retry_count: int
     repairable: bool

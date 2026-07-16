@@ -17,7 +17,12 @@ from data_asset_agents.text2sql.models import (
 )
 from data_asset_agents.text2sql.state import Text2SQLState
 from data_asset_agents.text2sql.tools import JoinPlanner, build_select_sql
-from data_asset_agents.validation import SQLRepairer, SQLValidator
+from data_asset_agents.validation import (
+    CommonSQLSafetyValidator,
+    DatabaseCatalog,
+    OntologyPolicyValidator,
+    SQLRepairer,
+)
 
 
 def _trace(node: str, summary: str, status: str = "completed") -> list[TraceStep]:
@@ -33,17 +38,25 @@ class Text2SQLNodes:
         executor: ExecutorProtocol,
         history: HistoricalSQLRepository | None = None,
         sql_assets: SQLAssetService | None = None,
+        history_enabled: bool = True,
     ) -> None:
         self.ontology = ontology
         self.executor = executor
         self.history = history or HistoricalSQLRepository()
         self.sql_assets = sql_assets
+        self.history_enabled = history_enabled
         self.template_rewriter = (
             SQLTemplateRewriter(ontology, executor) if sql_assets is not None else None
         )
         self.template_checker = TemplateCompatibilityChecker(ontology)
         self.join_planner = JoinPlanner(ontology.bundle.joins)
-        self.validator = SQLValidator(ontology.bundle)
+        catalog = DatabaseCatalog.from_table_columns(
+            {asset.name: set(asset.columns) for asset in ontology.bundle.tables}
+        )
+        self.common_validator = CommonSQLSafetyValidator(catalog)
+        self.policy_validator = OntologyPolicyValidator(
+            ontology.bundle, ontology.ontology_version_id
+        )
         self.repairer = SQLRepairer()
 
     def parse_semantic_query(self, state: Text2SQLState) -> dict[str, Any]:
@@ -175,7 +188,7 @@ class Text2SQLNodes:
                     f"召回 {len(results)} 条通过安全门槛的认证 SQL 资产",
                 ),
             }
-        examples = self.history.search(state["question"])
+        examples = self.history.search(state["question"]) if self.history_enabled else []
         return {
             "historical_sql_examples": examples,
             "trace_steps": _trace(
@@ -282,15 +295,34 @@ class Text2SQLNodes:
                 errors=[issue.message],
                 issues=[issue],
             )
+            common_report = report
+            policy_report = report
         else:
             required_filters = [QueryFilter.model_validate(item) for item in state["filters"]]
-            report = self.validator.validate(
+            common_report = self.common_validator.validate(
+                sql, set(state["selected_tables"])
+            )
+            policy_report = self.policy_validator.validate(
                 sql,
-                set(state["selected_tables"]),
-                required_filters,
+                semantic_query=state["semantic_query"],
+                required_filters=required_filters,
+                expected_version_id=self.ontology.ontology_version_id,
+            )
+            issues = list(common_report.issues)
+            for policy_issue in policy_report.issues:
+                if policy_issue not in issues:
+                    issues.append(policy_issue)
+            report = common_report.model_copy(
+                update={
+                    "valid": not issues,
+                    "errors": [item.message for item in issues],
+                    "issues": issues,
+                }
             )
         return {
             "validation_report": report,
+            "common_validation_report": common_report,
+            "ontology_policy_report": policy_report,
             "validation_errors": report.errors,
             "trace_steps": _trace(
                 "validate_sql",

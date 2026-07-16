@@ -9,7 +9,7 @@ from data_asset_agents.core.config import Settings
 from data_asset_agents.core.errors import QueryExecutionError
 from data_asset_agents.ontology.models import OntologyBundle
 from data_asset_agents.text2sql.models import ExecutionResult
-from data_asset_agents.validation import SQLValidator
+from data_asset_agents.validation import CommonSQLSafetyValidator, DatabaseCatalog
 
 
 class QueryExecutor:
@@ -28,7 +28,8 @@ class QueryExecutor:
             pool_timeout=settings.database_connect_timeout,
             connect_args={"connect_timeout": settings.database_connect_timeout},
         )
-        self.validator = SQLValidator(ontology)
+        self.catalog = DatabaseCatalog.from_engine(self.engine)
+        self.validator = CommonSQLSafetyValidator(self.catalog)
 
     def ping(self) -> bool:
         try:
@@ -41,7 +42,10 @@ class QueryExecutor:
     def set_ontology(self, ontology: OntologyBundle) -> None:
         """Refresh execution validation after an ontology version is published."""
 
-        self.validator = SQLValidator(ontology)
+        # Execution safety is based on live database metadata. Ontology business
+        # policy is deliberately enforced before this mode-neutral executor.
+        self.catalog = DatabaseCatalog.from_engine(self.engine)
+        self.validator = CommonSQLSafetyValidator(self.catalog)
 
     def execute(self, sql: str, allowed_tables: set[str]) -> ExecutionResult:
         report = self.validator.validate(sql, allowed_tables)

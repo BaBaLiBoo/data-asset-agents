@@ -52,10 +52,17 @@ def build_text2sql_graph(
     executor: ExecutorProtocol,
     history: HistoricalSQLRepository | None = None,
     sql_assets: SQLAssetService | None = None,
+    history_enabled: bool = True,
 ) -> CompiledStateGraph:
     """Build a standalone compiled graph suitable for embedding as a subgraph."""
 
-    nodes = Text2SQLNodes(ontology, executor, history, sql_assets)
+    nodes = Text2SQLNodes(
+        ontology,
+        executor,
+        history,
+        sql_assets,
+        history_enabled=history_enabled,
+    )
     graph = StateGraph(Text2SQLState)
     for name in GRAPH_NODES:
         graph.add_node(name, getattr(nodes, name))

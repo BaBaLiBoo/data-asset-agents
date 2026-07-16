@@ -9,6 +9,13 @@ from sqlalchemy import create_engine
 
 from data_asset_agents.core.config import get_settings
 from data_asset_agents.core.errors import DataAssetAgentsError, UnsupportedQueryError
+from data_asset_agents.evaluation import (
+    OntologyStrategy,
+    PhysicalRAGIndex,
+    PhysicalRAGStrategy,
+    SchemaBaselineStrategy,
+    StrategyRouter,
+)
 from data_asset_agents.execution.executor import QueryExecutor
 from data_asset_agents.llm.factory import ModelFactory
 from data_asset_agents.metadata import MetadataInspector
@@ -46,6 +53,7 @@ from data_asset_agents.text2sql.models import (
     SemanticSearchRequest,
 )
 from data_asset_agents.text2sql.tools import JoinPlanner
+from data_asset_agents.validation import EvaluationPolicyInspector
 
 
 @asynccontextmanager
@@ -86,14 +94,49 @@ async def lifespan(app: FastAPI):
         model_factory,
     )
     sql_asset_service.initialize_if_needed()
+    physical_rag = PhysicalRAGIndex(dimensions=min(settings.embedding_dimensions, 128))
+    business_catalog = executor.catalog.business_only()
+    physical_rag.build(business_catalog, settings.historical_sql_path)
+    ontology_without_assets = build_text2sql_graph(
+        ontology,
+        executor,
+        sql_assets=None,
+        history_enabled=False,
+    )
+    ontology_full = build_text2sql_graph(
+        ontology, executor, sql_assets=sql_asset_service
+    )
+    strategy_router = StrategyRouter(
+        {
+            "schema": SchemaBaselineStrategy(
+                business_catalog, executor, settings, model_factory
+            ),
+            "rag": PhysicalRAGStrategy(
+                business_catalog,
+                physical_rag,
+                executor,
+                settings,
+                model_factory,
+            ),
+            "ontology_no_sql_asset": OntologyStrategy(
+                ontology_without_assets, sql_asset_enabled=False
+            ),
+            "ontology_full": OntologyStrategy(
+                ontology_full, sql_asset_enabled=True
+            ),
+        }
+    )
     app.state.ontology = ontology
     app.state.executor = executor
     app.state.ontology_repository = runtime_repository
     app.state.ontology_builder = builder
     app.state.sql_asset_service = sql_asset_service
-    app.state.graph = build_text2sql_graph(
-        ontology, executor, sql_assets=sql_asset_service
+    app.state.physical_rag = physical_rag
+    app.state.strategy_router = strategy_router
+    app.state.evaluation_policy_inspector = EvaluationPolicyInspector(
+        ontology.bundle, ontology.ontology_version_id
     )
+    app.state.graph = ontology_full
     yield
     executor.engine.dispose()
 
@@ -144,20 +187,28 @@ def health(request: Request, response: Response) -> dict[str, str]:
 @app.post("/api/v1/query", response_model=QueryResponse)
 def query(payload: QueryRequest, request: Request) -> QueryResponse:
     try:
-        result = request.app.state.graph.invoke(
-            {
-                "question": payload.question,
-                "query_mode": payload.query_mode,
-                "retry_count": 0,
-                "trace_steps": [],
-            }
+        result = request.app.state.strategy_router.execute(
+            payload.question,
+            payload.query_mode,
+            sql_asset_enabled=payload.sql_asset_enabled,
         )
-        if result.get("status") == "unsupported":
-            raise UnsupportedQueryError(
-                result.get("unsupported_reason") or "该问题不在第一阶段支持范围内",
-                result.get("error_code") or "UNSUPPORTED_QUERY",
+        if result.generated_sql:
+            result.evaluation_policy_report = (
+                request.app.state.evaluation_policy_inspector.inspect(
+                    result.generated_sql,
+                    semantic_query=result.semantic_query,
+                )
             )
-        return QueryResponse.model_validate(jsonable_encoder(result))
+        if result.status == "unsupported":
+            raise UnsupportedQueryError(
+                result.unsupported_reason or "该问题不在当前模式支持范围内",
+                result.error_code or "UNSUPPORTED_QUERY",
+            )
+        encoded = jsonable_encoder(result)
+        encoded["validation_report"] = encoded.get("ontology_policy_report") or encoded.get(
+            "common_validation_report"
+        )
+        return QueryResponse.model_validate(encoded)
     except DataAssetAgentsError:
         raise
     except Exception as exc:
@@ -383,6 +434,12 @@ def _activate_runtime(app_instance: FastAPI, version: OntologyVersion) -> None:
         app_instance.state.executor,
         sql_assets=app_instance.state.sql_asset_service,
     )
+    candidate_no_asset_graph = build_text2sql_graph(
+        app_instance.state.ontology,
+        app_instance.state.executor,
+        sql_assets=None,
+        history_enabled=False,
+    )
     if not app_instance.state.executor.ping():
         raise RuntimeError("Database health check failed after ontology activation")
     health_result = candidate_graph.invoke(
@@ -396,6 +453,20 @@ def _activate_runtime(app_instance: FastAPI, version: OntologyVersion) -> None:
     if health_result.get("status") != "success":
         raise RuntimeError("Target Text-to-SQL health query failed after activation")
     app_instance.state.graph = candidate_graph
+    app_instance.state.strategy_router.strategies.update(
+        {
+            "ontology_no_sql_asset": OntologyStrategy(
+                candidate_no_asset_graph, sql_asset_enabled=False
+            ),
+            "ontology_full": OntologyStrategy(
+                candidate_graph, sql_asset_enabled=True
+            ),
+        }
+    )
+    app_instance.state.evaluation_policy_inspector = EvaluationPolicyInspector(
+        app_instance.state.ontology.bundle,
+        app_instance.state.ontology.ontology_version_id,
+    )
 
 
 @app.get("/api/v1/graph")
