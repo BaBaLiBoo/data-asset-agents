@@ -291,6 +291,21 @@ class OntologyStrategy:
             }
         )
         validation: ValidationReport | None = result.get("validation_report")
+        common_validation: ValidationReport | None = result.get(
+            "common_validation_report", validation
+        )
+        ontology_validation: ValidationReport | None = result.get(
+            "ontology_policy_report", validation
+        )
+        if validation is not None:
+            if common_validation is not None:
+                common_validation = common_validation.model_copy(
+                    update={"explain_passed": validation.explain_passed}
+                )
+            if ontology_validation is not None:
+                ontology_validation = ontology_validation.model_copy(
+                    update={"explain_passed": validation.explain_passed}
+                )
         return StrategyResult(
             question=question,
             query_mode="ontology",
@@ -331,8 +346,8 @@ class OntologyStrategy:
                 if self.sql_asset_enabled and result.get("sql_rewrite")
                 else None
             ),
-            common_validation_report=result.get("common_validation_report", validation),
-            ontology_policy_report=result.get("ontology_policy_report", validation),
+            common_validation_report=common_validation,
+            ontology_policy_report=ontology_validation,
             execution_result=result.get("execution_result"),
             latency_ms=round((perf_counter() - started) * 1000, 2),
             token_usage=None,
