@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
         settings,
         model_factory,
     )
-    sql_asset_service.build()
+    sql_asset_service.initialize_if_needed()
     app.state.ontology = ontology
     app.state.executor = executor
     app.state.ontology_repository = runtime_repository
@@ -377,7 +377,7 @@ def _activate_runtime(app_instance: FastAPI, version: OntologyVersion) -> None:
     app_instance.state.ontology.rebuild_search_index(version.id)
     app_instance.state.sql_asset_service.ontology = app_instance.state.ontology
     app_instance.state.sql_asset_service.parser = HistoricalSQLParser()
-    app_instance.state.sql_asset_service.build()
+    app_instance.state.sql_asset_service.initialize_if_needed()
     candidate_graph = build_text2sql_graph(
         app_instance.state.ontology,
         app_instance.state.executor,

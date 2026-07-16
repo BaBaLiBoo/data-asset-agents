@@ -5,7 +5,9 @@
     "business_summary": "按分行汇总已入账信用卡交易金额",
     "sql": "SELECT b.branch_name AS branch, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' GROUP BY b.branch_name",
     "certified": true,
-    "certification_level": "GOLD"
+    "certification_level": "GOLD",
+    "metrics": ["credit_card_transaction_amount"],
+    "dimensions": ["branch"]
   },
   {
     "id": "sqlasset-credit-count-30d",
@@ -13,38 +15,188 @@
     "business_summary": "统计近30天已入账信用卡交易去重笔数",
     "sql": "SELECT COUNT(DISTINCT transaction_id) AS credit_card_transaction_count FROM dwd_card_transaction WHERE card_type = 'CREDIT' AND transaction_status = 'POSTED' AND transaction_date >= CURRENT_DATE - INTERVAL '30 days'",
     "certified": true,
-    "certification_level": "CERTIFIED"
+    "certification_level": "CERTIFIED",
+    "metrics": ["credit_card_transaction_count"],
+    "dimensions": []
   },
   {
     "id": "sqlasset-branch-credit-window",
     "question": "查询近30天各分行信用卡交易金额和排名",
     "business_summary": "使用 CTE 计算分行交易额并以窗口函数排名",
-    "sql": "WITH branch_totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' AND t.transaction_date >= CURRENT_DATE - INTERVAL '30 days' GROUP BY b.branch_name) SELECT branch_totals.branch_name, branch_totals.amount, DENSE_RANK() OVER (ORDER BY branch_totals.amount DESC) AS amount_rank FROM branch_totals ORDER BY amount_rank LIMIT 10",
+    "sql": "WITH branch_totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' AND t.transaction_date >= CURRENT_DATE - INTERVAL '30 days' GROUP BY b.branch_name) SELECT branch_totals.branch_name, branch_totals.amount, DENSE_RANK() OVER (ORDER BY branch_totals.amount DESC) AS amount_rank FROM branch_totals ORDER BY amount_rank",
     "certified": true,
-    "certification_level": "CERTIFIED"
+    "certification_level": "GOLD",
+    "metrics": ["credit_card_transaction_amount"],
+    "dimensions": ["branch"]
+  },
+  {
+    "id": "sqlasset-channel-transaction-amount",
+    "question": "按交易渠道查询交易金额",
+    "business_summary": "按交易渠道汇总已入账交易金额",
+    "sql": "SELECT t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_channel ORDER BY transaction_amount DESC",
+    "certified": true,
+    "certification_level": "CERTIFIED",
+    "metrics": ["transaction_amount"],
+    "dimensions": ["transaction_channel"]
+  },
+  {
+    "id": "sqlasset-branch-average-amount",
+    "question": "查询各分行平均交易金额",
+    "business_summary": "按分行计算已入账交易平均金额",
+    "sql": "SELECT b.branch_name, AVG(t.txn_amount_cny) AS average_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name",
+    "certified": true,
+    "certification_level": "CERTIFIED",
+    "metrics": ["average_transaction_amount"],
+    "dimensions": ["branch"]
+  },
+  {
+    "id": "sqlasset-branch-active-customers",
+    "question": "查询各分行活跃客户数",
+    "business_summary": "按分行统计发生已入账交易的去重客户数",
+    "sql": "SELECT b.branch_name, COUNT(DISTINCT t.customer_id) AS active_customer_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name",
+    "certified": true,
+    "certification_level": "CERTIFIED",
+    "metrics": ["active_customer_count"],
+    "dimensions": ["branch"]
+  },
+  {
+    "id": "sqlasset-top-branch-credit-amount",
+    "question": "查询信用卡交易金额前5名分行",
+    "business_summary": "信用卡交易金额分行 Top 5",
+    "sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 5",
+    "certified": true,
+    "certification_level": "GOLD",
+    "metrics": ["credit_card_transaction_amount"],
+    "dimensions": ["branch"]
+  },
+  {
+    "id": "sqlasset-branch-channel-credit",
+    "question": "按分行和渠道查询信用卡交易金额",
+    "business_summary": "分行与交易渠道双维度信用卡交易汇总",
+    "sql": "SELECT b.branch_name, t.transaction_channel, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' GROUP BY b.branch_name, t.transaction_channel",
+    "certified": true,
+    "certification_level": "CERTIFIED",
+    "metrics": ["credit_card_transaction_amount"],
+    "dimensions": ["branch", "transaction_channel"]
+  },
+  {
+    "id": "sqlasset-channel-in-filter",
+    "question": "查询POS和APP渠道信用卡交易金额",
+    "business_summary": "使用 IN 条件筛选两个虚构交易渠道",
+    "sql": "SELECT t.transaction_channel, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' AND t.transaction_channel IN ('POS', 'APP') GROUP BY t.transaction_channel",
+    "certified": true,
+    "certification_level": "CERTIFIED",
+    "metrics": ["credit_card_transaction_amount"],
+    "dimensions": ["transaction_channel"]
+  },
+  {
+    "id": "sqlasset-average-subquery",
+    "question": "查询高于整体均值的交易平均金额",
+    "business_summary": "使用子查询比较虚构交易金额均值",
+    "sql": "SELECT AVG(t.txn_amount_cny) AS average_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.txn_amount_cny > (SELECT AVG(s.txn_amount_cny) FROM dwd_card_transaction s WHERE s.transaction_status = 'POSTED')",
+    "certified": true,
+    "certification_level": "REVIEWED",
+    "metrics": ["average_transaction_amount"],
+    "dimensions": []
   },
   {
     "id": "sqlasset-deprecated-example",
     "question": "旧表交易金额",
-    "business_summary": "用于验证生命周期硬排除的虚构旧表样例",
+    "business_summary": "生命周期排除用虚构旧表样例",
     "sql": "SELECT SUM(txn_amount) FROM legacy_card_transaction",
     "certified": true,
-    "certification_level": "REVIEWED"
+    "certification_level": "REVIEWED",
+    "metrics": [],
+    "dimensions": []
+  },
+  {
+    "id": "sqlasset-temporary-example",
+    "question": "临时结果交易金额",
+    "business_summary": "生命周期排除用虚构临时表样例",
+    "sql": "SELECT SUM(txn_amount_cny) FROM tmp_transaction_result",
+    "certified": true,
+    "certification_level": "REVIEWED",
+    "metrics": [],
+    "dimensions": []
   },
   {
     "id": "sqlasset-unapproved-join",
     "question": "错误关联示例",
     "business_summary": "用于验证未审核 Join 硬排除",
-    "sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) FROM dwd_card_transaction t JOIN dim_branch b ON t.customer_id = b.branch_id GROUP BY b.branch_name",
+    "sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) FROM dwd_card_transaction t JOIN dim_branch b ON t.customer_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name",
     "certified": true,
-    "certification_level": "REVIEWED"
+    "certification_level": "REVIEWED",
+    "metrics": ["transaction_count"],
+    "dimensions": ["branch"]
+  },
+  {
+    "id": "sqlasset-missing-posted",
+    "question": "缺少入账状态的信用卡交易金额",
+    "business_summary": "业务口径反例：缺少 POSTED",
+    "sql": "SELECT SUM(t.txn_amount_cny) FROM dwd_card_transaction t WHERE t.card_type = 'CREDIT'",
+    "certified": true,
+    "certification_level": "REVIEWED",
+    "metrics": ["credit_card_transaction_amount"],
+    "dimensions": []
+  },
+  {
+    "id": "sqlasset-missing-credit",
+    "question": "缺少卡类型的信用卡交易金额",
+    "business_summary": "业务口径反例：缺少 CREDIT",
+    "sql": "SELECT SUM(t.txn_amount_cny) FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
+    "certified": true,
+    "certification_level": "REVIEWED",
+    "metrics": ["credit_card_transaction_amount"],
+    "dimensions": []
+  },
+  {
+    "id": "sqlasset-wrong-time-field",
+    "question": "错误时间字段示例",
+    "business_summary": "业务口径反例：使用月汇总时间字段过滤明细指标",
+    "sql": "SELECT SUM(t.txn_amount_cny) FROM dwd_card_transaction t JOIN dws_customer_transaction_month m ON t.customer_id = m.customer_id WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' AND m.transaction_month >= CURRENT_DATE - INTERVAL '30 days'",
+    "certified": true,
+    "certification_level": "REVIEWED",
+    "metrics": ["credit_card_transaction_amount"],
+    "dimensions": []
+  },
+  {
+    "id": "sqlasset-unsupported-dimension",
+    "question": "按客户类型查询信用卡交易金额",
+    "business_summary": "业务口径反例：指标未声明支持客户类型维度",
+    "sql": "SELECT c.customer_type, SUM(t.txn_amount_cny) FROM dwd_card_transaction t JOIN dim_customer c ON t.customer_id = c.customer_id WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' GROUP BY c.customer_type",
+    "certified": true,
+    "certification_level": "REVIEWED",
+    "metrics": ["credit_card_transaction_amount"],
+    "dimensions": ["customer_type"]
   },
   {
     "id": "sqlasset-uncertified-example",
     "question": "未认证交易明细",
-    "business_summary": "用于验证非认证资产硬排除",
+    "business_summary": "非认证资产硬排除样例",
     "sql": "SELECT transaction_id FROM dwd_card_transaction LIMIT 5",
     "certified": false,
-    "certification_level": "NONE"
+    "certification_level": "NONE",
+    "metrics": [],
+    "dimensions": []
+  },
+  {
+    "id": "sqlasset-explain-failure",
+    "question": "数据库解释失败示例",
+    "business_summary": "调用不存在函数以验证 EXPLAIN 失败隔离",
+    "sql": "SELECT SUM(t.txn_amount_cny) + fictional_missing_function(1) FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
+    "certified": true,
+    "certification_level": "REVIEWED",
+    "metrics": ["transaction_amount"],
+    "dimensions": []
+  },
+  {
+    "id": "sqlasset-conflicting-filter",
+    "question": "冲突过滤示例",
+    "business_summary": "同时声明 CREDIT 和 DEBIT 以验证冲突过滤硬门槛",
+    "sql": "SELECT SUM(t.txn_amount_cny) FROM dwd_card_transaction t WHERE t.card_type = 'CREDIT' AND t.card_type = 'DEBIT' AND t.transaction_status = 'POSTED'",
+    "certified": true,
+    "certification_level": "REVIEWED",
+    "metrics": ["credit_card_transaction_amount"],
+    "dimensions": []
   }
 ]

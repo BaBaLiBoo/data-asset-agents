@@ -104,6 +104,10 @@ def text_to_sql_page() -> None:
             st.json(
                 {
                     "selected": data.get("selected_sql_asset"),
+                    "selected_template_rank": data.get("selected_template_rank"),
+                    "template_rejection_reasons": data.get(
+                        "template_rejection_reasons", {}
+                    ),
                     "rewrite": data.get("sql_rewrite"),
                     "evidence": candidates[0].get("evidence", []),
                 }
@@ -349,8 +353,11 @@ def sql_asset_page() -> None:
             try:
                 report = api_request("POST", "/api/v1/sql-assets/build", json={})
                 st.success(
-                    f"已索引 {report['indexed']} 条，其中 {report['eligible']} 条可召回。"
+                    f"构建 {report['build']['build_id']} 已进入 "
+                    f"{report['build']['status']}；索引 {report['indexed']} 条，"
+                    f"其中 {report['eligible']} 条可召回。"
                 )
+                st.json(report["build"])
             except RuntimeError as exc:
                 st.error(str(exc))
     question = st.text_input("检索问题", "查询近30天各分行信用卡交易金额")
@@ -406,7 +413,11 @@ def sql_asset_page() -> None:
                 "certified": item["certified"],
                 "certification_level": item["certification_level"],
                 "execution_status": item["execution_status"],
+                "ontology_version_id": item["ontology_version_id"],
+                "build_id": item["build_id"],
                 "lifecycle_valid": item["lifecycle_valid"],
+                "semantic_policy_valid": item["semantic_policy_valid"],
+                "metric_policy_violations": item["metric_policy_violations"],
                 "invalid_columns": item["invalid_columns"],
                 "unapproved_joins": item["unapproved_joins"],
             }

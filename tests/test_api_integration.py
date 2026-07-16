@@ -70,6 +70,27 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         assert asset_search.json()[0]["score"]["total"] > 0
         assert asset_search.json()[0]["asset"]["lifecycle_valid"]
 
+        complex_query = client.post(
+            "/api/v1/query",
+            json={
+                "question": "查询近30天各分行信用卡交易金额和排名。",
+                "query_mode": "ontology",
+            },
+        )
+        assert complex_query.status_code == 200, complex_query.text
+        complex_result = complex_query.json()
+        assert complex_result["status"] == "success"
+        assert complex_result["selected_sql_asset"]["id"] == (
+            "sqlasset-branch-credit-window"
+        )
+        assert complex_result["selected_template_rank"] is not None
+        assert complex_result["sql_rewrite"]["used_template"]
+        assert "WITH branch_totals" in complex_result["generated_sql"]
+        assert "DENSE_RANK() OVER" in complex_result["generated_sql"]
+        assert complex_result["validation_report"]["valid"]
+        assert complex_result["validation_report"]["explain_passed"]
+        assert complex_result["execution_result"]["row_count"] > 0
+
         unsupported = client.post(
             "/api/v1/query",
             json={"question": "查询明天的天气", "query_mode": "ontology"},

@@ -107,12 +107,11 @@ class HistoricalSQLParser:
                     )
                 )
 
-        where = statement.args.get("where")
-        filters = (
-            [item.sql(dialect="postgres") for item in _split_conjunction(where.this)]
-            if where is not None
-            else []
-        )
+        filters = [
+            item.sql(dialect="postgres")
+            for where in statement.find_all(exp.Where)
+            for item in _split_conjunction(where.this)
+        ]
         aggregates: list[ParsedAggregate] = []
         for aggregate in statement.find_all(exp.AggFunc):
             parent = aggregate.parent
@@ -124,12 +123,11 @@ class HistoricalSQLParser:
                     alias=alias or None,
                 )
             )
-        group = statement.args.get("group")
-        group_by = (
-            [item.sql(dialect="postgres") for item in group.expressions]
-            if group is not None
-            else []
-        )
+        group_by = [
+            item.sql(dialect="postgres")
+            for group in statement.find_all(exp.Group)
+            for item in group.expressions
+        ]
         time_fields = [
             column
             for column in columns
@@ -260,9 +258,20 @@ class HistoricalSQLParser:
         aggregates = [node.sql(dialect="postgres") for node in statement.find_all(exp.AggFunc)]
         node_types = Counter(type(node).__name__ for node in statement.walk())
         tags = self._structural_tags(statement, analysis, ctes, windows)
-        metrics = self._matched_metrics(statement, physical_tables, ontology)
-        dimensions = self._matched_dimensions(columns, ontology)
+        inferred_metrics = self._matched_metrics(statement, physical_tables, ontology)
+        inferred_dimensions = self._matched_dimensions(columns, ontology)
+        declared_metrics = [str(item) for item in record.get("metrics", [])]
+        declared_dimensions = [str(item) for item in record.get("dimensions", [])]
+        metrics = declared_metrics or inferred_metrics
+        dimensions = declared_dimensions or inferred_dimensions
         mappings = self._matched_mappings(physical_tables, columns, ontology)
+        policy_violations = self._validate_semantic_policy(
+            statement,
+            metrics,
+            dimensions,
+            mappings,
+            ontology,
+        )
         normalized = self._normalized_sql(statement)
         return SQLAsset(
             **common,
@@ -287,6 +296,8 @@ class HistoricalSQLParser:
             ast_fingerprint=hashlib.sha256(normalized.encode()).hexdigest(),
             structural_tags=tags,
             physical_mapping_ids=mappings,
+            semantic_policy_valid=not policy_violations,
+            metric_policy_violations=policy_violations,
             invalid_columns=invalid_columns,
             unapproved_joins=unapproved,
             lifecycle_valid=lifecycle_valid,
@@ -325,7 +336,7 @@ class HistoricalSQLParser:
     ) -> list[str]:
         invalid: list[str] = []
         for column in columns:
-            if not column.table and column.column in (select_aliases or set()):
+            if column.column in (select_aliases or set()):
                 continue
             if column.table:
                 asset = ontology.tables_by_name.get(column.table)
@@ -420,6 +431,164 @@ class HistoricalSQLParser:
             if mapping.table in tables
             and any((mapping.table, column) in references for column in mapping.columns)
         )
+
+    @classmethod
+    def _validate_semantic_policy(
+        cls,
+        statement: exp.Expression,
+        metric_ids: list[str],
+        dimension_ids: list[str],
+        mapping_ids: list[str],
+        ontology: OntologyService,
+    ) -> list[str]:
+        """Validate that certified SQL implements the published business contract."""
+
+        violations: list[str] = []
+        aliases = {
+            alias: table.name
+            for table in statement.find_all(exp.Table)
+            for alias in {table.name, table.alias_or_name}
+        }
+        physical_tables = set(aliases.values())
+
+        def resolve_table(column: exp.Column) -> str | None:
+            if column.table:
+                return aliases.get(column.table)
+            candidates = [
+                table
+                for table in physical_tables
+                if table in ontology.tables_by_name
+                and column.name in ontology.tables_by_name[table].columns
+            ]
+            return candidates[0] if len(candidates) == 1 else None
+
+        actual_filters: dict[tuple[str | None, str], set[str]] = {}
+        for equality in statement.find_all(exp.EQ):
+            for possible_column, possible_value in (
+                (equality.left, equality.right),
+                (equality.right, equality.left),
+            ):
+                if isinstance(possible_column, exp.Column) and isinstance(
+                    possible_value, (exp.Literal, exp.Boolean)
+                ):
+                    key = (resolve_table(possible_column), possible_column.name)
+                    actual_filters.setdefault(key, set()).add(
+                        str(possible_value.this).upper()
+                    )
+        for predicate in statement.find_all(exp.In):
+            if not isinstance(predicate.this, exp.Column):
+                continue
+            key = (resolve_table(predicate.this), predicate.this.name)
+            values = {
+                str(item.this).upper()
+                for item in predicate.expressions
+                if isinstance(item, exp.Literal)
+            }
+            if values:
+                actual_filters.setdefault(key, set()).update(values)
+        for (table, column), values in actual_filters.items():
+            if len(values) > 1 and any(
+                isinstance(parent, exp.EQ)
+                for node in statement.find_all(exp.Column)
+                if resolve_table(node) == table and node.name == column
+                for parent in [node.parent]
+            ):
+                violations.append(
+                    f"CONFLICTING_FILTER:{table or '?'}.{column}="
+                    + "|".join(sorted(values))
+                )
+
+        actual_aggregates = list(statement.find_all(exp.AggFunc))
+        time_filter_refs: set[tuple[str | None, str]] = set()
+        for predicate_type in (exp.GT, exp.GTE, exp.LT, exp.LTE, exp.Between):
+            for predicate in statement.find_all(predicate_type):
+                for column in predicate.find_all(exp.Column):
+                    if any(
+                        token in column.name.lower()
+                        for token in ("date", "time", "month", "year")
+                    ):
+                        time_filter_refs.add((resolve_table(column), column.name))
+
+        for metric_id in metric_ids:
+            metric = ontology.metrics_by_id.get(metric_id)
+            if metric is None:
+                violations.append(f"UNKNOWN_METRIC:{metric_id}")
+                continue
+            mapping_id = f"metric:{metric_id}"
+            mapping = ontology.mappings_by_concept_id.get(mapping_id)
+            if mapping is None or mapping_id not in mapping_ids:
+                violations.append(f"metric:{metric_id}:MAPPING_NOT_IN_CURRENT_VERSION")
+                continue
+            if mapping.table != metric.base_table:
+                violations.append(f"metric:{metric_id}:MAPPING_TABLE_MISMATCH")
+            for field, expected in metric.required_filters.items():
+                values = actual_filters.get((metric.base_table, field), set())
+                if expected.upper() not in values:
+                    violations.append(
+                        f"metric:{metric_id}:MISSING_REQUIRED_FILTER:{field}={expected}"
+                    )
+
+            try:
+                expected_expression = sqlglot.parse_one(
+                    metric.expression, read="postgres"
+                )
+            except sqlglot.errors.ParseError:
+                violations.append(f"metric:{metric_id}:INVALID_METRIC_EXPRESSION")
+                continue
+            expected_aggregates = list(expected_expression.find_all(exp.AggFunc))
+            for expected_aggregate in expected_aggregates:
+                expected_columns = {
+                    (column.table or metric.base_table, column.name)
+                    for column in expected_aggregate.find_all(exp.Column)
+                }
+                expected_distinct = expected_aggregate.find(exp.Distinct) is not None
+                matched = False
+                for actual in actual_aggregates:
+                    actual_columns = {
+                        (aliases.get(column.table) or metric.base_table, column.name)
+                        for column in actual.find_all(exp.Column)
+                    }
+                    if (
+                        actual.key == expected_aggregate.key
+                        and (actual.find(exp.Distinct) is not None) == expected_distinct
+                        and expected_columns <= actual_columns
+                    ):
+                        matched = True
+                        break
+                if not matched:
+                    violations.append(
+                        f"metric:{metric_id}:AGGREGATION_OR_ROLE_MISMATCH:"
+                        f"{expected_aggregate.sql(dialect='postgres')}"
+                    )
+
+            if metric.time_dimension:
+                time_dimension = ontology.dimensions_by_id.get(metric.time_dimension)
+                if time_dimension is None:
+                    violations.append(f"metric:{metric_id}:UNKNOWN_TIME_DIMENSION")
+                elif time_filter_refs and time_filter_refs != {
+                    (time_dimension.table, time_dimension.column)
+                }:
+                    rendered = ",".join(
+                        f"{table or '?'}.{column}"
+                        for table, column in sorted(time_filter_refs, key=str)
+                    )
+                    violations.append(
+                        f"metric:{metric_id}:TIME_FIELD_MISMATCH:{rendered}"
+                    )
+            unsupported = sorted(set(dimension_ids) - set(metric.supported_dimensions))
+            if unsupported:
+                violations.append(
+                    f"metric:{metric_id}:UNSUPPORTED_DIMENSION:"
+                    + ",".join(unsupported)
+                )
+        for dimension_id in dimension_ids:
+            if dimension_id not in ontology.dimensions_by_id:
+                violations.append(f"UNKNOWN_DIMENSION:{dimension_id}")
+            elif f"dimension:{dimension_id}" not in mapping_ids:
+                violations.append(
+                    f"dimension:{dimension_id}:MAPPING_NOT_IN_CURRENT_VERSION"
+                )
+        return list(dict.fromkeys(violations))
 
     @staticmethod
     def _structural_tags(

@@ -24,6 +24,25 @@ class SQLExecutionStatus(StrEnum):
     PARSE_FAILED = "PARSE_FAILED"
 
 
+class SQLAssetBuildStatus(StrEnum):
+    BUILDING = "BUILDING"
+    READY = "READY"
+    FAILED = "FAILED"
+
+
+class SQLAssetBuild(BaseModel):
+    build_id: str
+    ontology_version_id: str
+    source_hash: str
+    source_path: str
+    status: SQLAssetBuildStatus = SQLAssetBuildStatus.BUILDING
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    completed_at: datetime | None = None
+    error_message: str | None = None
+    asset_count: int = 0
+    eligible_count: int = 0
+
+
 class SQLAsset(BaseModel):
     """A certified historical query and its parsed, reviewable structure."""
 
@@ -34,6 +53,13 @@ class SQLAsset(BaseModel):
     certification_level: CertificationLevel = CertificationLevel.NONE
     sql_text: str
     dialect: str = "postgres"
+    ontology_version_id: str = ""
+    build_id: str = ""
+    source_hash: str = ""
+    source_path: str = ""
+    indexed_at: datetime | None = None
+    semantic_policy_valid: bool = False
+    metric_policy_violations: list[str] = Field(default_factory=list)
     metrics: list[str] = Field(default_factory=list)
     dimensions: list[str] = Field(default_factory=list)
     filters: list[str] = Field(default_factory=list)
@@ -82,6 +108,8 @@ class SQLAsset(BaseModel):
             and self.lifecycle_valid
             and not self.invalid_columns
             and not self.unapproved_joins
+            and self.semantic_policy_valid
+            and not self.metric_policy_violations
             and self.execution_status == SQLExecutionStatus.EXPLAIN_PASSED
         )
 
@@ -91,6 +119,7 @@ class SQLAssetBuildRequest(BaseModel):
 
 
 class SQLAssetBuildReport(BaseModel):
+    build: SQLAssetBuild
     parsed: int = 0
     indexed: int = 0
     eligible: int = 0
@@ -134,4 +163,12 @@ class SQLRewriteResult(BaseModel):
     changes: list[str] = Field(default_factory=list)
     validation_errors: list[str] = Field(default_factory=list)
     explain_plan: list[str] = Field(default_factory=list)
+    selected_template_rank: int | None = None
+    template_rejection_reasons: dict[str, list[str]] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class TemplateCompatibility(BaseModel):
+    asset_id: str
+    compatible: bool
+    reasons: list[str] = Field(default_factory=list)

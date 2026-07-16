@@ -172,6 +172,8 @@ class QueryResponse(BaseModel):
     historical_sql_examples: list[HistoricalSQLExample] = Field(default_factory=list)
     sql_asset_candidates: list[dict[str, Any]] = Field(default_factory=list)
     selected_sql_asset: dict[str, Any] | None = None
+    selected_template_rank: int | None = None
+    template_rejection_reasons: dict[str, list[str]] = Field(default_factory=dict)
     sql_rewrite: dict[str, Any] | None = None
     generated_sql: str | None = None
     validation_report: ValidationReport | None = None

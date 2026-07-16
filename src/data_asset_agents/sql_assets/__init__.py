@@ -1,5 +1,6 @@
 from data_asset_agents.sql_assets.models import (
     SQLAsset,
+    SQLAssetBuild,
     SQLAssetBuildReport,
     SQLAssetBuildRequest,
     SQLAssetSearchRequest,
@@ -14,6 +15,7 @@ __all__ = [
     "HistoricalSQLParser",
     "PostgresSQLAssetRepository",
     "SQLAsset",
+    "SQLAssetBuild",
     "SQLAssetBuildReport",
     "SQLAssetBuildRequest",
     "SQLAssetSearchRequest",

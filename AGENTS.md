@@ -11,6 +11,10 @@
 - All generated SQL is read-only, statically validated, explained, and executed in a read-only transaction.
 - Historical SQL assets are retrieval templates only. Uncertified, lifecycle-invalid, parse-invalid,
   missing-column, unreviewed-join, or EXPLAIN-failed assets must never enter online recall.
+- SQL assets must belong to the current ontology version and the latest READY SQLAssetBuild;
+  BUILDING and FAILED batches must remain invisible while the previous READY batch serves traffic.
+- Required metric filters, aggregation roles, time dimensions, supported dimensions, and mapping
+  provenance are hard semantic gates, not ranking signals.
 - SQL template adaptation must use SQLGlot AST mutations and must fall back to the deterministic
   compiler unless the rewritten SQL passes SQLValidator and PostgreSQL EXPLAIN.
 - Add type annotations and tests for changes on the core query path.

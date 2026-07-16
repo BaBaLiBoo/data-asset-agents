@@ -46,11 +46,16 @@ Data Asset Agents 是一个面向企业数据资产研发场景的多智能体�
 ## 认证 SQL 资产能力
 
 - `SQLAsset` 保存问题、业务摘要、认证等级、SQLGlot 结构、指标/维度、表字段、Join、CTE、子查询、窗口函数、AST 节点分布与规范化指纹
+- 每条资产绑定 `ontology_version_id`、`build_id`、来源哈希、受控来源路径和索引时间，能够追溯到生成它的本体版本与批次
+- `SQLAssetBuild` 使用 `BUILDING → READY/FAILED` 状态；在线检索只读取当前本体版本最近的 READY 构建
+- 新构建在 READY 前不会替换旧索引，解析、Embedding 或持久化失败只标记该批次 FAILED，旧 READY 构建继续服务
 - 离线构建结合当前已发布本体检查 Physical Mapping、字段存在性、表生命周期和审核 Join，并以 PostgreSQL `EXPLAIN` 作为进入召回池的硬门槛
+- 业务口径硬门槛校验指标过滤、聚合函数、物理字段角色、时间维度、支持维度、冲突过滤和当前版本 Physical Mapping；失败原因写入 `metric_policy_violations`
 - PostgreSQL 同时保存结构化 JSONB、全文索引和 pgvector；mock 使用稳定 CPU 向量，live 复用现有 Embedding 客户端
 - 检索仅考虑认证、解析成功、生命周期有效、字段有效、Join 已审核且 EXPLAIN 成功的资产
 - 通过自然语言、指标、维度、表字段、Join、AST、认证和生命周期八项分数组合重排，并返回每项得分与证据
 - 简单查询继续使用确定性编译器；只有带 CTE、子查询或窗口函数的复杂认证模板才尝试 SQLGlot AST 改写
+- 在线节点对 Top-K 逐条执行 `TemplateCompatibilityChecker`，按指标、维度、表字段、Join、结构标签和物理角色选择第一个兼容模板，并返回排名与跳过原因
 - 改写通过 SQLValidator 和 PostgreSQL `EXPLAIN` 后才可进入后续执行；任一步失败都会显式记录原因并回退确定性 SQL
 
 重排总分为：自然语言向量/全文 `25%` + 指标 `15%` + 维度 `10%` +
@@ -103,7 +108,7 @@ tests/                       核心路径测试
 ```powershell
 git clone https://github.com/BaBaLiBoo/data-asset-agents.git
 cd data-asset-agents
-git switch feature/sql-asset-retrieval
+git switch feature/text2sql-mvp
 Copy-Item .env.example .env
 docker compose up --build -d
 docker compose ps
@@ -149,6 +154,8 @@ docker compose exec postgres psql -U minibank -d minibank `
   -f /docker-entrypoint-initdb.d/003_release_safety_and_search.sql
 docker compose exec postgres psql -U minibank -d minibank `
   -f /docker-entrypoint-initdb.d/004_sql_assets.sql
+docker compose exec postgres psql -U minibank -d minibank `
+  -f /docker-entrypoint-initdb.d/005_sql_asset_builds.sql
 ```
 
 ## 本地 Python 开发
@@ -270,6 +277,8 @@ docker compose ps
 docker compose down
 ```
 
+脚本还会执行真实复杂模板问题“查询近30天各分行信用卡交易金额和排名”，并断言：召回认证模板、`sql_rewrite.used_template=true`、SQL 保留 `WITH` 和 `DENSE_RANK`、SQLValidator/EXPLAIN 通过且结果非空。
+
 代码检查：
 
 ```powershell
@@ -308,7 +317,10 @@ YAML 是初始化种子和故障回退；在线事实源是 PostgreSQL 中当前
 - `ontology` 是第一阶段唯一真实实现的查询模式；`rag`、`schema` 仅保留接口和前端选项，当前复用同一 ontology 链路，不代表独立能力。
 - 概念向量只匹配当前发布的标准业务语义，绝不直接选择物理表；SQL 资产向量只召回已认证模板，物理表仍由本体映射确定。
 - AST 改写支持受控的表/字段角色映射、外层时间与筛选条件、Group By、Order By、Limit，并保留模板中的 CTE、子查询和窗口表达式；跨事实表、相关子查询语义迁移和任意结构合成不在本轮范围内。
-- SQL 资产认证状态由受控源文件提供；本轮没有实现多人签名认证工作流。索引在 API 启动和显式 build 时重建，尚未实现增量 CDC。
+- 表映射必须由相同业务概念的 Physical Mapping 证明，不再按表位置猜测；复杂模板 Join 与目标 Join 不一致时直接回退，只有简单结构可以从确定性 SQL AST 安全重建 FROM/JOIN。
+- API 启动优先复用当前本体版本最近 READY 构建；仅在 mock 且没有 READY 构建时初始化一次。live 模式不会因 Embedding 服务不可用而阻塞 API 启动。
+- 受控样本当前为 20 条纯虚构 SQL，覆盖聚合、多维 Group By、Top N、CTE、窗口、子查询、时间、IN 及生命周期/口径/Join/认证/EXPLAIN 反例。
+- SQL 资产认证状态由受控源文件提供；本轮没有实现多人签名认证工作流，也没有增量 CDC 或异步构建队列。
 - 本轮实现的是受控离线构建，不是无人值守的“自动本体”：业务骨架仍来自人工定义，LLM 只生成候选，发布必须人工审核。
 - 自动修复仅支持补齐校验器明确指出的必要指标过滤条件；字段错误、未审核 Join、禁用表和数据库执行错误不会被猜测性修改。
 - 已实现版本激活和回滚，但尚未实现细粒度权限、多人审批、版本签名、完整审计检索和评测平台。

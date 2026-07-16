@@ -4,6 +4,7 @@ from data_asset_agents.core.errors import QueryExecutionError, UnsupportedQueryE
 from data_asset_agents.execution.protocols import ExecutorProtocol
 from data_asset_agents.ontology.models import Dimension, Metric
 from data_asset_agents.ontology.service import OntologyService
+from data_asset_agents.sql_assets.compatibility import TemplateCompatibilityChecker
 from data_asset_agents.sql_assets.models import SQLAssetSearchRequest, SQLRewriteResult
 from data_asset_agents.sql_assets.repository import HistoricalSQLRepository
 from data_asset_agents.sql_assets.rewriter import SQLTemplateRewriter
@@ -40,6 +41,7 @@ class Text2SQLNodes:
         self.template_rewriter = (
             SQLTemplateRewriter(ontology, executor) if sql_assets is not None else None
         )
+        self.template_checker = TemplateCompatibilityChecker(ontology)
         self.join_planner = JoinPlanner(ontology.bundle.joins)
         self.validator = SQLValidator(ontology.bundle)
         self.repairer = SQLRepairer()
@@ -145,10 +147,29 @@ class Text2SQLNodes:
                 }
                 for item in results
             ]
+            selected = None
+            selected_rank = None
+            rejection_reasons: dict[str, list[str]] = {}
+            for rank, result in enumerate(results, start=1):
+                compatibility = self.template_checker.check(
+                    result.asset,
+                    state["question"],
+                    state["semantic_query"],
+                    state["selected_tables"],
+                    state["selected_columns"],
+                    state["join_plan"],
+                )
+                if compatibility.compatible:
+                    selected = result.asset
+                    selected_rank = rank
+                    break
+                rejection_reasons[result.asset.id] = compatibility.reasons
             return {
                 "historical_sql_examples": examples,
                 "sql_asset_candidates": results,
-                "selected_sql_asset": results[0].asset if results else None,
+                "selected_sql_asset": selected,
+                "selected_template_rank": selected_rank,
+                "template_rejection_reasons": rejection_reasons,
                 "trace_steps": _trace(
                     "retrieve_historical_sql",
                     f"召回 {len(results)} 条通过安全门槛的认证 SQL 资产",
@@ -184,21 +205,6 @@ class Text2SQLNodes:
                 "trace_steps": _trace("generate_sql", str(exc), "failed"),
             }
         selected_asset = state.get("selected_sql_asset")
-        selected_result = next(
-            (
-                item
-                for item in state.get("sql_asset_candidates", [])
-                if selected_asset is not None and item.asset.id == selected_asset.id
-            ),
-            None,
-        )
-        template_covers_query = bool(
-            selected_result
-            and selected_result.score.metric_match == 1
-            and selected_result.score.dimension_match == 1
-            and selected_result.score.table_column_coverage == 1
-            and selected_result.score.join_match == 1
-        )
         complex_template = bool(
             selected_asset
             and {"cte", "subquery", "window"} & set(selected_asset.structural_tags)
@@ -206,7 +212,6 @@ class Text2SQLNodes:
         if (
             selected_asset is not None
             and self.template_rewriter is not None
-            and template_covers_query
             and complex_template
         ):
             concept_ids = {
@@ -226,6 +231,14 @@ class Text2SQLNodes:
                 state["join_plan"],
                 [QueryFilter.model_validate(item) for item in state.get("filters", [])],
             )
+            rewrite = rewrite.model_copy(
+                update={
+                    "selected_template_rank": state.get("selected_template_rank"),
+                    "template_rejection_reasons": state.get(
+                        "template_rejection_reasons", {}
+                    ),
+                }
+            )
             return {
                 "generated_sql": rewrite.rewritten_sql,
                 "sql_rewrite": rewrite,
@@ -236,14 +249,16 @@ class Text2SQLNodes:
                     else rewrite.fallback_reason or "回退确定性编译器",
                 ),
             }
-        if selected_asset is not None and complex_template and not template_covers_query:
-            reason = "认证模板未完整覆盖目标指标、维度、表字段或 Join，使用确定性编译器"
+        if selected_asset is None and state.get("sql_asset_candidates"):
+            reason = "Top-K 认证模板均不兼容，使用确定性编译器"
             return {
                 "generated_sql": deterministic_sql,
                 "sql_rewrite": SQLRewriteResult(
                     used_template=False,
-                    asset_id=selected_asset.id,
-                    original_sql=selected_asset.sql_text,
+                    selected_template_rank=None,
+                    template_rejection_reasons=state.get(
+                        "template_rejection_reasons", {}
+                    ),
                     rewritten_sql=deterministic_sql,
                     fallback_reason=reason,
                 ),

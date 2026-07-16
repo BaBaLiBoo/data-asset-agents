@@ -34,16 +34,42 @@ class SQLTemplateRewriter:
         return select
 
     @staticmethod
-    def _table_map(asset: SQLAsset, join_plan: JoinPlan) -> dict[str, str]:
+    def _table_map(
+        asset: SQLAsset,
+        source_mappings: list[PhysicalMapping],
+        target_mappings: list[PhysicalMapping],
+        join_plan: JoinPlan,
+    ) -> dict[str, str]:
+        """Map tables only when a semantic role proves the correspondence."""
+
         targets = list(join_plan.tables)
         if not targets:
             raise SQLTemplateRewriteError("Join Plan 没有目标表")
-        mapping = {table: table for table in asset.tables if table in targets}
-        source_remaining = [table for table in asset.tables if table not in mapping]
-        target_remaining = [table for table in targets if table not in mapping.values()]
-        if len(source_remaining) != len(target_remaining):
-            raise SQLTemplateRewriteError("模板表角色无法与目标 Join Plan 一一对应")
-        mapping.update(zip(source_remaining, target_remaining, strict=True))
+        target_by_concept = {
+            mapping.concept_id: mapping for mapping in target_mappings
+        }
+        proposed: dict[str, set[str]] = {}
+        for source in source_mappings:
+            target = target_by_concept.get(source.concept_id)
+            if target is not None:
+                proposed.setdefault(source.table, set()).add(target.table)
+        mapping: dict[str, str] = {}
+        for source_table in asset.tables:
+            role_targets = proposed.get(source_table, set())
+            if len(role_targets) > 1:
+                raise SQLTemplateRewriteError(
+                    f"模板表 {source_table} 的业务角色映射相互冲突"
+                )
+            if role_targets:
+                mapping[source_table] = next(iter(role_targets))
+            elif source_table in targets:
+                mapping[source_table] = source_table
+            else:
+                raise SQLTemplateRewriteError(
+                    f"无法依据 Physical Mapping 证明表角色：{source_table}"
+                )
+        if set(mapping.values()) != set(targets):
+            raise SQLTemplateRewriteError("模板表角色未完整覆盖目标 Join Plan")
         return mapping
 
     @staticmethod
@@ -81,13 +107,34 @@ class SQLTemplateRewriter:
             target = sqlglot.parse_one(deterministic_sql, read="postgres")
         except sqlglot.errors.ParseError as exc:
             raise SQLTemplateRewriteError(f"SQLGlot 解析失败：{exc}") from exc
-        table_map = self._table_map(asset, join_plan)
         source_mappings = [
             mapping
             for mapping in self.ontology.bundle.mappings
             if mapping.concept_id in asset.physical_mapping_ids
         ]
+        table_map = self._table_map(
+            asset, source_mappings, target_mappings, join_plan
+        )
         column_map = self._column_map(source_mappings, target_mappings, table_map)
+        template_join_keys = {
+            frozenset(
+                {
+                    (table_map.get(join.left_table, join.left_table), join.left_column),
+                    (table_map.get(join.right_table, join.right_table), join.right_column),
+                }
+            )
+            for join in asset.joins
+        }
+        target_join_keys = {
+            frozenset(
+                {
+                    (step.left_table, step.left_column),
+                    (step.right_table, step.right_column),
+                }
+            )
+            for step in join_plan.steps
+        }
+        rebuild_join_tree = template_join_keys != target_join_keys
         aliases: dict[str, str] = {}
         for table in template.find_all(exp.Table):
             aliases[table.alias_or_name] = table.name
@@ -147,6 +194,20 @@ class SQLTemplateRewriter:
             ),
             template_outer,
         )
+        if rebuild_join_tree:
+            complex_structure = {"cte", "subquery", "window"} & set(
+                asset.structural_tags
+            )
+            if physical_select is not template_outer or complex_structure:
+                raise SQLTemplateRewriteError(
+                    "模板 Join 与目标 Join Plan 不一致，复杂结构无法安全重建"
+                )
+            physical_select.set("from_", target_outer.args.get("from_").copy())
+            physical_select.set(
+                "joins",
+                [join.copy() for join in target_outer.args.get("joins", [])],
+            )
+            changes.append("从确定性 SQL AST 重建 FROM/JOIN 子树")
         target_where = target_outer.args.get("where")
         if target_where is not None:
             physical_select.set("where", translated(target_where))

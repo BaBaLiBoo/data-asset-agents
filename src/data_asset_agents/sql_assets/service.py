@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import hashlib
+import logging
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
+from uuid import uuid4
 
 from data_asset_agents.core.config import Settings
-from data_asset_agents.core.errors import QueryExecutionError
+from data_asset_agents.core.errors import OntologyError, QueryExecutionError
 from data_asset_agents.execution.protocols import ExecutorProtocol
 from data_asset_agents.llm.factory import ModelFactory
 from data_asset_agents.ontology.retrieval import deterministic_embedding
@@ -12,7 +16,9 @@ from data_asset_agents.ontology.service import OntologyService
 from data_asset_agents.sql_assets.models import (
     CertificationLevel,
     SQLAsset,
+    SQLAssetBuild,
     SQLAssetBuildReport,
+    SQLAssetBuildStatus,
     SQLAssetScore,
     SQLAssetSearchRequest,
     SQLAssetSearchResult,
@@ -20,14 +26,24 @@ from data_asset_agents.sql_assets.models import (
 )
 from data_asset_agents.sql_assets.parser import HistoricalSQLParser
 
+LOGGER = logging.getLogger(__name__)
+
 
 class SQLAssetRepositoryProtocol(Protocol):
     def upsert(self, asset: SQLAsset, embedding: list[float]) -> None: ...
     def get(self, asset_id: str) -> SQLAsset | None: ...
     def list(self, limit: int = 100, offset: int = 0) -> list[SQLAsset]: ...
     def eligible_candidates(
-        self, embedding: list[float], query: str, limit: int
+        self,
+        embedding: list[float],
+        query: str,
+        limit: int,
+        ontology_version_id: str,
     ) -> list[tuple[SQLAsset, float, float]]: ...
+    def create_build(self, build: SQLAssetBuild) -> None: ...
+    def finish_build(self, build: SQLAssetBuild) -> None: ...
+    def latest_ready(self, ontology_version_id: str) -> SQLAssetBuild | None: ...
+    def get_build(self, build_id: str) -> SQLAssetBuild | None: ...
 
 
 class SQLAssetService:
@@ -79,38 +95,97 @@ class SQLAssetService:
             for text in texts
         ]
 
+    def initialize_if_needed(self) -> SQLAssetBuild | None:
+        """Load READY state; mock may seed once while live startup never blocks."""
+
+        ready = self.repository.latest_ready(self.ontology.ontology_version_id)
+        if ready is not None or self.settings.llm_mode != "mock":
+            return ready
+        try:
+            return self.build().build
+        except Exception as exc:
+            LOGGER.warning(
+                "Mock SQL asset initialization failed; continuing without index: %s",
+                exc,
+            )
+            return None
+
     def build(self, source_path: Path | str | None = None) -> SQLAssetBuildReport:
-        assets = self.parser.parse_assets(
-            source_path or self.settings.historical_sql_path,
-            self.ontology,
+        path = Path(source_path or self.settings.historical_sql_path)
+        try:
+            source_bytes = path.read_bytes()
+        except OSError as exc:
+            raise OntologyError(f"Cannot read SQL asset source {path}: {exc}") from exc
+        source_hash = hashlib.sha256(source_bytes).hexdigest()
+        build = SQLAssetBuild(
+            build_id=f"sqlbuild-{uuid4().hex}",
+            ontology_version_id=self.ontology.ontology_version_id,
+            source_hash=source_hash,
+            source_path=path.as_posix(),
         )
-        for asset in assets:
-            if (
-                asset.certified
-                and asset.parse_error is None
-                and asset.lifecycle_valid
-                and not asset.invalid_columns
-                and not asset.unapproved_joins
-            ):
-                try:
-                    plan = self.executor.explain(asset.sql_text, set(asset.tables))
-                    asset.execution_status = SQLExecutionStatus.EXPLAIN_PASSED
-                    asset.explain_error = None
-                    asset.business_summary = asset.business_summary or "；".join(plan[:1])
-                except QueryExecutionError as exc:
-                    asset.execution_status = SQLExecutionStatus.EXPLAIN_FAILED
-                    asset.explain_error = str(exc)
-        vectors = self._embed_documents([asset.retrieval_text for asset in assets])
-        for asset, vector in zip(assets, vectors, strict=True):
-            self.repository.upsert(asset, vector)
-        eligible = sum(asset.hard_eligible for asset in assets)
-        return SQLAssetBuildReport(
-            parsed=sum(asset.parse_error is None for asset in assets),
-            indexed=len(assets),
-            eligible=eligible,
-            excluded=len(assets) - eligible,
-            assets=assets,
-        )
+        self.repository.create_build(build)
+        assets: list[SQLAsset] = []
+        try:
+            assets = self.parser.parse_assets(path, self.ontology)
+            for asset in assets:
+                asset.ontology_version_id = build.ontology_version_id
+                asset.build_id = build.build_id
+                asset.source_hash = source_hash
+                asset.source_path = build.source_path
+                if (
+                    asset.certified
+                    and asset.parse_error is None
+                    and asset.lifecycle_valid
+                    and not asset.invalid_columns
+                    and not asset.unapproved_joins
+                    and asset.semantic_policy_valid
+                ):
+                    try:
+                        plan = self.executor.explain(asset.sql_text, set(asset.tables))
+                        asset.execution_status = SQLExecutionStatus.EXPLAIN_PASSED
+                        asset.explain_error = None
+                        asset.business_summary = asset.business_summary or "；".join(plan[:1])
+                    except QueryExecutionError as exc:
+                        asset.execution_status = SQLExecutionStatus.EXPLAIN_FAILED
+                        asset.explain_error = str(exc)
+            vectors = self._embed_documents([asset.retrieval_text for asset in assets])
+            indexed_at = datetime.now(UTC)
+            for asset, vector in zip(assets, vectors, strict=True):
+                asset.indexed_at = indexed_at
+                asset.updated_at = indexed_at
+                self.repository.upsert(asset, vector)
+            eligible = sum(asset.hard_eligible for asset in assets)
+            build = build.model_copy(
+                update={
+                    "status": SQLAssetBuildStatus.READY,
+                    "completed_at": datetime.now(UTC),
+                    "asset_count": len(assets),
+                    "eligible_count": eligible,
+                }
+            )
+            self.repository.finish_build(build)
+            return SQLAssetBuildReport(
+                build=build,
+                parsed=sum(asset.parse_error is None for asset in assets),
+                indexed=len(assets),
+                eligible=eligible,
+                excluded=len(assets) - eligible,
+                assets=assets,
+            )
+        except Exception as exc:
+            failed = build.model_copy(
+                update={
+                    "status": SQLAssetBuildStatus.FAILED,
+                    "completed_at": datetime.now(UTC),
+                    "error_message": str(exc),
+                    "asset_count": len(assets),
+                    "eligible_count": 0,
+                }
+            )
+            self.repository.finish_build(failed)
+            if isinstance(exc, OntologyError):
+                raise
+            raise OntologyError(f"SQL asset build {build.build_id} failed: {exc}") from exc
 
     def get(self, asset_id: str) -> SQLAsset | None:
         return self.repository.get(asset_id)
@@ -142,6 +217,8 @@ class SQLAssetService:
             tags.add("order_by")
         if semantic and (semantic.limit or semantic.top_n):
             tags.add("limit")
+        if any(term in request.question.lower() for term in ("排名", "排行", "rank")):
+            tags.add("window")
         return tags
 
     def search(self, request: SQLAssetSearchRequest) -> list[SQLAssetSearchResult]:
@@ -157,7 +234,10 @@ class SQLAssetService:
         target_joins = {self._join_key(item) for item in request.join_conditions}
         target_tags = self._target_tags(request)
         candidates = self.repository.eligible_candidates(
-            self._embed_query(request.question), request.question, request.limit * 5
+            self._embed_query(request.question),
+            request.question,
+            request.limit * 5,
+            self.ontology.ontology_version_id,
         )
         results: list[SQLAssetSearchResult] = []
         for asset, vector_score, keyword_score in candidates:

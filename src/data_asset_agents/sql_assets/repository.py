@@ -7,7 +7,11 @@ from sqlalchemy import Engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from data_asset_agents.core.errors import OntologyError
-from data_asset_agents.sql_assets.models import SQLAsset
+from data_asset_agents.sql_assets.models import (
+    SQLAsset,
+    SQLAssetBuild,
+    SQLAssetBuildStatus,
+)
 from data_asset_agents.text2sql.models import HistoricalSQLExample
 
 
@@ -33,7 +37,7 @@ class HistoricalSQLRepository:
 
 
 class PostgresSQLAssetRepository:
-    """Version-independent certified SQL asset store backed by pgvector."""
+    """Versioned SQL asset builds backed by PostgreSQL and pgvector."""
 
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
@@ -55,7 +59,9 @@ class PostgresSQLAssetRepository:
                             dimensions, tables, ast_fingerprint, structural_tags,
                             execution_status, lifecycle_valid, parse_valid,
                             explain_valid, payload, embedding, search_document,
-                            created_at, updated_at
+                            created_at, updated_at, ontology_version_id, build_id,
+                            source_hash, source_path, indexed_at,
+                            semantic_policy_valid, metric_policy_violations
                         ) VALUES (
                             :asset_id, :question, :business_summary, :certified,
                             :certification_level, :sql_text, :dialect, :metrics,
@@ -63,9 +69,11 @@ class PostgresSQLAssetRepository:
                             :execution_status, :lifecycle_valid, :parse_valid,
                             :explain_valid, CAST(:payload AS JSONB),
                             CAST(:embedding AS vector),
-                            to_tsvector('simple', :search_text), :created_at, :updated_at
+                            to_tsvector('simple', :search_text), :created_at, :updated_at,
+                            :ontology_version_id, :build_id, :source_hash, :source_path,
+                            :indexed_at, :semantic_policy_valid, :metric_policy_violations
                         )
-                        ON CONFLICT (asset_id) DO UPDATE SET
+                        ON CONFLICT (build_id, asset_id) DO UPDATE SET
                             question = EXCLUDED.question,
                             business_summary = EXCLUDED.business_summary,
                             certified = EXCLUDED.certified,
@@ -84,6 +92,9 @@ class PostgresSQLAssetRepository:
                             payload = EXCLUDED.payload,
                             embedding = EXCLUDED.embedding,
                             search_document = EXCLUDED.search_document,
+                            semantic_policy_valid = EXCLUDED.semantic_policy_valid,
+                            metric_policy_violations = EXCLUDED.metric_policy_violations,
+                            indexed_at = EXCLUDED.indexed_at,
                             updated_at = EXCLUDED.updated_at
                         """
                     ),
@@ -109,6 +120,13 @@ class PostgresSQLAssetRepository:
                         "search_text": asset.retrieval_text,
                         "created_at": asset.created_at,
                         "updated_at": asset.updated_at,
+                        "ontology_version_id": asset.ontology_version_id,
+                        "build_id": asset.build_id,
+                        "source_hash": asset.source_hash,
+                        "source_path": asset.source_path,
+                        "indexed_at": asset.indexed_at,
+                        "semantic_policy_valid": asset.semantic_policy_valid,
+                        "metric_policy_violations": asset.metric_policy_violations,
                     },
                 )
         except SQLAlchemyError as exc:
@@ -118,7 +136,10 @@ class PostgresSQLAssetRepository:
         try:
             with self.engine.connect() as connection:
                 row = connection.execute(
-                    text("SELECT payload FROM sql_asset WHERE asset_id = :asset_id"),
+                    text(
+                        "SELECT payload FROM sql_asset WHERE asset_id = :asset_id "
+                        "ORDER BY indexed_at DESC NULLS LAST LIMIT 1"
+                    ),
                     {"asset_id": asset_id},
                 ).mappings().first()
         except SQLAlchemyError as exc:
@@ -144,6 +165,7 @@ class PostgresSQLAssetRepository:
         embedding: list[float],
         query: str,
         limit: int,
+        ontology_version_id: str,
     ) -> list[tuple[SQLAsset, float, float]]:
         """Return only assets that pass every hard safety gate."""
 
@@ -157,15 +179,27 @@ class PostgresSQLAssetRepository:
                                    AS vector_score,
                                ts_rank_cd(search_document,
                                    plainto_tsquery('simple', :query)) AS keyword_score
-                        FROM sql_asset
+                        FROM sql_asset a
+                        JOIN sql_asset_build b ON b.build_id = a.build_id
                         WHERE certified
-                          AND lifecycle_valid
-                          AND parse_valid
-                          AND explain_valid
-                          AND execution_status = 'EXPLAIN_PASSED'
-                          AND jsonb_array_length(payload->'invalid_columns') = 0
-                          AND jsonb_array_length(payload->'unapproved_joins') = 0
-                        ORDER BY vector_score DESC, keyword_score DESC, updated_at DESC
+                          AND a.lifecycle_valid
+                          AND a.parse_valid
+                          AND a.explain_valid
+                          AND a.semantic_policy_valid
+                          AND a.execution_status = 'EXPLAIN_PASSED'
+                          AND a.ontology_version_id = :ontology_version_id
+                          AND b.status = 'READY'
+                          AND b.build_id = (
+                              SELECT latest.build_id FROM sql_asset_build latest
+                              WHERE latest.ontology_version_id = :ontology_version_id
+                                AND latest.status = 'READY'
+                              ORDER BY latest.completed_at DESC, latest.started_at DESC
+                              LIMIT 1
+                          )
+                          AND jsonb_array_length(a.payload->'invalid_columns') = 0
+                          AND jsonb_array_length(a.payload->'unapproved_joins') = 0
+                          AND jsonb_array_length(a.payload->'metric_policy_violations') = 0
+                        ORDER BY vector_score DESC, keyword_score DESC, a.updated_at DESC
                         LIMIT :limit
                         """
                     ),
@@ -173,6 +207,7 @@ class PostgresSQLAssetRepository:
                         "embedding": self._vector_literal(embedding),
                         "query": query,
                         "limit": limit,
+                        "ontology_version_id": ontology_version_id,
                     },
                 ).mappings()
                 return [
@@ -186,24 +221,116 @@ class PostgresSQLAssetRepository:
         except SQLAlchemyError as exc:
             raise OntologyError(f"Cannot search SQL assets: {exc}") from exc
 
+    def create_build(self, build: SQLAssetBuild) -> None:
+        try:
+            with self.engine.begin() as connection:
+                connection.execute(
+                    text(
+                        """
+                        INSERT INTO sql_asset_build (
+                            build_id, ontology_version_id, source_hash, source_path,
+                            status, started_at, asset_count, eligible_count
+                        ) VALUES (
+                            :build_id, :ontology_version_id, :source_hash, :source_path,
+                            :status, :started_at, 0, 0
+                        )
+                        """
+                    ),
+                    {
+                        **build.model_dump(),
+                        "status": build.status.value,
+                    },
+                )
+        except SQLAlchemyError as exc:
+            raise OntologyError(f"Cannot create SQL asset build: {exc}") from exc
+
+    def finish_build(self, build: SQLAssetBuild) -> None:
+        try:
+            with self.engine.begin() as connection:
+                connection.execute(
+                    text(
+                        """
+                        UPDATE sql_asset_build SET
+                            status = :status, completed_at = :completed_at,
+                            error_message = :error_message, asset_count = :asset_count,
+                            eligible_count = :eligible_count
+                        WHERE build_id = :build_id AND status = 'BUILDING'
+                        """
+                    ),
+                    {
+                        "build_id": build.build_id,
+                        "status": build.status.value,
+                        "completed_at": build.completed_at,
+                        "error_message": build.error_message,
+                        "asset_count": build.asset_count,
+                        "eligible_count": build.eligible_count,
+                    },
+                )
+        except SQLAlchemyError as exc:
+            raise OntologyError(f"Cannot finish SQL asset build: {exc}") from exc
+
+    def latest_ready(self, ontology_version_id: str) -> SQLAssetBuild | None:
+        try:
+            with self.engine.connect() as connection:
+                row = connection.execute(
+                    text(
+                        """
+                        SELECT * FROM sql_asset_build
+                        WHERE ontology_version_id = :ontology_version_id
+                          AND status = 'READY'
+                        ORDER BY completed_at DESC, started_at DESC LIMIT 1
+                        """
+                    ),
+                    {"ontology_version_id": ontology_version_id},
+                ).mappings().first()
+        except SQLAlchemyError as exc:
+            raise OntologyError(f"Cannot load READY SQL asset build: {exc}") from exc
+        return self._build_from_row(row) if row else None
+
+    def get_build(self, build_id: str) -> SQLAssetBuild | None:
+        try:
+            with self.engine.connect() as connection:
+                row = connection.execute(
+                    text("SELECT * FROM sql_asset_build WHERE build_id = :build_id"),
+                    {"build_id": build_id},
+                ).mappings().first()
+        except SQLAlchemyError as exc:
+            raise OntologyError(f"Cannot load SQL asset build: {exc}") from exc
+        return self._build_from_row(row) if row else None
+
+    @staticmethod
+    def _build_from_row(row: object) -> SQLAssetBuild:
+        values = dict(row)  # type: ignore[arg-type]
+        return SQLAssetBuild(**values)
+
 
 class MemorySQLAssetRepository:
     """Deterministic repository used by unit tests and database-free consumers."""
 
     def __init__(self, assets: list[SQLAsset] | None = None) -> None:
-        self.assets = {asset.id: asset for asset in assets or []}
+        self.assets = {(asset.build_id, asset.id): asset for asset in assets or []}
+        self.builds: dict[str, SQLAssetBuild] = {}
 
     def upsert(self, asset: SQLAsset, embedding: list[float]) -> None:
-        self.assets[asset.id] = asset
+        self.assets[(asset.build_id, asset.id)] = asset
 
     def get(self, asset_id: str) -> SQLAsset | None:
-        return self.assets.get(asset_id)
+        matches = [asset for (_, item_id), asset in self.assets.items() if item_id == asset_id]
+        return max(matches, key=lambda item: item.indexed_at or item.updated_at, default=None)
 
     def list(self, limit: int = 100, offset: int = 0) -> list[SQLAsset]:
-        return list(self.assets.values())[offset : offset + limit]
+        return sorted(
+            self.assets.values(),
+            key=lambda item: item.indexed_at or item.updated_at,
+            reverse=True,
+        )[offset : offset + limit]
 
     def eligible_candidates(
-        self, embedding: list[float], query: str, limit: int
+        self,
+        embedding: list[float],
+        query: str,
+        limit: int,
+        ontology_version_id: str,
     ) -> list[tuple[SQLAsset, float, float]]:
         from data_asset_agents.ontology.retrieval import deterministic_embedding
 
@@ -211,10 +338,38 @@ class MemorySQLAssetRepository:
             return max(0.0, sum(a * b for a, b in zip(left, right, strict=False)))
 
         scored: list[tuple[SQLAsset, float, float]] = []
+        ready = self.latest_ready(ontology_version_id)
         for asset in self.assets.values():
-            if not asset.hard_eligible:
+            if (
+                not asset.hard_eligible
+                or ready is None
+                or asset.build_id != ready.build_id
+                or asset.ontology_version_id != ontology_version_id
+            ):
                 continue
             vector = deterministic_embedding(asset.retrieval_text, len(embedding))
             keyword = float(bool(set(query.lower()) & set(asset.retrieval_text.lower())))
             scored.append((asset, cosine(embedding, vector), keyword))
         return sorted(scored, key=lambda item: item[1], reverse=True)[:limit]
+
+    def create_build(self, build: SQLAssetBuild) -> None:
+        self.builds[build.build_id] = build.model_copy(deep=True)
+
+    def finish_build(self, build: SQLAssetBuild) -> None:
+        self.builds[build.build_id] = build.model_copy(deep=True)
+
+    def latest_ready(self, ontology_version_id: str) -> SQLAssetBuild | None:
+        ready = [
+            build
+            for build in self.builds.values()
+            if build.ontology_version_id == ontology_version_id
+            and build.status == SQLAssetBuildStatus.READY
+        ]
+        return max(
+            ready,
+            key=lambda item: item.completed_at or item.started_at,
+            default=None,
+        )
+
+    def get_build(self, build_id: str) -> SQLAssetBuild | None:
+        return self.builds.get(build_id)

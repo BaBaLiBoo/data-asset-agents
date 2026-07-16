@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 
 from data_asset_agents.core.config import Settings
@@ -52,9 +53,25 @@ class OntologyService:
             if runtime_repository is not None
             else None
         ) or self.seed_bundle
+        current_version = (
+            runtime_repository.get_current_version()
+            if runtime_repository is not None
+            and hasattr(runtime_repository, "get_current_version")
+            else None
+        )
+        self.ontology_version_id = (
+            current_version.id
+            if current_version is not None and bundle_override is None
+            else self._seed_version_id(self.bundle)
+        )
         self.semantic_parser = SemanticQueryParser(self.settings, self.model_factory)
         self.retriever = HybridConceptRetriever(self.settings.embedding_dimensions)
         self._refresh_indexes()
+
+    @staticmethod
+    def _seed_version_id(bundle: OntologyBundle) -> str:
+        payload = bundle.model_dump_json(exclude_none=True)
+        return "yaml-seed-" + hashlib.sha256(payload.encode()).hexdigest()[:20]
 
     def _refresh_indexes(self) -> None:
         self.mappings_by_concept_id = {
@@ -132,6 +149,10 @@ class OntologyService:
         if published is None:
             return False
         self.bundle = published
+        current = self.runtime_repository.get_current_version()
+        self.ontology_version_id = (
+            current.id if current is not None else self._seed_version_id(published)
+        )
         self._refresh_indexes()
         return True
 
@@ -142,6 +163,19 @@ class OntologyService:
         if published is None:
             return False
         self.bundle = published
+        version_record = next(
+            (
+                item
+                for item in self.runtime_repository.list_versions()
+                if item.version == version
+            ),
+            None,
+        )
+        self.ontology_version_id = (
+            version_record.id
+            if version_record is not None
+            else self._seed_version_id(published)
+        )
         self._refresh_indexes()
         return True
 

@@ -40,6 +40,8 @@ class Text2SQLState(TypedDict, total=False):
     historical_sql_examples: list[HistoricalSQLExample]
     sql_asset_candidates: list[SQLAssetSearchResult]
     selected_sql_asset: SQLAsset | None
+    selected_template_rank: int | None
+    template_rejection_reasons: dict[str, list[str]]
     sql_rewrite: SQLRewriteResult | None
     generated_sql: str | None
     validation_report: ValidationReport
