@@ -21,8 +21,9 @@ class ModelFactory:
             base_url=self.settings.llm_base_url,
             api_key=key,
             timeout=self.settings.llm_timeout_seconds,
-            max_retries=2,
+            max_retries=self.settings.llm_max_retries,
             temperature=0,
+            max_tokens=self.settings.llm_max_output_tokens,
         )
 
     def embeddings(self) -> OpenAIEmbeddings:
@@ -35,5 +36,5 @@ class ModelFactory:
             api_key=key,
             dimensions=self.settings.embedding_dimensions,
             request_timeout=self.settings.llm_timeout_seconds,
-            max_retries=2,
+            max_retries=self.settings.llm_max_retries,
         )

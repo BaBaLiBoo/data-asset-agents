@@ -2,9 +2,9 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-minibank}
-      POSTGRES_USER: ${POSTGRES_USER:-minibank}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-minibank}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     ports:
       - "5432:5432"
     volumes:
@@ -14,6 +14,7 @@ services:
       - ./data/ddl/003_release_safety_and_search.sql:/docker-entrypoint-initdb.d/003_release_safety_and_search.sql:ro
       - ./data/ddl/004_sql_assets.sql:/docker-entrypoint-initdb.d/004_sql_assets.sql:ro
       - ./data/ddl/005_sql_asset_builds.sql:/docker-entrypoint-initdb.d/005_sql_asset_builds.sql:ro
+      - ./data/ddl/006_evaluation.sql:/docker-entrypoint-initdb.d/006_evaluation.sql:ro
       - ./data/seed/002_seed.sql:/docker-entrypoint-initdb.d/002_seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -26,7 +27,7 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql+psycopg://minibank:minibank@postgres:5432/minibank}
+      DATABASE_URL: ${DOCKER_DATABASE_URL:?DOCKER_DATABASE_URL must be set}
       DATABASE_CONNECT_TIMEOUT: ${DATABASE_CONNECT_TIMEOUT:-5}
       SQL_STATEMENT_TIMEOUT_MS: ${SQL_STATEMENT_TIMEOUT_MS:-5000}
       SQL_MAX_ROWS: ${SQL_MAX_ROWS:-200}
@@ -36,6 +37,8 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
+      LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-2048}
+      LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
       EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-aliyun}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-v4}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
@@ -43,6 +46,9 @@ services:
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1024}
       ONTOLOGY_PATH: ${ONTOLOGY_PATH:-ontology/retail_banking}
       HISTORICAL_SQL_PATH: ${HISTORICAL_SQL_PATH:-data/historical_sql/examples.json}
+      EVALUATION_BENCHMARK_PATH: ${EVALUATION_BENCHMARK_PATH:-data/benchmark/text2sql_v1.json}
+      EVALUATION_LIVE_CONCURRENCY: ${EVALUATION_LIVE_CONCURRENCY:-1}
+      EVALUATION_SMOKE_CONCURRENCY: ${EVALUATION_SMOKE_CONCURRENCY:-2}
     ports:
       - "8000:8000"
     depends_on:

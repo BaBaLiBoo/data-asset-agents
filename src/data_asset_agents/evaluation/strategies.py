@@ -33,15 +33,9 @@ def _extract_sql(raw: str) -> str:
 def _references(sql: str) -> tuple[list[str], dict[str, list[str]], list[str]]:
     statement = sqlglot.parse_one(sql, read="postgres")
     ctes = {cte.alias_or_name for cte in statement.find_all(sqlglot.exp.CTE)}
-    aliases = {
-        table.alias_or_name: table.name for table in statement.find_all(sqlglot.exp.Table)
-    }
+    aliases = {table.alias_or_name: table.name for table in statement.find_all(sqlglot.exp.Table)}
     tables = sorted(
-        {
-            table.name
-            for table in statement.find_all(sqlglot.exp.Table)
-            if table.name not in ctes
-        }
+        {table.name for table in statement.find_all(sqlglot.exp.Table) if table.name not in ctes}
     )
     columns: dict[str, list[str]] = {}
     for column in statement.find_all(sqlglot.exp.Column):
@@ -49,7 +43,11 @@ def _references(sql: str) -> tuple[list[str], dict[str, list[str]], list[str]]:
         if table in tables:
             columns.setdefault(table, []).append(column.name)
     columns = {table: sorted(set(items)) for table, items in columns.items()}
-    joins = [join.sql(dialect="postgres") for join in statement.find_all(sqlglot.exp.Join)]
+    joins = [
+        on.sql(dialect="postgres")
+        for join in statement.find_all(sqlglot.exp.Join)
+        if (on := join.args.get("on")) is not None
+    ]
     return tables, columns, joins
 
 
@@ -243,8 +241,7 @@ class PhysicalRAGStrategy(_PhysicalStrategy):
                 (
                     item.document.raw_sql
                     for item in retrieved
-                    if item.document.document_type == "historical_sql"
-                    and item.document.raw_sql
+                    if item.document.document_type == "historical_sql" and item.document.raw_sql
                 ),
                 SchemaBaselineStrategy._mock_sql(question),
             )
@@ -257,9 +254,7 @@ class PhysicalRAGStrategy(_PhysicalStrategy):
                 context=context,
                 started=started,
             )
-        allowed_context = "\n\n".join(
-            item.document.search_text for item in retrieved
-        )
+        allowed_context = "\n\n".join(item.document.search_text for item in retrieved)
         prompt = (
             "Generate one PostgreSQL SELECT query from physical metadata and raw historical "
             "SQL only. Return SQL only. Do not assume business rules not present here.\n\n"
@@ -300,9 +295,7 @@ class OntologyStrategy:
             question=question,
             query_mode="ontology",
             strategy_variant=(
-                "ontology_full"
-                if self.sql_asset_enabled
-                else "ontology_no_sql_asset"
+                "ontology_full" if self.sql_asset_enabled else "ontology_no_sql_asset"
             ),
             status=result.get("status", "failed"),
             error_code=result.get("error_code"),
@@ -316,9 +309,7 @@ class OntologyStrategy:
             ),
             selected_tables=result.get("selected_tables", []),
             selected_columns=result.get("selected_columns", {}),
-            discovered_joins=[
-                step.condition for step in (result.get("join_plan") or []).steps
-            ]
+            discovered_joins=[step.condition for step in (result.get("join_plan") or []).steps]
             if result.get("join_plan")
             else [],
             semantic_query=result.get("semantic_query"),
@@ -367,11 +358,7 @@ class StrategyRouter:
         key = (
             "ontology_full"
             if query_mode == "ontology" and sql_asset_enabled
-            else (
-                "ontology_no_sql_asset"
-                if query_mode == "ontology"
-                else query_mode
-            )
+            else ("ontology_no_sql_asset" if query_mode == "ontology" else query_mode)
         )
         strategy = self.strategies.get(key)
         if strategy is None:

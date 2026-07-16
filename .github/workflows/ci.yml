@@ -12,7 +12,7 @@ jobs:
         env:
           POSTGRES_DB: minibank
           POSTGRES_USER: minibank
-          POSTGRES_PASSWORD: minibank
+          POSTGRES_PASSWORD: ci-${{ github.run_id }}
         ports:
           - 5432:5432
         options: >-
@@ -21,7 +21,7 @@ jobs:
           --health-timeout 3s
           --health-retries 20
     env:
-      DATABASE_URL: postgresql+psycopg://minibank:minibank@localhost:5432/minibank
+      DATABASE_URL: postgresql+psycopg://minibank:ci-${{ github.run_id }}@localhost:5432/minibank
       ONTOLOGY_PATH: ontology/retail_banking
       LLM_MODE: mock
       RUN_POSTGRES_INTEGRATION: "1"
@@ -35,17 +35,22 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Initialize MiniBank schema and seed
         env:
-          PGPASSWORD: minibank
+          PGPASSWORD: ci-${{ github.run_id }}
         run: |
           psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/001_schema.sql
           psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/002_ontology_builder.sql
           psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/003_release_safety_and_search.sql
           psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/004_sql_assets.sql
           psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/005_sql_asset_builds.sql
+          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/006_evaluation.sql
           psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/seed/002_seed.sql
       - run: python -m pip install -e ".[dev]"
       - run: ruff check .
       - run: pytest
+      - name: Validate benchmark Gold SQL and result hashes
+        run: |
+          python -m data_asset_agents.evaluation.cli validate-benchmark
+          python scripts/materialize_benchmark_hashes.py --check
 
   compose-acceptance:
     runs-on: ubuntu-latest

@@ -1,0 +1,3502 @@
+{
+  "version": "minibank-text2sql-v1",
+  "description": "80-case fictional MiniBank controlled Text-to-SQL benchmark",
+  "cases": [
+    {
+      "id": "basic-01",
+      "question": "查询交易金额",
+      "category": "基础指标",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "basic-02",
+      "question": "统计信用卡交易金额",
+      "category": "基础指标",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "basic-03",
+      "question": "查询交易笔数",
+      "category": "基础指标",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "basic-04",
+      "question": "统计信用卡交易笔数",
+      "category": "基础指标",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_count"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT COUNT(DISTINCT t.transaction_id) AS credit_card_transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "basic-05",
+      "question": "查询平均交易金额",
+      "category": "基础指标",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "average_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT AVG(t.txn_amount_cny) AS average_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "basic-06",
+      "question": "查询活跃客户数",
+      "category": "基础指标",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "active_customer_count"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.customer_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT COUNT(DISTINCT t.customer_id) AS active_customer_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "basic-07",
+      "question": "统计全部已入账交易额",
+      "category": "基础指标",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "basic-08",
+      "question": "计算贷记卡消费金额",
+      "category": "基础指标",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "basic-09",
+      "question": "统计流水笔数",
+      "category": "基础指标",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "basic-10",
+      "question": "查询客单价",
+      "category": "基础指标",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_count"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT COUNT(DISTINCT t.transaction_id) AS credit_card_transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "dimension-01",
+      "question": "按分行统计交易金额",
+      "category": "单维度、双维度",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "dimension-02",
+      "question": "按交易渠道统计交易金额",
+      "category": "单维度、双维度",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "transaction_channel"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_channel",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_channel ORDER BY t.transaction_channel",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "dimension-03",
+      "question": "按卡类型统计交易金额",
+      "category": "单维度、双维度",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "card_type"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT t.card_type, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.card_type ORDER BY t.card_type",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "dimension-04",
+      "question": "按交易日期统计交易金额",
+      "category": "单维度、双维度",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "transaction_date"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT t.transaction_date, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date ORDER BY t.transaction_date",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "dimension-05",
+      "question": "按分行统计交易金额",
+      "category": "单维度、双维度",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "dimension-06",
+      "question": "按交易渠道统计交易金额",
+      "category": "单维度、双维度",
+      "difficulty": "easy",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "transaction_channel"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_channel",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_channel ORDER BY t.transaction_channel",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "dimension-07",
+      "question": "按卡类型和交易渠道统计交易金额",
+      "category": "单维度、双维度",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "card_type",
+        "transaction_channel"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_channel",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT t.card_type, t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.card_type, t.transaction_channel ORDER BY t.card_type, t.transaction_channel",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "dimension-08",
+      "question": "按交易日期和交易渠道统计交易金额",
+      "category": "单维度、双维度",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "transaction_date",
+        "transaction_channel"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_channel",
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT t.transaction_date, t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date, t.transaction_channel ORDER BY t.transaction_date, t.transaction_channel",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "dimension-09",
+      "question": "按分行和交易渠道统计交易金额",
+      "category": "单维度、双维度",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch",
+        "transaction_channel"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_channel",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name, t.transaction_channel ORDER BY b.branch_name, t.transaction_channel",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "dimension-10",
+      "question": "按交易渠道统计交易金额",
+      "category": "单维度、双维度",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "transaction_channel"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_channel",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_channel ORDER BY t.transaction_channel",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "join-01",
+      "question": "按分行统计交易笔数",
+      "category": "多表 Join",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "multi_table_join"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "join-02",
+      "question": "按客户类型统计交易笔数",
+      "category": "多表 Join",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "customer_type"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_customer",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_customer.customer_id",
+        "dim_customer.customer_type",
+        "dwd_card_transaction.customer_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.customer_id = dim_customer.customer_id"
+      ],
+      "gold_sql": "SELECT c.customer_type, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_customer c ON t.customer_id = c.customer_id WHERE t.transaction_status = 'POSTED' GROUP BY c.customer_type ORDER BY c.customer_type",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "multi_table_join"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "join-03",
+      "question": "按商户类别统计交易笔数",
+      "category": "多表 Join",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "merchant_category"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_merchant",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_merchant.merchant_category",
+        "dim_merchant.merchant_id",
+        "dwd_card_transaction.merchant_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.merchant_id = dim_merchant.merchant_id"
+      ],
+      "gold_sql": "SELECT m.merchant_category, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_merchant m ON t.merchant_id = m.merchant_id WHERE t.transaction_status = 'POSTED' GROUP BY m.merchant_category ORDER BY m.merchant_category",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "multi_table_join"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "join-04",
+      "question": "按分行统计交易笔数",
+      "category": "多表 Join",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "multi_table_join"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "join-05",
+      "question": "按客户类型和商户类别统计交易笔数",
+      "category": "多表 Join",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "customer_type",
+        "merchant_category"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_customer",
+        "dim_merchant",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_customer.customer_id",
+        "dim_customer.customer_type",
+        "dim_merchant.merchant_category",
+        "dim_merchant.merchant_id",
+        "dwd_card_transaction.customer_id",
+        "dwd_card_transaction.merchant_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.customer_id = dim_customer.customer_id",
+        "dwd_card_transaction.merchant_id = dim_merchant.merchant_id"
+      ],
+      "gold_sql": "SELECT c.customer_type, m.merchant_category, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_customer c ON t.customer_id = c.customer_id JOIN dim_merchant m ON t.merchant_id = m.merchant_id WHERE t.transaction_status = 'POSTED' GROUP BY c.customer_type, m.merchant_category ORDER BY c.customer_type, m.merchant_category",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "multi_table_join"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "join-06",
+      "question": "按商户类别和分行统计交易笔数",
+      "category": "多表 Join",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "merchant_category",
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dim_merchant",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dim_merchant.merchant_category",
+        "dim_merchant.merchant_id",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.merchant_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.merchant_id = dim_merchant.merchant_id",
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT m.merchant_category, b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_merchant m ON t.merchant_id = m.merchant_id JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY m.merchant_category, b.branch_name ORDER BY m.merchant_category, b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "multi_table_join"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "join-07",
+      "question": "按分行和客户类型统计交易笔数",
+      "category": "多表 Join",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "branch",
+        "customer_type"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dim_customer",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dim_customer.customer_id",
+        "dim_customer.customer_type",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.customer_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id",
+        "dwd_card_transaction.customer_id = dim_customer.customer_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, c.customer_type, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id JOIN dim_customer c ON t.customer_id = c.customer_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name, c.customer_type ORDER BY b.branch_name, c.customer_type",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "multi_table_join"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "join-08",
+      "question": "按客户类型和商户类别统计交易笔数",
+      "category": "多表 Join",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "customer_type",
+        "merchant_category"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_customer",
+        "dim_merchant",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_customer.customer_id",
+        "dim_customer.customer_type",
+        "dim_merchant.merchant_category",
+        "dim_merchant.merchant_id",
+        "dwd_card_transaction.customer_id",
+        "dwd_card_transaction.merchant_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.customer_id = dim_customer.customer_id",
+        "dwd_card_transaction.merchant_id = dim_merchant.merchant_id"
+      ],
+      "gold_sql": "SELECT c.customer_type, m.merchant_category, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_customer c ON t.customer_id = c.customer_id JOIN dim_merchant m ON t.merchant_id = m.merchant_id WHERE t.transaction_status = 'POSTED' GROUP BY c.customer_type, m.merchant_category ORDER BY c.customer_type, m.merchant_category",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "multi_table_join"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "join-09",
+      "question": "按商户类别和分行统计交易笔数",
+      "category": "多表 Join",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "merchant_category",
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dim_merchant",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dim_merchant.merchant_category",
+        "dim_merchant.merchant_id",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.merchant_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.merchant_id = dim_merchant.merchant_id",
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT m.merchant_category, b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_merchant m ON t.merchant_id = m.merchant_id JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY m.merchant_category, b.branch_name ORDER BY m.merchant_category, b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "multi_table_join"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "join-10",
+      "question": "按分行和客户类型统计交易笔数",
+      "category": "多表 Join",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "branch",
+        "customer_type"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dim_customer",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dim_customer.customer_id",
+        "dim_customer.customer_type",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.customer_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id",
+        "dwd_card_transaction.customer_id = dim_customer.customer_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, c.customer_type, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id JOIN dim_customer c ON t.customer_id = c.customer_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name, c.customer_type ORDER BY b.branch_name, c.customer_type",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "multi_table_join"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "filter-01",
+      "question": "查询近7天信用卡交易金额",
+      "category": "时间、用户过滤和 IN",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '7 days'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy",
+        "time_filter"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "filter-02",
+      "question": "查询近30天信用卡交易金额",
+      "category": "时间、用户过滤和 IN",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '30 days'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy",
+        "time_filter"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "filter-03",
+      "question": "查询近60天信用卡交易金额",
+      "category": "时间、用户过滤和 IN",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '60 days'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy",
+        "time_filter"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "filter-04",
+      "question": "查询最近两周信用卡交易金额",
+      "category": "时间、用户过滤和 IN",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '14 days'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy",
+        "time_filter"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "filter-05",
+      "question": "查询2026年7月信用卡交易金额",
+      "category": "时间、用户过滤和 IN",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date BETWEEN DATE '2026-07-01' AND DATE '2026-07-31'",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy",
+        "time_filter"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "filter-06",
+      "question": "查询近7天APP和POS渠道信用卡交易金额",
+      "category": "时间、用户过滤和 IN",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_channel",
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '7 days' AND t.transaction_channel IN ('APP', 'POS')",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy",
+        "time_filter",
+        "in_filter"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "filter-07",
+      "question": "查询近30天APP和POS渠道信用卡交易金额",
+      "category": "时间、用户过滤和 IN",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_channel",
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '30 days' AND t.transaction_channel IN ('APP', 'POS')",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy",
+        "time_filter",
+        "in_filter"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "filter-08",
+      "question": "查询近60天APP和POS渠道信用卡交易金额",
+      "category": "时间、用户过滤和 IN",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_channel",
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '60 days' AND t.transaction_channel IN ('APP', 'POS')",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy",
+        "time_filter",
+        "in_filter"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "filter-09",
+      "question": "查询最近两周APP和POS渠道信用卡交易金额",
+      "category": "时间、用户过滤和 IN",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_channel",
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '14 days' AND t.transaction_channel IN ('APP', 'POS')",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy",
+        "time_filter",
+        "in_filter"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "filter-10",
+      "question": "查询2026年7月APP和POS渠道信用卡交易金额",
+      "category": "时间、用户过滤和 IN",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_channel",
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date BETWEEN DATE '2026-07-01' AND DATE '2026-07-31' AND t.transaction_channel IN ('APP', 'POS')",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": false,
+      "tags": [
+        "business_policy",
+        "time_filter",
+        "in_filter"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "top-01",
+      "question": "查询信用卡交易金额最高的前3个分行",
+      "category": "Top N 和排序",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 3",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "top_n"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "top-02",
+      "question": "查询信用卡交易金额最高的前4个分行",
+      "category": "Top N 和排序",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 4",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "top_n"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "top-03",
+      "question": "查询信用卡交易金额最高的前5个分行",
+      "category": "Top N 和排序",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 5",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "top_n"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "top-04",
+      "question": "查询信用卡交易金额最高的前6个分行",
+      "category": "Top N 和排序",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 6",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "top_n"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "top-05",
+      "question": "查询信用卡交易金额最高的前7个分行",
+      "category": "Top N 和排序",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 7",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "top_n"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "top-06",
+      "question": "查询信用卡交易金额最高的前8个分行",
+      "category": "Top N 和排序",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 8",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "top_n"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "top-07",
+      "question": "查询信用卡交易金额最高的前9个分行",
+      "category": "Top N 和排序",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 9",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "top_n"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "top-08",
+      "question": "查询信用卡交易金额最高的前10个分行",
+      "category": "Top N 和排序",
+      "difficulty": "medium",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 10",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "top_n"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "complex-01",
+      "question": "查询各分行信用卡交易金额和排名",
+      "category": "CTE、窗口函数和子查询",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "WITH totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name) SELECT branch_name, amount, DENSE_RANK() OVER (ORDER BY amount DESC) AS amount_rank FROM totals ORDER BY amount_rank",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "cte"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "complex-02",
+      "question": "查询高于整体平均值的分行交易金额",
+      "category": "CTE、窗口函数和子查询",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.txn_amount_cny > (SELECT AVG(x.txn_amount_cny) FROM dwd_card_transaction x WHERE x.transaction_status = 'POSTED') GROUP BY b.branch_name ORDER BY amount DESC",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "window"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "complex-03",
+      "question": "查询每日交易金额和累计金额",
+      "category": "CTE、窗口函数和子查询",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "transaction_date"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "WITH daily AS (SELECT t.transaction_date, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date) SELECT transaction_date, amount, SUM(amount) OVER (ORDER BY transaction_date) AS running_amount FROM daily ORDER BY transaction_date",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "subquery"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "complex-04",
+      "question": "查询各分行信用卡交易金额和排名",
+      "category": "CTE、窗口函数和子查询",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "WITH totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name) SELECT branch_name, amount, DENSE_RANK() OVER (ORDER BY amount DESC) AS amount_rank FROM totals ORDER BY amount_rank",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "cte"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "complex-05",
+      "question": "查询高于整体平均值的分行交易金额",
+      "category": "CTE、窗口函数和子查询",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.txn_amount_cny > (SELECT AVG(x.txn_amount_cny) FROM dwd_card_transaction x WHERE x.transaction_status = 'POSTED') GROUP BY b.branch_name ORDER BY amount DESC",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "window"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "complex-06",
+      "question": "查询每日交易金额和累计金额",
+      "category": "CTE、窗口函数和子查询",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "transaction_date"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "WITH daily AS (SELECT t.transaction_date, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date) SELECT transaction_date, amount, SUM(amount) OVER (ORDER BY transaction_date) AS running_amount FROM daily ORDER BY transaction_date",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "subquery"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "complex-07",
+      "question": "查询各分行信用卡交易金额和排名",
+      "category": "CTE、窗口函数和子查询",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "WITH totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name) SELECT branch_name, amount, DENSE_RANK() OVER (ORDER BY amount DESC) AS amount_rank FROM totals ORDER BY amount_rank",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "cte"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "complex-08",
+      "question": "查询高于整体平均值的分行交易金额",
+      "category": "CTE、窗口函数和子查询",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.txn_amount_cny > (SELECT AVG(x.txn_amount_cny) FROM dwd_card_transaction x WHERE x.transaction_status = 'POSTED') GROUP BY b.branch_name ORDER BY amount DESC",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "window"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "complex-09",
+      "question": "查询每日交易金额和累计金额",
+      "category": "CTE、窗口函数和子查询",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "transaction_date"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dwd_card_transaction.transaction_date",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [],
+      "gold_sql": "WITH daily AS (SELECT t.transaction_date, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date) SELECT transaction_date, amount, SUM(amount) OVER (ORDER BY transaction_date) AS running_amount FROM daily ORDER BY transaction_date",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "subquery"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "complex-10",
+      "question": "查询各分行信用卡交易金额和排名",
+      "category": "CTE、窗口函数和子查询",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "WITH totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name) SELECT branch_name, amount, DENSE_RANK() OVER (ORDER BY amount DESC) AS amount_rank FROM totals ORDER BY amount_rank",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "cte"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "synonym-01",
+      "question": "按机构查询消费金额",
+      "category": "同义词与金额字段歧义",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "synonym",
+        "amount_field_ambiguity"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "synonym-02",
+      "question": "各网点贷记卡交易额",
+      "category": "同义词与金额字段歧义",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "synonym",
+        "amount_field_ambiguity"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "synonym-03",
+      "question": "按渠道统计流水笔数",
+      "category": "同义词与金额字段歧义",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "synonym",
+        "amount_field_ambiguity"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "synonym-04",
+      "question": "查询客单价",
+      "category": "同义词与金额字段歧义",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "synonym",
+        "amount_field_ambiguity"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "synonym-05",
+      "question": "统计各机构信用卡消费金额",
+      "category": "同义词与金额字段歧义",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "synonym",
+        "amount_field_ambiguity"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "synonym-06",
+      "question": "近30天网点交易额",
+      "category": "同义词与金额字段歧义",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "synonym",
+        "amount_field_ambiguity"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "synonym-07",
+      "question": "按交易日查询贷记卡流水笔数",
+      "category": "同义词与金额字段歧义",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "synonym",
+        "amount_field_ambiguity"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "synonym-08",
+      "question": "各分行人民币交易金额",
+      "category": "同义词与金额字段歧义",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "credit_card_transaction_amount"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        },
+        {
+          "table": "dwd_card_transaction",
+          "field": "card_type",
+          "operator": "=",
+          "value": "CREDIT",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.card_type",
+        "dwd_card_transaction.transaction_status",
+        "dwd_card_transaction.txn_amount_cny"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "synonym",
+        "amount_field_ambiguity"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "lifecycle-01",
+      "question": "在当前正式明细资产中按分行统计交易笔数（场景1）",
+      "category": "生命周期、汇总粒度干扰",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "lifecycle_distractor",
+        "grain_distractor"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "lifecycle-02",
+      "question": "在当前正式明细资产中按分行统计交易笔数（场景2）",
+      "category": "生命周期、汇总粒度干扰",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "lifecycle_distractor",
+        "grain_distractor"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "lifecycle-03",
+      "question": "在当前正式明细资产中按分行统计交易笔数（场景3）",
+      "category": "生命周期、汇总粒度干扰",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "lifecycle_distractor",
+        "grain_distractor"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "lifecycle-04",
+      "question": "在当前正式明细资产中按分行统计交易笔数（场景4）",
+      "category": "生命周期、汇总粒度干扰",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "lifecycle_distractor",
+        "grain_distractor"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "lifecycle-05",
+      "question": "在当前正式明细资产中按分行统计交易笔数（场景5）",
+      "category": "生命周期、汇总粒度干扰",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "lifecycle_distractor",
+        "grain_distractor"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "lifecycle-06",
+      "question": "在当前正式明细资产中按分行统计交易笔数（场景6）",
+      "category": "生命周期、汇总粒度干扰",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "lifecycle_distractor",
+        "grain_distractor"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "lifecycle-07",
+      "question": "在当前正式明细资产中按分行统计交易笔数（场景7）",
+      "category": "生命周期、汇总粒度干扰",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "lifecycle_distractor",
+        "grain_distractor"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "lifecycle-08",
+      "question": "在当前正式明细资产中按分行统计交易笔数（场景8）",
+      "category": "生命周期、汇总粒度干扰",
+      "difficulty": "hard",
+      "expected_status": "success",
+      "gold_metric_ids": [
+        "transaction_count"
+      ],
+      "gold_dimension_ids": [
+        "branch"
+      ],
+      "gold_filters": [
+        {
+          "table": "dwd_card_transaction",
+          "field": "transaction_status",
+          "operator": "=",
+          "value": "POSTED",
+          "source": "metric_policy"
+        }
+      ],
+      "gold_tables": [
+        "dim_branch",
+        "dwd_card_transaction"
+      ],
+      "gold_columns": [
+        "dim_branch.branch_id",
+        "dim_branch.branch_name",
+        "dwd_card_transaction.branch_id",
+        "dwd_card_transaction.transaction_id",
+        "dwd_card_transaction.transaction_status"
+      ],
+      "gold_joins": [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+      ],
+      "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_order_sensitive": true,
+      "tags": [
+        "business_policy",
+        "lifecycle_distractor",
+        "grain_distractor"
+      ],
+      "notes": "Gold SQL is authored by the controlled benchmark DSL templates."
+    },
+    {
+      "id": "clarification-01",
+      "question": "查询交易情况",
+      "category": "澄清与域外",
+      "difficulty": "medium",
+      "expected_status": "clarification_required",
+      "gold_metric_ids": [],
+      "gold_dimension_ids": [],
+      "gold_filters": [],
+      "gold_tables": [],
+      "gold_columns": [],
+      "gold_joins": [],
+      "gold_sql": null,
+      "expected_result_hash": null,
+      "result_order_sensitive": false,
+      "tags": [
+        "clarification_required"
+      ],
+      "notes": "No SQL should be generated."
+    },
+    {
+      "id": "clarification-02",
+      "question": "看看最近的金额",
+      "category": "澄清与域外",
+      "difficulty": "medium",
+      "expected_status": "clarification_required",
+      "gold_metric_ids": [],
+      "gold_dimension_ids": [],
+      "gold_filters": [],
+      "gold_tables": [],
+      "gold_columns": [],
+      "gold_joins": [],
+      "gold_sql": null,
+      "expected_result_hash": null,
+      "result_order_sensitive": false,
+      "tags": [
+        "clarification_required"
+      ],
+      "notes": "No SQL should be generated."
+    },
+    {
+      "id": "clarification-03",
+      "question": "统计机构数据",
+      "category": "澄清与域外",
+      "difficulty": "medium",
+      "expected_status": "clarification_required",
+      "gold_metric_ids": [],
+      "gold_dimension_ids": [],
+      "gold_filters": [],
+      "gold_tables": [],
+      "gold_columns": [],
+      "gold_joins": [],
+      "gold_sql": null,
+      "expected_result_hash": null,
+      "result_order_sensitive": false,
+      "tags": [
+        "clarification_required"
+      ],
+      "notes": "No SQL should be generated."
+    },
+    {
+      "id": "unsupported-01",
+      "question": "查询明天的天气",
+      "category": "澄清与域外",
+      "difficulty": "medium",
+      "expected_status": "unsupported",
+      "gold_metric_ids": [],
+      "gold_dimension_ids": [],
+      "gold_filters": [],
+      "gold_tables": [],
+      "gold_columns": [],
+      "gold_joins": [],
+      "gold_sql": null,
+      "expected_result_hash": null,
+      "result_order_sensitive": false,
+      "tags": [
+        "unsupported"
+      ],
+      "notes": "No SQL should be generated."
+    },
+    {
+      "id": "unsupported-02",
+      "question": "查询股票价格",
+      "category": "澄清与域外",
+      "difficulty": "medium",
+      "expected_status": "unsupported",
+      "gold_metric_ids": [],
+      "gold_dimension_ids": [],
+      "gold_filters": [],
+      "gold_tables": [],
+      "gold_columns": [],
+      "gold_joins": [],
+      "gold_sql": null,
+      "expected_result_hash": null,
+      "result_order_sensitive": false,
+      "tags": [
+        "unsupported"
+      ],
+      "notes": "No SQL should be generated."
+    },
+    {
+      "id": "unsupported-03",
+      "question": "帮我写一首诗",
+      "category": "澄清与域外",
+      "difficulty": "medium",
+      "expected_status": "unsupported",
+      "gold_metric_ids": [],
+      "gold_dimension_ids": [],
+      "gold_filters": [],
+      "gold_tables": [],
+      "gold_columns": [],
+      "gold_joins": [],
+      "gold_sql": null,
+      "expected_result_hash": null,
+      "result_order_sensitive": false,
+      "tags": [
+        "unsupported"
+      ],
+      "notes": "No SQL should be generated."
+    }
+  ]
+}

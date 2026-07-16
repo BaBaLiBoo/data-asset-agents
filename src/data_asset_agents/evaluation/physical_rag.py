@@ -61,8 +61,7 @@ class PhysicalRAGIndex:
         documents: list[PhysicalRAGDocument] = []
         for table in catalog.tables:
             foreign_keys = "; ".join(
-                f"{','.join(item.columns)}->{item.referred_table}."
-                f"{','.join(item.referred_columns)}"
+                f"{','.join(item.columns)}->{item.referred_table}.{','.join(item.referred_columns)}"
                 for item in table.foreign_keys
             )
             table_text = " ".join(
@@ -170,9 +169,7 @@ class PhysicalRAGIndex:
     @staticmethod
     def _cosine(left: list[float], right: list[float]) -> float:
         numerator = sum(a * b for a, b in zip(left, right, strict=True))
-        denominator = math.sqrt(sum(a * a for a in left)) * math.sqrt(
-            sum(b * b for b in right)
-        )
+        denominator = math.sqrt(sum(a * a for a in left)) * math.sqrt(sum(b * b for b in right))
         return numerator / denominator if denominator else 0.0
 
     def search(self, query: str, limit: int = 8) -> list[PhysicalRAGSearchResult]:
@@ -192,6 +189,4 @@ class PhysicalRAGIndex:
                     vector_score=round(vector, 6),
                 )
             )
-        return sorted(results, key=lambda item: (-item.score, item.document.document_id))[
-            :limit
-        ]
+        return sorted(results, key=lambda item: (-item.score, item.document.document_id))[:limit]
