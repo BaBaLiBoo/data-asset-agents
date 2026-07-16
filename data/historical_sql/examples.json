@@ -1,12 +1,12 @@
 [
   {
     "id": "sqlasset-branch-credit-amount",
-    "question": "查询各分行信用卡交易金额",
-    "business_summary": "按分行汇总已入账信用卡交易金额",
-    "sql": "SELECT b.branch_name AS branch, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' GROUP BY b.branch_name",
+    "question": "查询近30天各分行信用卡交易金额和交易笔数",
+    "business_summary": "按分行汇总近30天已入账信用卡交易金额和去重交易笔数",
+    "sql": "SELECT b.branch_name AS branch, SUM(t.txn_amount_cny) AS credit_card_transaction_amount, COUNT(DISTINCT t.transaction_id) AS credit_card_transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' AND t.transaction_date >= CURRENT_DATE - INTERVAL '30 days' GROUP BY b.branch_name",
     "certified": true,
     "certification_level": "GOLD",
-    "metrics": ["credit_card_transaction_amount"],
+    "metrics": ["credit_card_transaction_amount", "credit_card_transaction_count"],
     "dimensions": ["branch"]
   },
   {

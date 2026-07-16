@@ -8,6 +8,7 @@ from data_asset_agents.core.errors import QueryExecutionError
 from data_asset_agents.ontology.models import PhysicalMapping
 from data_asset_agents.ontology.retrieval import deterministic_embedding
 from data_asset_agents.ontology.service import OntologyService
+from data_asset_agents.sql_assets.compatibility import TemplateCompatibilityChecker
 from data_asset_agents.sql_assets.models import (
     SQLAssetBuild,
     SQLAssetBuildStatus,
@@ -329,6 +330,46 @@ def test_top_k_checker_skips_incompatible_template(
     assert output["selected_sql_asset"].id == compatible.id
     assert output["selected_template_rank"] == 2
     assert incompatible.id in output["template_rejection_reasons"]
+
+
+def test_complete_simple_template_is_compatible(
+    ontology: OntologyService,
+) -> None:
+    asset = HistoricalSQLParser().parse_asset(_records()[0], ontology)
+    asset.ontology_version_id = ontology.ontology_version_id
+    semantic = ontology.parse("查询近30天各分行信用卡交易金额和交易笔数。")
+    resolved = ontology.resolve(semantic)
+    plan = JoinPlan.model_validate(
+        {
+            "tables": ["dwd_card_transaction", "dim_branch"],
+            "steps": [
+                {
+                    "left_table": "dwd_card_transaction",
+                    "right_table": "dim_branch",
+                    "left_column": "branch_id",
+                    "right_column": "branch_id",
+                    "condition": (
+                        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+                    ),
+                    "relationship": "many_to_one",
+                }
+            ],
+        }
+    )
+    selected_columns = resolved["selected_columns"]
+    selected_columns["dwd_card_transaction"].append("branch_id")
+    selected_columns["dim_branch"].append("branch_id")
+
+    result = TemplateCompatibilityChecker(ontology).check(
+        asset,
+        "查询近30天各分行信用卡交易金额和交易笔数。",
+        semantic,
+        plan.tables,
+        selected_columns,
+        plan,
+    )
+
+    assert result.compatible, result.reasons
 
 
 def test_ast_rewriter_replaces_table_column_time_filter_order_and_limit(
