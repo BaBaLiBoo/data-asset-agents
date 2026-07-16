@@ -99,7 +99,25 @@ class SQLValidator:
     ) -> None:
         if not self.assets:
             return
+        derived_aliases = {
+            cte.alias_or_name for cte in statement.find_all(exp.CTE)
+        } | {
+            subquery.alias_or_name
+            for subquery in statement.find_all(exp.Subquery)
+            if subquery.alias_or_name
+        }
+        derived_columns = {
+            item.alias_or_name
+            for query in [*statement.find_all(exp.CTE), *statement.find_all(exp.Subquery)]
+            for select in query.find_all(exp.Select)
+            for item in select.expressions
+            if item.alias_or_name
+        } | {alias.alias for alias in statement.find_all(exp.Alias) if alias.alias}
         for column in statement.find_all(exp.Column):
+            if column.table in derived_aliases or (
+                not column.table and column.name in derived_columns
+            ):
+                continue
             table, column_name = self._column_reference(
                 column, aliases, tables, self.assets
             )
@@ -167,8 +185,7 @@ class SQLValidator:
         issues: list[ValidationIssue],
     ) -> None:
         actual: set[tuple[str | None, str, str]] = set()
-        where = statement.args.get("where")
-        if where is not None:
+        for where in statement.find_all(exp.Where):
             for equality in where.find_all(exp.EQ):
                 pairs = ((equality.left, equality.right), (equality.right, equality.left))
                 for possible_column, possible_value in pairs:
@@ -229,7 +246,12 @@ class SQLValidator:
                 f"Prohibited SQL operation(s): {', '.join(sorted(set(prohibited)))}",
             )
 
-        table_names = {table.name for table in statement.find_all(exp.Table)}
+        cte_names = {cte.alias_or_name for cte in statement.find_all(exp.CTE)}
+        table_names = {
+            table.name
+            for table in statement.find_all(exp.Table)
+            if table.name not in cte_names
+        }
         aliases = self._table_aliases(statement)
         if allowed_tables is not None:
             unexpected = table_names - allowed_tables

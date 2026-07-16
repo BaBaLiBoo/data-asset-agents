@@ -170,6 +170,9 @@ class QueryResponse(BaseModel):
     rejected_tables: list[RejectedTable] = Field(default_factory=list)
     join_plan: JoinPlan | None = None
     historical_sql_examples: list[HistoricalSQLExample] = Field(default_factory=list)
+    sql_asset_candidates: list[dict[str, Any]] = Field(default_factory=list)
+    selected_sql_asset: dict[str, Any] | None = None
+    sql_rewrite: dict[str, Any] | None = None
     generated_sql: str | None = None
     validation_report: ValidationReport | None = None
     validation_errors: list[str] = Field(default_factory=list)

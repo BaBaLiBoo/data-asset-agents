@@ -8,13 +8,13 @@ $ErrorActionPreference = "Stop"
 $exitCode = 0
 
 try {
-    Write-Host "[1/6] Validating Docker Compose configuration..."
+    Write-Host "[1/7] Validating Docker Compose configuration..."
     docker compose -p $ComposeProject config --quiet
 
-    Write-Host "[2/6] Building and starting services..."
+    Write-Host "[2/7] Building and starting services..."
     docker compose -p $ComposeProject up --build -d
 
-    Write-Host "[3/6] Waiting for API health..."
+    Write-Host "[3/7] Waiting for API health..."
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $healthy = $false
     while ((Get-Date) -lt $deadline) {
@@ -33,7 +33,7 @@ try {
         throw "API did not become healthy within $TimeoutSeconds seconds"
     }
 
-    Write-Host "[4/6] Waiting for Streamlit health..."
+    Write-Host "[4/7] Waiting for Streamlit health..."
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $webHealthy = $false
     while ((Get-Date) -lt $deadline) {
@@ -55,7 +55,7 @@ try {
         throw "Streamlit did not become healthy within $TimeoutSeconds seconds"
     }
 
-    Write-Host "[5/6] Running the target ontology query..."
+    Write-Host "[5/7] Running the target ontology query..."
     $body = @{
         question = "查询近30天各分行信用卡交易金额和交易笔数。"
         query_mode = "ontology"
@@ -72,10 +72,26 @@ try {
     if ($result.execution_result.row_count -le 0) {
         throw "Target query returned no rows"
     }
+    if ($result.sql_asset_candidates.Count -le 0) {
+        throw "Target query did not retrieve a safe certified SQL asset"
+    }
     Write-Host "Returned rows: $($result.execution_result.row_count)"
     Write-Host $result.generated_sql
 
-    Write-Host "[6/6] Container status..."
+    Write-Host "[6/7] Verifying SQL asset search..."
+    $searchBody = @{ question = "查询各分行信用卡交易金额"; limit = 3 } |
+        ConvertTo-Json
+    $assets = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/sql-assets/search" `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $searchBody `
+        -TimeoutSec 30
+    if ($assets.Count -le 0 -or -not $assets[0].asset.lifecycle_valid) {
+        throw "SQL asset hybrid search returned no lifecycle-valid template"
+    }
+
+    Write-Host "[7/7] Container status..."
     docker compose -p $ComposeProject ps
     Write-Host "Acceptance passed."
 }

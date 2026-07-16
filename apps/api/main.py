@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
@@ -27,7 +28,16 @@ from data_asset_agents.ontology.repository import (
     YamlOntologyRepository,
 )
 from data_asset_agents.ontology.service import OntologyService
-from data_asset_agents.sql_assets import HistoricalSQLParser
+from data_asset_agents.sql_assets import (
+    HistoricalSQLParser,
+    PostgresSQLAssetRepository,
+    SQLAsset,
+    SQLAssetBuildReport,
+    SQLAssetBuildRequest,
+    SQLAssetSearchRequest,
+    SQLAssetSearchResult,
+    SQLAssetService,
+)
 from data_asset_agents.text2sql.graph import GRAPH_EDGES, GRAPH_NODES, build_text2sql_graph
 from data_asset_agents.text2sql.models import (
     QueryRequest,
@@ -35,6 +45,7 @@ from data_asset_agents.text2sql.models import (
     SemanticResolveRequest,
     SemanticSearchRequest,
 )
+from data_asset_agents.text2sql.tools import JoinPlanner
 
 
 @asynccontextmanager
@@ -66,19 +77,31 @@ async def lifespan(app: FastAPI):
         executor=executor,
         yaml_repository=yaml_repository,
     )
+    sql_asset_repository = PostgresSQLAssetRepository(engine)
+    sql_asset_service = SQLAssetService(
+        sql_asset_repository,
+        ontology,
+        executor,
+        settings,
+        model_factory,
+    )
+    sql_asset_service.build()
     app.state.ontology = ontology
     app.state.executor = executor
     app.state.ontology_repository = runtime_repository
     app.state.ontology_builder = builder
-    app.state.graph = build_text2sql_graph(ontology, executor)
+    app.state.sql_asset_service = sql_asset_service
+    app.state.graph = build_text2sql_graph(
+        ontology, executor, sql_assets=sql_asset_service
+    )
     yield
     executor.engine.dispose()
 
 
 app = FastAPI(
     title="Data Asset Agents API",
-    version="0.2.0",
-    description="Ontology-first MiniBank Text-to-SQL and reviewed ontology builder",
+    version="0.3.0",
+    description="Ontology-first Text-to-SQL with reviewed SQL asset retrieval",
     lifespan=lifespan,
 )
 app.add_middleware(
@@ -134,7 +157,7 @@ def query(payload: QueryRequest, request: Request) -> QueryResponse:
                 result.get("unsupported_reason") or "该问题不在第一阶段支持范围内",
                 result.get("error_code") or "UNSUPPORTED_QUERY",
             )
-        return QueryResponse.model_validate(result)
+        return QueryResponse.model_validate(jsonable_encoder(result))
     except DataAssetAgentsError:
         raise
     except Exception as exc:
@@ -173,6 +196,60 @@ def ontology_metrics(request: Request) -> list[dict[str, Any]]:
 @app.get("/api/v1/ontology/tables")
 def ontology_tables(request: Request) -> list[dict[str, Any]]:
     return [item.model_dump(mode="json") for item in request.app.state.ontology.tables()]
+
+
+@app.post("/api/v1/sql-assets/build", response_model=SQLAssetBuildReport)
+def build_sql_assets(
+    payload: SQLAssetBuildRequest, request: Request
+) -> SQLAssetBuildReport:
+    if payload.source_path is not None:
+        configured = request.app.state.sql_asset_service.settings.historical_sql_path
+        if Path(payload.source_path).resolve() != configured.resolve():
+            raise HTTPException(
+                status_code=422,
+                detail="source_path must be the configured allowlisted historical SQL file",
+            )
+    return request.app.state.sql_asset_service.build(payload.source_path)
+
+
+@app.get("/api/v1/sql-assets", response_model=list[SQLAsset])
+def list_sql_assets(
+    request: Request, limit: int = 100, offset: int = 0
+) -> list[SQLAsset]:
+    if not 1 <= limit <= 1000 or offset < 0:
+        raise HTTPException(status_code=422, detail="Invalid pagination")
+    return request.app.state.sql_asset_service.list(limit, offset)
+
+
+@app.get("/api/v1/sql-assets/{asset_id}", response_model=SQLAsset)
+def get_sql_asset(asset_id: str, request: Request) -> SQLAsset:
+    asset = request.app.state.sql_asset_service.get(asset_id)
+    if asset is None:
+        raise HTTPException(status_code=404, detail="SQL asset not found")
+    return asset
+
+
+@app.post("/api/v1/sql-assets/search", response_model=list[SQLAssetSearchResult])
+def search_sql_assets(
+    payload: SQLAssetSearchRequest, request: Request
+) -> list[SQLAssetSearchResult]:
+    if payload.semantic_query is None:
+        ontology = request.app.state.ontology
+        concepts = ontology.search(payload.question)
+        semantic = ontology.parse(payload.question, concepts)
+        if semantic.clarification_required or not semantic.metric_ids:
+            return []
+        resolved = ontology.resolve(semantic)
+        plan = JoinPlanner(ontology.bundle.joins).plan(resolved["selected_tables"])
+        payload = payload.model_copy(
+            update={
+                "semantic_query": semantic,
+                "selected_tables": plan.tables,
+                "selected_columns": resolved["selected_columns"],
+                "join_conditions": [item.condition for item in plan.steps],
+            }
+        )
+    return request.app.state.sql_asset_service.search(payload)
 
 
 @app.post("/api/v1/ontology/build", response_model=OntologyBuildResult)
@@ -298,8 +375,13 @@ def _activate_runtime(app_instance: FastAPI, version: OntologyVersion) -> None:
         raise RuntimeError(f"Ontology version could not be loaded: {version.version}")
     app_instance.state.executor.set_ontology(app_instance.state.ontology.bundle)
     app_instance.state.ontology.rebuild_search_index(version.id)
+    app_instance.state.sql_asset_service.ontology = app_instance.state.ontology
+    app_instance.state.sql_asset_service.parser = HistoricalSQLParser()
+    app_instance.state.sql_asset_service.build()
     candidate_graph = build_text2sql_graph(
-        app_instance.state.ontology, app_instance.state.executor
+        app_instance.state.ontology,
+        app_instance.state.executor,
+        sql_assets=app_instance.state.sql_asset_service,
     )
     if not app_instance.state.executor.ping():
         raise RuntimeError("Database health check failed after ontology activation")

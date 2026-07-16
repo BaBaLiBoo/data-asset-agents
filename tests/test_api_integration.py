@@ -48,6 +48,27 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         assert query.status_code == 200
         assert query.json()["status"] == "success"
         assert query.json()["execution_result"]["row_count"] > 0
+        assert query.json()["sql_asset_candidates"]
+        assert query.json()["selected_sql_asset"]["certified"]
+
+        built_assets = client.post("/api/v1/sql-assets/build", json={})
+        assert built_assets.status_code == 200, built_assets.text
+        assert built_assets.json()["eligible"] >= 3
+        assets = client.get("/api/v1/sql-assets")
+        assert assets.status_code == 200
+        assert len(assets.json()) >= 6
+        asset_id = assets.json()[0]["id"]
+        asset_detail = client.get(f"/api/v1/sql-assets/{asset_id}")
+        assert asset_detail.status_code == 200
+        assert asset_detail.json()["ast_fingerprint"]
+        asset_search = client.post(
+            "/api/v1/sql-assets/search",
+            json={"question": "查询各分行信用卡交易金额", "limit": 3},
+        )
+        assert asset_search.status_code == 200, asset_search.text
+        assert asset_search.json()
+        assert asset_search.json()[0]["score"]["total"] > 0
+        assert asset_search.json()[0]["asset"]["lifecycle_valid"]
 
         unsupported = client.post(
             "/api/v1/query",

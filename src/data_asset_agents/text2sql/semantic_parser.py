@@ -28,11 +28,16 @@ class SemanticQueryParser:
         lowered = question.lower()
         return any(phrase.lower() in lowered for phrase in [name, *synonyms])
 
-    def parse(self, question: str, bundle: OntologyBundle) -> SemanticQuery:
+    def parse(
+        self,
+        question: str,
+        bundle: OntologyBundle,
+        allowed_concept_ids: set[str] | None = None,
+    ) -> SemanticQuery:
         draft = (
             self._mock_draft(question, bundle)
             if self.settings.llm_mode == "mock"
-            else self._live_draft(question, bundle)
+            else self._live_draft(question, bundle, allowed_concept_ids)
         )
         return self._normalize(question, draft, bundle)
 
@@ -122,7 +127,15 @@ class SemanticQueryParser:
             confidence=0.98 if metrics else (0.45 if domain_hit else 0.0),
         )
 
-    def _live_draft(self, question: str, bundle: OntologyBundle) -> SemanticQueryDraft:
+    def _live_draft(
+        self,
+        question: str,
+        bundle: OntologyBundle,
+        allowed_concept_ids: set[str] | None = None,
+    ) -> SemanticQueryDraft:
+        allowed = allowed_concept_ids or {
+            item.id for item in [*bundle.metrics, *bundle.dimensions]
+        }
         catalog = {
             "metrics": [
                 {
@@ -132,6 +145,7 @@ class SemanticQueryParser:
                     "synonyms": item.synonyms,
                 }
                 for item in bundle.metrics
+                if item.id in allowed
             ],
             "dimensions": [
                 {
@@ -141,6 +155,7 @@ class SemanticQueryParser:
                     "synonyms": item.synonyms,
                 }
                 for item in bundle.dimensions
+                if item.id in allowed
             ],
         }
         prompt = (

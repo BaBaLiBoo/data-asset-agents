@@ -86,6 +86,30 @@ def text_to_sql_page() -> None:
         st.dataframe(data.get("trace_steps", []), use_container_width=True)
         st.markdown("#### Join Plan")
         st.json(data.get("join_plan"))
+    st.subheader("认证历史 SQL 资产")
+    candidates = data.get("sql_asset_candidates", [])
+    if candidates:
+        score_rows = [
+            {
+                "id": item["asset"]["id"],
+                "question": item["asset"]["question"],
+                "certification": item["asset"]["certification_level"],
+                "lifecycle_valid": item["asset"]["lifecycle_valid"],
+                **item["score"],
+            }
+            for item in candidates
+        ]
+        st.dataframe(score_rows, use_container_width=True, hide_index=True)
+        with st.expander("选中模板、检索证据与 AST 改写差异"):
+            st.json(
+                {
+                    "selected": data.get("selected_sql_asset"),
+                    "rewrite": data.get("sql_rewrite"),
+                    "evidence": candidates[0].get("evidence", []),
+                }
+            )
+    else:
+        st.info("当前没有通过全部安全门槛的认证 SQL 模板，使用确定性编译器。")
     st.subheader("生成 SQL")
     st.code(data.get("generated_sql", ""), language="sql")
     st.subheader("校验报告")
@@ -317,8 +341,88 @@ def ontology_builder_page() -> None:
                         st.error(str(exc))
 
 
-page = st.sidebar.radio("工作台", ["Text-to-SQL", "本体构建与审核"])
+def sql_asset_page() -> None:
+    st.title("认证历史 SQL 资产")
+    st.caption("SQLGlot 结构解析 → 生命周期与 Join 审核 → EXPLAIN → 混合检索")
+    with st.sidebar:
+        if st.button("从受控历史文件重建索引", type="primary", use_container_width=True):
+            try:
+                report = api_request("POST", "/api/v1/sql-assets/build", json={})
+                st.success(
+                    f"已索引 {report['indexed']} 条，其中 {report['eligible']} 条可召回。"
+                )
+            except RuntimeError as exc:
+                st.error(str(exc))
+    question = st.text_input("检索问题", "查询近30天各分行信用卡交易金额")
+    search_col, refresh_col = st.columns(2)
+    results: list[dict[str, Any]] = []
+    if search_col.button("混合检索", use_container_width=True):
+        try:
+            results = api_request(
+                "POST",
+                "/api/v1/sql-assets/search",
+                json={"question": question, "limit": 10},
+            )
+        except RuntimeError as exc:
+            st.error(str(exc))
+    try:
+        assets = api_request("GET", "/api/v1/sql-assets", params={"limit": 200})
+    except RuntimeError as exc:
+        assets = []
+        st.warning(str(exc))
+    if refresh_col.button("刷新资产清单", use_container_width=True):
+        st.rerun()
+    if results:
+        st.subheader("检索与重排结果")
+        st.dataframe(
+            [
+                {
+                    "id": item["asset"]["id"],
+                    "question": item["asset"]["question"],
+                    "certification": item["asset"]["certification_level"],
+                    **item["score"],
+                }
+                for item in results
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+        selected_result = st.selectbox(
+            "查看候选详情",
+            results,
+            format_func=lambda item: (
+                f"{item['asset']['question']} · {item['score']['total']:.3f}"
+            ),
+        )
+        st.write("检索证据：", selected_result["evidence"])
+        st.code(selected_result["asset"]["sql_text"], language="sql")
+        st.json(selected_result)
+    st.subheader("全部资产（包含被安全门槛排除的记录）")
+    st.dataframe(
+        [
+            {
+                "id": item["id"],
+                "question": item["question"],
+                "certified": item["certified"],
+                "certification_level": item["certification_level"],
+                "execution_status": item["execution_status"],
+                "lifecycle_valid": item["lifecycle_valid"],
+                "invalid_columns": item["invalid_columns"],
+                "unapproved_joins": item["unapproved_joins"],
+            }
+            for item in assets
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+page = st.sidebar.radio(
+    "工作台", ["Text-to-SQL", "认证 SQL 资产", "本体构建与审核"]
+)
 if page == "Text-to-SQL":
     text_to_sql_page()
+elif page == "认证 SQL 资产":
+    sql_asset_page()
 else:
     ontology_builder_page()

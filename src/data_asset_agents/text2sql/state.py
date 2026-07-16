@@ -1,6 +1,11 @@
 from operator import add
 from typing import Annotated, TypedDict
 
+from data_asset_agents.sql_assets.models import (
+    SQLAsset,
+    SQLAssetSearchResult,
+    SQLRewriteResult,
+)
 from data_asset_agents.text2sql.models import (
     ExecutionResult,
     HistoricalSQLExample,
@@ -33,6 +38,9 @@ class Text2SQLState(TypedDict, total=False):
     rejected_tables: list[RejectedTable]
     join_plan: JoinPlan
     historical_sql_examples: list[HistoricalSQLExample]
+    sql_asset_candidates: list[SQLAssetSearchResult]
+    selected_sql_asset: SQLAsset | None
+    sql_rewrite: SQLRewriteResult | None
     generated_sql: str | None
     validation_report: ValidationReport
     validation_errors: list[str]

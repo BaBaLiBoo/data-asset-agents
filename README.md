@@ -1,6 +1,6 @@
 # Data Asset Agents
 
-Data Asset Agents 是一个面向企业数据资产研发场景的多智能体项目。本分支已完成 **Text-to-SQL MVP**、**本体语义层离线构建与人工审核**，并加入发布契约、Dry Run、版本回滚、强类型 Semantic Query 和已发布概念混合检索：以当前发布本体为在线事实源，使用 LangGraph 编排“概念理解、确定性资产映射、Join 规划、SQL 生成、校验、执行与解释”闭环。
+Data Asset Agents 是一个面向企业数据资产研发场景的多智能体项目。本分支在稳定的 Text-to-SQL、本体离线构建与安全发布链路上，新增了**认证历史 SQL 资产的结构化管理、混合检索、重排与 SQLGlot AST 模板改写**。当前发布本体仍是在线语义事实源，历史 SQL 只能作为通过安全门槛后的结构模板，不能绕过物理映射、Validator 或 PostgreSQL `EXPLAIN`。
 
 > 安全声明：仓库中的 MiniBank、表结构、业务概念、SQL 和数据均为公开演示目的自行构造，与任何真实机构无关。禁止向本仓库提交真实数据、非公开表结构、非公开 SQL、非公开规则或 API Key。
 
@@ -43,6 +43,20 @@ Data Asset Agents 是一个面向企业数据资产研发场景的多智能体�
 - 当前 `PUBLISHED` 版本的概念、指标、维度、语义属性支持名称、同义词、PostgreSQL 关键词及 pgvector 混合检索
 - mock 模式使用固定 1024 维 CPU 哈希向量；live 模式使用配置的 Embedding 客户端
 
+## 认证 SQL 资产能力
+
+- `SQLAsset` 保存问题、业务摘要、认证等级、SQLGlot 结构、指标/维度、表字段、Join、CTE、子查询、窗口函数、AST 节点分布与规范化指纹
+- 离线构建结合当前已发布本体检查 Physical Mapping、字段存在性、表生命周期和审核 Join，并以 PostgreSQL `EXPLAIN` 作为进入召回池的硬门槛
+- PostgreSQL 同时保存结构化 JSONB、全文索引和 pgvector；mock 使用稳定 CPU 向量，live 复用现有 Embedding 客户端
+- 检索仅考虑认证、解析成功、生命周期有效、字段有效、Join 已审核且 EXPLAIN 成功的资产
+- 通过自然语言、指标、维度、表字段、Join、AST、认证和生命周期八项分数组合重排，并返回每项得分与证据
+- 简单查询继续使用确定性编译器；只有带 CTE、子查询或窗口函数的复杂认证模板才尝试 SQLGlot AST 改写
+- 改写通过 SQLValidator 和 PostgreSQL `EXPLAIN` 后才可进入后续执行；任一步失败都会显式记录原因并回退确定性 SQL
+
+重排总分为：自然语言向量/全文 `25%` + 指标 `15%` + 维度 `10%` +
+表字段覆盖 `15%` + Join `10%` + AST 标签 `5%` + 认证等级 `10%` +
+生命周期 `10%`。该公式不参与硬门槛判定；任一硬门槛失败的资产不会因得分高而返回。
+
 离线与在线边界：
 
 ```text
@@ -54,8 +68,9 @@ Data Asset Agents 是一个面向企业数据资产研发场景的多智能体�
 ## 核心链路
 
 ```text
-问题 → Semantic Query → 标准概念 → 正式物理资产 → Join Graph
-    → 认证 SQL → SQL 生成 → SQLGlot 校验 → EXPLAIN/只读执行 → 解释
+问题 → 已发布概念混合召回 → 候选约束的 Semantic Query → 正式物理资产
+    → Join Graph → 认证 SQL 资产混合检索 → 确定性编译/AST 改写
+    → SQLGlot 校验 → EXPLAIN/只读执行 → 解释
 ```
 
 向量检索只用于业务概念候选和认证历史 SQL 候选，不允许绕过本体映射直接搜索并选择物理表。
@@ -70,6 +85,7 @@ src/data_asset_agents/
     builder/                 Profiling 证据编排、候选生成与发布服务
     repository/              YAML 种子和 PostgreSQL 审核/版本仓库
   text2sql/                  State、Graph、节点和 Join 工具
+  sql_assets/                SQLAsset 解析、存储、混合重排和 AST 改写
   validation/                SQLGlot 安全校验
   execution/                 PostgreSQL 只读执行器
   metadata/                  离线元数据抽取骨架
@@ -87,7 +103,7 @@ tests/                       核心路径测试
 ```powershell
 git clone https://github.com/BaBaLiBoo/data-asset-agents.git
 cd data-asset-agents
-git switch feature/text2sql-mvp
+git switch feature/sql-asset-retrieval
 Copy-Item .env.example .env
 docker compose up --build -d
 docker compose ps
@@ -131,6 +147,8 @@ docker compose exec postgres psql -U minibank -d minibank `
   -f /docker-entrypoint-initdb.d/002_ontology_builder.sql
 docker compose exec postgres psql -U minibank -d minibank `
   -f /docker-entrypoint-initdb.d/003_release_safety_and_search.sql
+docker compose exec postgres psql -U minibank -d minibank `
+  -f /docker-entrypoint-initdb.d/004_sql_assets.sql
 ```
 
 ## 本地 Python 开发
@@ -200,6 +218,10 @@ EMBEDDING_API_KEY=your-key
 | GET | `/api/v1/ontology/concepts` | 查看业务概念 |
 | GET | `/api/v1/ontology/metrics` | 查看指标口径 |
 | GET | `/api/v1/ontology/tables` | 查看表资产与生命周期 |
+| POST | `/api/v1/sql-assets/build` | 批量解析、校验、EXPLAIN 并索引受控历史 SQL |
+| GET | `/api/v1/sql-assets` | 查看全部 SQL 资产及安全状态 |
+| POST | `/api/v1/sql-assets/search` | 按语义与结构混合检索认证 SQL |
+| GET | `/api/v1/sql-assets/{id}` | 查看 SQL 资产结构化详情 |
 | POST | `/api/v1/ontology/build` | 抽取物理知识、解析历史 SQL 并生成候选 |
 | GET | `/api/v1/ontology/candidates` | 按类型和状态查看候选 |
 | GET | `/api/v1/ontology/candidates/{id}` | 查看候选及证据 |
@@ -284,8 +306,10 @@ YAML 是初始化种子和故障回退；在线事实源是 PostgreSQL 中当前
 
 - 仅保证已发布指标、维度及其同义表达的闭环；域外问题返回 unsupported，低置信度问题要求澄清，不会生成占位 SQL。
 - `ontology` 是第一阶段唯一真实实现的查询模式；`rag`、`schema` 仅保留接口和前端选项，当前复用同一 ontology 链路，不代表独立能力。
-- 混合检索只索引当前发布的标准业务语义，绝不使用向量直接搜索或选择物理表；历史 SQL 仍沿用认证示例检索。
+- 概念向量只匹配当前发布的标准业务语义，绝不直接选择物理表；SQL 资产向量只召回已认证模板，物理表仍由本体映射确定。
+- AST 改写支持受控的表/字段角色映射、外层时间与筛选条件、Group By、Order By、Limit，并保留模板中的 CTE、子查询和窗口表达式；跨事实表、相关子查询语义迁移和任意结构合成不在本轮范围内。
+- SQL 资产认证状态由受控源文件提供；本轮没有实现多人签名认证工作流。索引在 API 启动和显式 build 时重建，尚未实现增量 CDC。
 - 本轮实现的是受控离线构建，不是无人值守的“自动本体”：业务骨架仍来自人工定义，LLM 只生成候选，发布必须人工审核。
 - 自动修复仅支持补齐校验器明确指出的必要指标过滤条件；字段错误、未审核 Join、禁用表和数据库执行错误不会被猜测性修改。
 - 已实现版本激活和回滚，但尚未实现细粒度权限、多人审批、版本签名、完整审计检索和评测平台。
-- 不实现 OWL、RDF、SPARQL、Neo4j、多事实表 SQL、复杂 LLM SQL 修复或其他 Agent。
+- 不实现 schema/rag/ontology 完整对照、多事实表 SQL、历史 SQL 自由 AST 合成、复杂 LLM SQL 修复、OWL/RDF/SPARQL/Neo4j 或其他 Agent。

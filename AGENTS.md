@@ -9,5 +9,9 @@
   explicitly publishes a new version. CANDIDATE and REJECTED records are never query-time inputs.
 - Metadata profiling accepts only allowlisted identifiers and stores bounded, masked samples.
 - All generated SQL is read-only, statically validated, explained, and executed in a read-only transaction.
+- Historical SQL assets are retrieval templates only. Uncertified, lifecycle-invalid, parse-invalid,
+  missing-column, unreviewed-join, or EXPLAIN-failed assets must never enter online recall.
+- SQL template adaptation must use SQLGlot AST mutations and must fall back to the deterministic
+  compiler unless the rewritten SQL passes SQLValidator and PostgreSQL EXPLAIN.
 - Add type annotations and tests for changes on the core query path.
 - Run `ruff check .` and `pytest` before committing.

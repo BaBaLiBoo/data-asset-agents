@@ -1,13 +1,50 @@
 [
   {
+    "id": "sqlasset-branch-credit-amount",
     "question": "查询各分行信用卡交易金额",
-    "sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' GROUP BY b.branch_name",
-    "certified": true
+    "business_summary": "按分行汇总已入账信用卡交易金额",
+    "sql": "SELECT b.branch_name AS branch, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' GROUP BY b.branch_name",
+    "certified": true,
+    "certification_level": "GOLD"
   },
   {
+    "id": "sqlasset-credit-count-30d",
     "question": "查询近30天信用卡交易笔数",
-    "sql": "SELECT COUNT(DISTINCT transaction_id) AS count FROM dwd_card_transaction WHERE card_type = 'CREDIT' AND transaction_status = 'POSTED' AND transaction_date >= CURRENT_DATE - INTERVAL '30 days'",
-    "certified": true
+    "business_summary": "统计近30天已入账信用卡交易去重笔数",
+    "sql": "SELECT COUNT(DISTINCT transaction_id) AS credit_card_transaction_count FROM dwd_card_transaction WHERE card_type = 'CREDIT' AND transaction_status = 'POSTED' AND transaction_date >= CURRENT_DATE - INTERVAL '30 days'",
+    "certified": true,
+    "certification_level": "CERTIFIED"
+  },
+  {
+    "id": "sqlasset-branch-credit-window",
+    "question": "查询近30天各分行信用卡交易金额和排名",
+    "business_summary": "使用 CTE 计算分行交易额并以窗口函数排名",
+    "sql": "WITH branch_totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.card_type = 'CREDIT' AND t.transaction_status = 'POSTED' AND t.transaction_date >= CURRENT_DATE - INTERVAL '30 days' GROUP BY b.branch_name) SELECT branch_totals.branch_name, branch_totals.amount, DENSE_RANK() OVER (ORDER BY branch_totals.amount DESC) AS amount_rank FROM branch_totals ORDER BY amount_rank LIMIT 10",
+    "certified": true,
+    "certification_level": "CERTIFIED"
+  },
+  {
+    "id": "sqlasset-deprecated-example",
+    "question": "旧表交易金额",
+    "business_summary": "用于验证生命周期硬排除的虚构旧表样例",
+    "sql": "SELECT SUM(txn_amount) FROM legacy_card_transaction",
+    "certified": true,
+    "certification_level": "REVIEWED"
+  },
+  {
+    "id": "sqlasset-unapproved-join",
+    "question": "错误关联示例",
+    "business_summary": "用于验证未审核 Join 硬排除",
+    "sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) FROM dwd_card_transaction t JOIN dim_branch b ON t.customer_id = b.branch_id GROUP BY b.branch_name",
+    "certified": true,
+    "certification_level": "REVIEWED"
+  },
+  {
+    "id": "sqlasset-uncertified-example",
+    "question": "未认证交易明细",
+    "business_summary": "用于验证非认证资产硬排除",
+    "sql": "SELECT transaction_id FROM dwd_card_transaction LIMIT 5",
+    "certified": false,
+    "certification_level": "NONE"
   }
 ]
-

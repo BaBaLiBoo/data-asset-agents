@@ -4,7 +4,10 @@ from data_asset_agents.core.errors import QueryExecutionError, UnsupportedQueryE
 from data_asset_agents.execution.protocols import ExecutorProtocol
 from data_asset_agents.ontology.models import Dimension, Metric
 from data_asset_agents.ontology.service import OntologyService
+from data_asset_agents.sql_assets.models import SQLAssetSearchRequest, SQLRewriteResult
 from data_asset_agents.sql_assets.repository import HistoricalSQLRepository
+from data_asset_agents.sql_assets.rewriter import SQLTemplateRewriter
+from data_asset_agents.sql_assets.service import SQLAssetService
 from data_asset_agents.text2sql.models import (
     QueryFilter,
     TraceStep,
@@ -28,16 +31,23 @@ class Text2SQLNodes:
         ontology: OntologyService,
         executor: ExecutorProtocol,
         history: HistoricalSQLRepository | None = None,
+        sql_assets: SQLAssetService | None = None,
     ) -> None:
         self.ontology = ontology
         self.executor = executor
         self.history = history or HistoricalSQLRepository()
+        self.sql_assets = sql_assets
+        self.template_rewriter = (
+            SQLTemplateRewriter(ontology, executor) if sql_assets is not None else None
+        )
         self.join_planner = JoinPlanner(ontology.bundle.joins)
         self.validator = SQLValidator(ontology.bundle)
         self.repairer = SQLRepairer()
 
     def parse_semantic_query(self, state: Text2SQLState) -> dict[str, Any]:
-        semantic_query = self.ontology.parse(state["question"])
+        semantic_query = self.ontology.parse(
+            state["question"], state.get("matched_concepts")
+        )
         supported = bool(semantic_query.metric_names)
         clarification = semantic_query.clarification_required
         return {
@@ -115,6 +125,35 @@ class Text2SQLNodes:
         }
 
     def retrieve_historical_sql(self, state: Text2SQLState) -> dict[str, Any]:
+        if self.sql_assets is not None:
+            results = self.sql_assets.search(
+                SQLAssetSearchRequest(
+                    question=state["question"],
+                    semantic_query=state["semantic_query"],
+                    selected_tables=state["selected_tables"],
+                    selected_columns=state["selected_columns"],
+                    join_conditions=[item.condition for item in state["join_plan"].steps],
+                    limit=3,
+                )
+            )
+            examples = [
+                {
+                    "question": item.asset.question,
+                    "sql": item.asset.sql_text,
+                    "certified": item.asset.certified,
+                    "similarity": item.score.total,
+                }
+                for item in results
+            ]
+            return {
+                "historical_sql_examples": examples,
+                "sql_asset_candidates": results,
+                "selected_sql_asset": results[0].asset if results else None,
+                "trace_steps": _trace(
+                    "retrieve_historical_sql",
+                    f"召回 {len(results)} 条通过安全门槛的认证 SQL 资产",
+                ),
+            }
         examples = self.history.search(state["question"])
         return {
             "historical_sql_examples": examples,
@@ -128,7 +167,7 @@ class Text2SQLNodes:
         metrics = self.ontology.get_metrics(semantic)
         dimensions = self.ontology.get_dimensions(semantic)
         try:
-            sql = build_select_sql(
+            deterministic_sql = build_select_sql(
                 self.ontology,
                 semantic,
                 metrics,
@@ -144,9 +183,76 @@ class Text2SQLNodes:
                 "generated_sql": None,
                 "trace_steps": _trace("generate_sql", str(exc), "failed"),
             }
+        selected_asset = state.get("selected_sql_asset")
+        selected_result = next(
+            (
+                item
+                for item in state.get("sql_asset_candidates", [])
+                if selected_asset is not None and item.asset.id == selected_asset.id
+            ),
+            None,
+        )
+        template_covers_query = bool(
+            selected_result
+            and selected_result.score.metric_match == 1
+            and selected_result.score.dimension_match == 1
+            and selected_result.score.table_column_coverage == 1
+            and selected_result.score.join_match == 1
+        )
+        complex_template = bool(
+            selected_asset
+            and {"cte", "subquery", "window"} & set(selected_asset.structural_tags)
+        )
+        if (
+            selected_asset is not None
+            and self.template_rewriter is not None
+            and template_covers_query
+            and complex_template
+        ):
+            concept_ids = {
+                *(f"metric:{item.id}" for item in metrics),
+                *(f"dimension:{item.id}" for item in dimensions),
+            }
+            mappings = [
+                item
+                for item in self.ontology.bundle.mappings
+                if item.concept_id in concept_ids
+            ]
+            rewrite = self.template_rewriter.rewrite_or_fallback(
+                selected_asset,
+                deterministic_sql,
+                semantic,
+                mappings,
+                state["join_plan"],
+                [QueryFilter.model_validate(item) for item in state.get("filters", [])],
+            )
+            return {
+                "generated_sql": rewrite.rewritten_sql,
+                "sql_rewrite": rewrite,
+                "trace_steps": _trace(
+                    "generate_sql",
+                    "认证 SQL AST 模板改写通过"
+                    if rewrite.used_template
+                    else rewrite.fallback_reason or "回退确定性编译器",
+                ),
+            }
+        if selected_asset is not None and complex_template and not template_covers_query:
+            reason = "认证模板未完整覆盖目标指标、维度、表字段或 Join，使用确定性编译器"
+            return {
+                "generated_sql": deterministic_sql,
+                "sql_rewrite": SQLRewriteResult(
+                    used_template=False,
+                    asset_id=selected_asset.id,
+                    original_sql=selected_asset.sql_text,
+                    rewritten_sql=deterministic_sql,
+                    fallback_reason=reason,
+                ),
+                "trace_steps": _trace("generate_sql", reason),
+            }
         return {
-            "generated_sql": sql,
-            "trace_steps": _trace("generate_sql", "根据正式语义映射生成 PostgreSQL SQL"),
+            "generated_sql": deterministic_sql,
+            "sql_rewrite": None,
+            "trace_steps": _trace("generate_sql", "根据正式语义映射确定性编译 PostgreSQL SQL"),
         }
 
     def validate_sql(self, state: Text2SQLState) -> dict[str, Any]:

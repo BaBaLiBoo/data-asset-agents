@@ -145,8 +145,13 @@ class OntologyService:
         self._refresh_indexes()
         return True
 
-    def parse(self, question: str) -> SemanticQuery:
-        return self.semantic_parser.parse(question, self.bundle)
+    def parse(
+        self,
+        question: str,
+        matched_concepts: list[MatchedConcept] | None = None,
+    ) -> SemanticQuery:
+        allowed = {item.id for item in matched_concepts} if matched_concepts else None
+        return self.semantic_parser.parse(question, self.bundle, allowed)
 
     def search(self, text: str, limit: int = 10) -> list[MatchedConcept]:
         if self.runtime_repository is not None and hasattr(
@@ -257,17 +262,41 @@ class OntologyService:
                 + [dimension.table for dimension in time_dimensions]
             )
         )
-        candidate_names = list(selected)
-        if any("transaction" in name for name in selected):
-            candidate_names.extend(
-                [
-                    "dws_branch_transaction_day",
-                    "legacy_card_transaction",
-                    "tmp_transaction_result",
-                    "test_transaction_copy",
-                ]
+        required_columns = {
+            column
+            for metric in metrics
+            for column in re.findall(
+                rf"\b{re.escape(metric.base_table)}\.([A-Za-z_][A-Za-z0-9_]*)",
+                metric.expression,
             )
-        candidates = list(dict.fromkeys(candidate_names))
+        } | {
+            column for metric in metrics for column in metric.required_filters
+        } | {dimension.column for dimension in [*dimensions, *time_dimensions]}
+        selected_assets = [self.tables_by_name[name] for name in selected]
+
+        def normalized_tokens(asset: TableAsset) -> set[str]:
+            ignored = {
+                "dim", "dwd", "dws", "old", "legacy", "tmp", "test",
+                "copy", "result", "day", "month", "deprecated",
+            }
+            return (set(asset.name.lower().split("_")) | set(asset.tags)) - ignored
+
+        selected_tokens = set().union(
+            *(normalized_tokens(asset) for asset in selected_assets)
+        )
+        related_assets: list[TableAsset] = []
+        for asset in self.bundle.tables:
+            replacement_related = asset.replacement in selected or any(
+                selected_asset.replacement == asset.name
+                for selected_asset in selected_assets
+            )
+            column_related = bool(required_columns & set(asset.columns))
+            semantic_related = bool(selected_tokens & normalized_tokens(asset))
+            if asset.name in selected or replacement_related or (
+                column_related and semantic_related
+            ):
+                related_assets.append(asset)
+        candidates = list(dict.fromkeys(asset.name for asset in related_assets))
         rejected: list[RejectedTable] = []
         for name in candidates:
             asset = self.tables_by_name.get(name)
@@ -291,6 +320,20 @@ class OntologyService:
                         name=name,
                         status=asset.status,
                         reason="粒度不匹配：汇总表不保留 transaction_id，无法支持交易 ID 去重计数",
+                    )
+                )
+            elif asset and name not in selected:
+                missing = sorted(required_columns - set(asset.columns))
+                rejected.append(
+                    RejectedTable(
+                        name=name,
+                        status=asset.status,
+                        replacement=asset.replacement,
+                        reason=(
+                            "字段覆盖不足：缺少 " + ", ".join(missing)
+                            if missing
+                            else f"粒度不匹配：{asset.grain}"
+                        ),
                     )
                 )
         selected = [

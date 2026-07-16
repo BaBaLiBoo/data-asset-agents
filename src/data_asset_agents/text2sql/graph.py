@@ -6,6 +6,7 @@ from langgraph.graph.state import CompiledStateGraph
 from data_asset_agents.execution.protocols import ExecutorProtocol
 from data_asset_agents.ontology.service import OntologyService
 from data_asset_agents.sql_assets.repository import HistoricalSQLRepository
+from data_asset_agents.sql_assets.service import SQLAssetService
 from data_asset_agents.text2sql.nodes import Text2SQLNodes
 from data_asset_agents.text2sql.state import Text2SQLState
 
@@ -24,10 +25,10 @@ GRAPH_NODES = [
 ]
 
 GRAPH_EDGES = [
-    ("START", "parse_semantic_query"),
-    ("parse_semantic_query", "retrieve_business_concepts"),
+    ("START", "retrieve_business_concepts"),
+    ("retrieve_business_concepts", "parse_semantic_query"),
     ("parse_semantic_query", "explain_result"),
-    ("retrieve_business_concepts", "resolve_physical_assets"),
+    ("parse_semantic_query", "resolve_physical_assets"),
     ("resolve_physical_assets", "plan_join_path"),
     ("plan_join_path", "retrieve_historical_sql"),
     ("retrieve_historical_sql", "generate_sql"),
@@ -50,26 +51,27 @@ def build_text2sql_graph(
     ontology: OntologyService,
     executor: ExecutorProtocol,
     history: HistoricalSQLRepository | None = None,
+    sql_assets: SQLAssetService | None = None,
 ) -> CompiledStateGraph:
     """Build a standalone compiled graph suitable for embedding as a subgraph."""
 
-    nodes = Text2SQLNodes(ontology, executor, history)
+    nodes = Text2SQLNodes(ontology, executor, history, sql_assets)
     graph = StateGraph(Text2SQLState)
     for name in GRAPH_NODES:
         graph.add_node(name, getattr(nodes, name))
-    graph.add_edge(START, "parse_semantic_query")
+    graph.add_edge(START, "retrieve_business_concepts")
+    graph.add_edge("retrieve_business_concepts", "parse_semantic_query")
 
     def route_parse(
         state: Text2SQLState,
-    ) -> Literal["retrieve_business_concepts", "explain_result"]:
+    ) -> Literal["resolve_physical_assets", "explain_result"]:
         return (
-            "retrieve_business_concepts"
+            "resolve_physical_assets"
             if state.get("status") == "success"
             else "explain_result"
         )
 
     graph.add_conditional_edges("parse_semantic_query", route_parse)
-    graph.add_edge("retrieve_business_concepts", "resolve_physical_assets")
     graph.add_edge("resolve_physical_assets", "plan_join_path")
     graph.add_edge("plan_join_path", "retrieve_historical_sql")
     graph.add_edge("retrieve_historical_sql", "generate_sql")
