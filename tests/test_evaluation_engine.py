@@ -99,6 +99,84 @@ def test_metrics_preserve_null_for_not_applicable_and_zero_for_failure() -> None
     assert metrics.result_accuracy == 0
 
 
+def test_rag_recall_at_k_uses_retrieved_physical_documents() -> None:
+    case = BenchmarkCase(
+        id="rag-recall",
+        question="查询各分行交易金额",
+        category="test",
+        difficulty="easy",
+        expected_status="success",
+        gold_tables=["dwd_card_transaction", "dim_branch"],
+        gold_columns=[
+            "dwd_card_transaction.txn_amount_cny",
+            "dim_branch.branch_name",
+        ],
+        gold_sql=(
+            "SELECT b.branch_name, SUM(t.txn_amount_cny) "
+            "FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id "
+            "GROUP BY b.branch_name"
+        ),
+        expected_result_hash="a" * 64,
+    )
+    result = EvaluationCaseResult(
+        run_id="run",
+        case_id=case.id,
+        predicted_status="success",
+        retrieved_tables=["dim_branch", "dwd_card_transaction"],
+        retrieved_columns=["dim_branch.branch_name"],
+        success=False,
+    )
+    metrics = calculate_metrics("run", [case], [result], strategy_variant="rag")
+    assert metrics.table_recall_at_k == 1
+    assert metrics.column_recall_at_k == 0.5
+
+
+def test_semantic_accuracy_requires_filters_and_time_range() -> None:
+    case = BenchmarkCase(
+        id="semantic-contract",
+        question="查询近7天指定渠道交易金额",
+        category="test",
+        difficulty="medium",
+        expected_status="success",
+        gold_metric_ids=["transaction_amount"],
+        gold_semantic_filters=[
+            {"concept_id": "transaction_channel", "operator": "=", "value": "MOBILE"}
+        ],
+        gold_time_range={"kind": "relative_days", "days": 7},
+        gold_tables=["dwd_card_transaction"],
+        gold_sql="SELECT txn_amount_cny FROM dwd_card_transaction",
+        expected_result_hash="a" * 64,
+    )
+    exact = EvaluationCaseResult(
+        run_id="run",
+        case_id=case.id,
+        predicted_status="success",
+        semantic_output={
+            "metric_ids": ["transaction_amount"],
+            "dimension_ids": [],
+            "filters": case.gold_semantic_filters,
+            "time_range": {
+                "kind": "relative_days",
+                "days": 7,
+                "original_text": "近7天",
+            },
+        },
+        success=True,
+    )
+    wrong_time = exact.model_copy(deep=True)
+    wrong_time.semantic_output["time_range"]["days"] = 30  # type: ignore[index]
+    assert (
+        calculate_metrics("run", [case], [exact], strategy_variant="ontology_full")
+        .semantic_query_accuracy
+        == 1
+    )
+    assert (
+        calculate_metrics("run", [case], [wrong_time], strategy_variant="ontology_full")
+        .semantic_query_accuracy
+        == 0
+    )
+
+
 class FixedStrategy:
     def execute(self, question: str) -> StrategyResult:
         return StrategyResult(

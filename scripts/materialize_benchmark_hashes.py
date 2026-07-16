@@ -18,6 +18,7 @@ def main() -> int:
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     path = Path(args.path)
+    hashes_path = path.with_name(f"{path.stem}_hashes.json")
     payload = json.loads(path.read_text(encoding="utf-8"))
     suite = BenchmarkSuite.model_validate(payload)
     executor = QueryExecutor(get_settings())
@@ -41,6 +42,15 @@ def main() -> int:
     if not args.check:
         path.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        reviewed = {
+            item["id"]: item["expected_result_hash"]
+            for item in payload["cases"]
+            if item["expected_status"] == "success"
+        }
+        hashes_path.write_text(
+            json.dumps(reviewed, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
     return 0

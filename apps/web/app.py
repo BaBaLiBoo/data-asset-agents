@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import difflib
 import os
 from typing import Any
 
@@ -50,7 +51,10 @@ def text_to_sql_page() -> None:
         st.header("查询设置")
         example = st.selectbox("示例问题", EXAMPLES)
         mode = st.radio("检索模式", ["ontology", "rag", "schema"], horizontal=True)
-        st.info("ontology 为正式链路；rag/schema 当前复用同一语义链路。")
+        sql_asset_enabled = st.toggle(
+            "启用认证 SQLAsset", value=True, disabled=mode != "ontology"
+        )
+        st.info("schema、rag 与 ontology 使用严格隔离的查询策略。")
     question = st.text_area("自然语言问题", value=example, height=90)
     if not st.button("执行 Text-to-SQL", type="primary", use_container_width=True):
         return
@@ -58,7 +62,11 @@ def text_to_sql_page() -> None:
         data = api_request(
             "POST",
             "/api/v1/query",
-            json={"question": question, "query_mode": mode},
+            json={
+                "question": question,
+                "query_mode": mode,
+                "sql_asset_enabled": sql_asset_enabled,
+            },
             timeout=60,
         )
     except RuntimeError as exc:
@@ -428,11 +436,174 @@ def sql_asset_page() -> None:
     )
 
 
+def evaluation_page() -> None:
+    st.title("模式对比与评测")
+    st.caption(
+        "Schema / Physical RAG / Ontology without SQLAsset / Ontology full 严格隔离对照"
+    )
+    st.warning("SMOKE 结果仅用于工程验证，不能代表真实模型效果。")
+    variants = {
+        "Schema": ("schema", "schema", False),
+        "Physical RAG": ("rag", "rag", False),
+        "Ontology without SQLAsset": (
+            "ontology",
+            "ontology_no_sql_asset",
+            False,
+        ),
+        "Ontology full": ("ontology", "ontology_full", True),
+    }
+    with st.sidebar:
+        st.header("评测设置")
+        max_cases = st.number_input("Smoke 案例数", 1, 20, 4)
+        concurrency = st.number_input("并发数", 1, 8, 1)
+        selected_variants = st.multiselect(
+            "实验组", list(variants), default=list(variants)
+        )
+        if st.button("创建四组 Smoke 运行", type="primary", use_container_width=True):
+            created: list[str] = []
+            try:
+                for label in selected_variants:
+                    mode, variant, assets = variants[label]
+                    run = api_request(
+                        "POST",
+                        "/api/v1/evaluation/runs",
+                        json={
+                            "query_mode": mode,
+                            "strategy_variant": variant,
+                            "sql_asset_enabled": assets,
+                            "run_kind": "smoke",
+                            "max_cases": int(max_cases),
+                            "concurrency": int(concurrency),
+                        },
+                    )
+                    created.append(run["run_id"])
+                st.session_state["evaluation_run_ids"] = created
+                st.success(f"已创建 {len(created)} 个后台评测运行。")
+            except RuntimeError as exc:
+                st.error(str(exc))
+        if st.button("刷新运行状态", use_container_width=True):
+            st.rerun()
+
+    try:
+        runs = api_request("GET", "/api/v1/evaluation/runs", params={"limit": 100})
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
+    st.subheader("运行记录")
+    st.dataframe(runs, use_container_width=True, hide_index=True)
+    completed = [run for run in runs if run["status"] == "COMPLETED"]
+    if not completed:
+        st.info("暂无已完成运行。后台运行完成后点击刷新。")
+        return
+    default_ids = st.session_state.get("evaluation_run_ids", [])
+    completed_ids = {run["run_id"] for run in completed}
+    compare_ids = st.multiselect(
+        "选择对比运行",
+        [run["run_id"] for run in completed],
+        default=[item for item in default_ids if item in completed_ids],
+    )
+    allow_mismatch = st.checkbox("允许显示不满足公平条件的对比", False)
+    if compare_ids:
+        try:
+            comparison = api_request(
+                "GET",
+                "/api/v1/evaluation/compare",
+                params={"run_id": compare_ids, "allow_mismatch": allow_mismatch},
+            )
+            if comparison["warnings"]:
+                st.warning("；".join(comparison["warnings"]))
+            st.subheader("总体指标")
+            st.dataframe(comparison["runs"], use_container_width=True, hide_index=True)
+        except RuntimeError as exc:
+            st.warning(str(exc))
+
+    selected_run = st.selectbox(
+        "案例详情运行",
+        completed,
+        format_func=lambda run: f"{run['strategy_variant']} · {run['run_id']}",
+    )
+    try:
+        cases = api_request(
+            "GET", f"/api/v1/evaluation/runs/{selected_run['run_id']}/cases"
+        )
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
+    categories = sorted({item["category"] for item in cases if item.get("category")})
+    difficulties = sorted(
+        {item["difficulty"] for item in cases if item.get("difficulty")}
+    )
+    category = st.selectbox("类别过滤", ["全部", *categories])
+    difficulty = st.selectbox("难度过滤", ["全部", *difficulties])
+    failure_types = sorted(
+        {item["failure_category"] for item in cases if item["failure_category"]}
+    )
+    failure_type = st.selectbox("失败类型过滤", ["全部", *failure_types])
+    filtered = [
+        item
+        for item in cases
+        if (category == "全部" or item.get("category") == category)
+        and (difficulty == "全部" or item.get("difficulty") == difficulty)
+        and (failure_type == "全部" or item["failure_category"] == failure_type)
+    ]
+    st.dataframe(filtered, use_container_width=True, hide_index=True)
+    if filtered:
+        selected_case = st.selectbox(
+            "查看 SQL、检索上下文和失败证据",
+            filtered,
+            format_func=lambda item: f"{item['case_id']} · {item['predicted_status']}",
+        )
+        left, right = st.columns(2)
+        with left:
+            st.markdown("#### 问题与 Gold")
+            st.write(selected_case.get("question") or "无问题文本")
+            st.json(selected_case.get("gold") or {})
+            st.markdown("#### 生成 SQL")
+            st.code(selected_case.get("generated_sql") or "无 SQL", language="sql")
+            st.markdown("#### 检索上下文 / Semantic Output")
+            st.json(
+                {
+                    "retrieved_context": selected_case.get("retrieved_context"),
+                    "semantic_output": selected_case.get("semantic_output"),
+                }
+            )
+        with right:
+            gold_sql = ((selected_case.get("gold") or {}).get("sql") or "").splitlines()
+            generated_sql = (selected_case.get("generated_sql") or "").splitlines()
+            sql_diff = "\n".join(
+                difflib.unified_diff(
+                    gold_sql,
+                    generated_sql,
+                    fromfile="gold.sql",
+                    tofile="generated.sql",
+                    lineterm="",
+                )
+            )
+            st.markdown("#### SQL 差异")
+            st.code(sql_diff or "SQL 一致或无可比较 SQL", language="diff")
+            st.markdown("#### 校验、Hash 与失败原因")
+            st.json(selected_case)
+    export_col1, export_col2 = st.columns(2)
+    export_col1.link_button(
+        "导出 JSON",
+        f"{API_BASE_URL}/api/v1/evaluation/runs/{selected_run['run_id']}/export?format=json",
+        use_container_width=True,
+    )
+    export_col2.link_button(
+        "导出 CSV",
+        f"{API_BASE_URL}/api/v1/evaluation/runs/{selected_run['run_id']}/export?format=csv",
+        use_container_width=True,
+    )
+
+
 page = st.sidebar.radio(
-    "工作台", ["Text-to-SQL", "认证 SQL 资产", "本体构建与审核"]
+    "工作台",
+    ["Text-to-SQL", "模式对比与评测", "认证 SQL 资产", "本体构建与审核"],
 )
 if page == "Text-to-SQL":
     text_to_sql_page()
+elif page == "模式对比与评测":
+    evaluation_page()
 elif page == "认证 SQL 资产":
     sql_asset_page()
 else:

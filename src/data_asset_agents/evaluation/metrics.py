@@ -42,6 +42,37 @@ def _ratio(numerator: int, denominator: int) -> float:
     return round(numerator / denominator, 6) if denominator else 0.0
 
 
+def _mean_recall(expected: list[str], retrieved: list[str]) -> float:
+    gold = set(expected)
+    return len(gold & set(retrieved)) / len(gold) if gold else 1.0
+
+
+def _canonical_dicts(items: list[dict[str, object]]) -> set[tuple[tuple[str, str], ...]]:
+    return {
+        tuple(sorted((str(key), str(value)) for key, value in item.items()))
+        for item in items
+    }
+
+
+def _semantic_matches(case: BenchmarkCase, result: EvaluationCaseResult) -> bool:
+    output = result.semantic_output
+    if output is None:
+        return False
+    actual_time = dict(output.get("time_range") or {"kind": "none"})
+    actual_time.pop("original_text", None)
+    actual_time = {key: value for key, value in actual_time.items() if value is not None}
+    expected_time = {
+        key: value for key, value in case.gold_time_range.items() if value is not None
+    }
+    return (
+        set(output.get("metric_ids", [])) == set(case.gold_metric_ids)
+        and set(output.get("dimension_ids", [])) == set(case.gold_dimension_ids)
+        and _canonical_dicts(output.get("filters", []))
+        == _canonical_dicts(case.gold_semantic_filters)
+        and actual_time == expected_time
+    )
+
+
 def calculate_metrics(
     run_id: str,
     cases: list[BenchmarkCase],
@@ -69,6 +100,27 @@ def calculate_metrics(
         ),
         len(success_cases),
     )
+    table_recall = None
+    column_recall = None
+    if strategy_variant == "rag":
+        table_recall = (
+            round(
+                mean(
+                    _mean_recall(case.gold_tables, result.retrieved_tables)
+                    for case, result in success_cases
+                ),
+                6,
+            )
+            if success_cases
+            else 0.0
+        )
+        column_recall = round(
+            mean(
+                _mean_recall(case.gold_columns, result.retrieved_columns)
+                for case, result in success_cases
+            ),
+            6,
+        ) if success_cases else 0.0
     join_cases = [(case, result) for case, result in success_cases if case.gold_joins]
     join_exact = (
         _ratio(
@@ -136,18 +188,12 @@ def calculate_metrics(
     if strategy_variant.startswith("ontology"):
         semantic_cases = [(case, result) for case, result in paired if case.gold_metric_ids]
         semantic_accuracy = _ratio(
-            sum(
-                result.semantic_output is not None
-                and set(result.semantic_output.get("metric_ids", [])) == set(case.gold_metric_ids)
-                and set(result.semantic_output.get("dimension_ids", []))
-                == set(case.gold_dimension_ids)
-                for case, result in semantic_cases
-            ),
+            sum(_semantic_matches(case, result) for case, result in semantic_cases),
             len(semantic_cases),
         )
     adoption = None
     if strategy_variant == "ontology_full":
-        compatible = [result for _, result in paired if result.template_adopted is not None]
+        compatible = [result for _, result in paired if result.template_compatible]
         adoption = (
             _ratio(sum(bool(result.template_adopted) for result in compatible), len(compatible))
             if compatible
@@ -160,9 +206,9 @@ def calculate_metrics(
         case_count=len(paired),
         status_accuracy=status_accuracy,
         semantic_query_accuracy=semantic_accuracy,
-        table_recall_at_k=None,
+        table_recall_at_k=table_recall,
         table_exact_match=table_exact,
-        column_recall_at_k=None if strategy_variant == "schema" else column_exact,
+        column_recall_at_k=column_recall,
         column_exact_match=column_exact,
         join_exact_match=join_exact,
         deprecated_table_false_selection_rate=lifecycle_rate,

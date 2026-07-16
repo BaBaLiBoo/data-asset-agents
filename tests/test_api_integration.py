@@ -1,4 +1,5 @@
 import os
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -105,6 +106,74 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         )
         assert clarification.status_code == 200
         assert clarification.json()["status"] == "clarification_required"
+
+        isolated_results = {}
+        for mode, enabled, variant in (
+            ("schema", False, "schema"),
+            ("rag", False, "rag"),
+            ("ontology", False, "ontology_no_sql_asset"),
+            ("ontology", True, "ontology_full"),
+        ):
+            response = client.post(
+                "/api/v1/query",
+                json={
+                    "question": "查询近30天各分行信用卡交易金额和交易笔数。",
+                    "query_mode": mode,
+                    "sql_asset_enabled": enabled,
+                },
+            )
+            assert response.status_code == 200, response.text
+            isolated_results[variant] = response.json()
+            assert response.json()["strategy_variant"] == variant
+            assert response.json()["status"] == "success"
+        assert isolated_results["schema"]["semantic_query"] is None
+        assert isolated_results["rag"]["semantic_query"] is None
+        assert isolated_results["ontology_no_sql_asset"]["selected_sql_asset"] is None
+        assert isolated_results["ontology_no_sql_asset"]["sql_rewrite"] is None
+        assert isolated_results["ontology_full"]["sql_asset_candidates"]
+
+        run_ids = []
+        for mode, enabled, variant in (
+            ("schema", False, "schema"),
+            ("rag", False, "rag"),
+            ("ontology", False, "ontology_no_sql_asset"),
+            ("ontology", True, "ontology_full"),
+        ):
+            created = client.post(
+                "/api/v1/evaluation/runs",
+                json={
+                    "query_mode": mode,
+                    "strategy_variant": variant,
+                    "sql_asset_enabled": enabled,
+                    "run_kind": "smoke",
+                    "max_cases": 2,
+                    "concurrency": 1,
+                },
+            )
+            assert created.status_code == 202, created.text
+            run_ids.append(created.json()["run_id"])
+        for run_id in run_ids:
+            for _ in range(20):
+                state = client.get(f"/api/v1/evaluation/runs/{run_id}")
+                assert state.status_code == 200, state.text
+                if state.json()["run"]["status"] == "COMPLETED":
+                    break
+                time.sleep(0.05)
+            assert state.json()["run"]["status"] == "COMPLETED"
+            cases = client.get(f"/api/v1/evaluation/runs/{run_id}/cases")
+            assert len(cases.json()) == 2
+        comparison = client.get(
+            "/api/v1/evaluation/compare",
+            params=[("run_id", run_id) for run_id in run_ids],
+        )
+        assert comparison.status_code == 200, comparison.text
+        assert len(comparison.json()["runs"]) == 4
+        exported = client.get(
+            f"/api/v1/evaluation/runs/{run_ids[0]}/export",
+            params={"format": "csv"},
+        )
+        assert exported.status_code == 200
+        assert "case_id" in exported.text
 
         build = client.post(
             "/api/v1/ontology/build",

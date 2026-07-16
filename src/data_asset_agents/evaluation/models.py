@@ -71,6 +71,8 @@ class BenchmarkCase(BaseModel):
     gold_metric_ids: list[str] = Field(default_factory=list)
     gold_dimension_ids: list[str] = Field(default_factory=list)
     gold_filters: list[dict[str, Any]] = Field(default_factory=list)
+    gold_semantic_filters: list[dict[str, Any]] = Field(default_factory=list)
+    gold_time_range: dict[str, Any] = Field(default_factory=lambda: {"kind": "none"})
     gold_tables: list[str] = Field(default_factory=list)
     gold_columns: list[str] = Field(default_factory=list)
     gold_joins: list[str] = Field(default_factory=list)
@@ -124,6 +126,7 @@ class EvaluationRun(BaseModel):
     ontology_version_id: str | None = None
     sql_asset_build_id: str | None = None
     benchmark_version: str
+    benchmark_path: str = "data/benchmark/text2sql_v1.json"
     random_seed: int = 20260716
     max_cases: int | None = None
     concurrency: int = Field(default=1, ge=1, le=16)
@@ -168,10 +171,16 @@ class EvaluationRun(BaseModel):
 class EvaluationCaseResult(BaseModel):
     run_id: str
     case_id: str
+    question: str | None = None
+    category: str | None = None
+    difficulty: str | None = None
+    gold: dict[str, Any] | None = None
     status: Literal["COMPLETED", "FAILED"] = "COMPLETED"
     predicted_status: str
     semantic_output: dict[str, Any] | None = None
     retrieved_context: list[dict[str, Any]] | None = None
+    retrieved_tables: list[str] = Field(default_factory=list)
+    retrieved_columns: list[str] = Field(default_factory=list)
     raw_model_output: str | None = None
     generated_sql: str | None = None
     referenced_tables: list[str] = Field(default_factory=list)
@@ -184,6 +193,7 @@ class EvaluationCaseResult(BaseModel):
     latency_ms: float = 0.0
     token_usage: TokenUsage | None = None
     template_adopted: bool | None = None
+    template_compatible: bool | None = None
     selected_sql_asset_id: str | None = None
     success: bool
     failure_category: str | None = None

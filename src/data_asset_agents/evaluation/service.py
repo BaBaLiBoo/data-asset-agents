@@ -10,7 +10,7 @@ from typing import Any
 from data_asset_agents.core.config import Settings
 from data_asset_agents.core.errors import DataAssetAgentsError
 from data_asset_agents.evaluation.benchmark import benchmark_source_hash, load_benchmark
-from data_asset_agents.evaluation.metrics import calculate_metrics
+from data_asset_agents.evaluation.metrics import calculate_metrics, normalize_join
 from data_asset_agents.evaluation.models import (
     BenchmarkCase,
     EvaluationCaseResult,
@@ -94,6 +94,7 @@ class EvaluationService:
                 self.sql_asset_build_id if request.strategy_variant == "ontology_full" else None
             ),
             benchmark_version=suite.version + ":" + benchmark_source_hash(benchmark_path)[:12],
+            benchmark_path=str(benchmark_path.relative_to(Path.cwd())),
             max_cases=request.max_cases,
             concurrency=request.concurrency,
         )
@@ -170,21 +171,41 @@ class EvaluationService:
                 if case.expected_result_hash is not None
                 else True
             )
-            success = status_matches and result_matches
             failure_category, failure_reason = self._failure(
                 case, output, result_hash, policy.violations if policy else []
             )
+            success = status_matches and result_matches and failure_category is None
             selected_asset_id = (
                 str(output.selected_sql_asset.get("id")) if output.selected_sql_asset else None
+            )
+            retrieved_tables, retrieved_columns = self._retrieved_physical_assets(
+                output.retrieved_context
             )
             return EvaluationCaseResult(
                 run_id=run.run_id,
                 case_id=case.id,
+                question=case.question,
+                category=case.category,
+                difficulty=case.difficulty,
+                gold={
+                    "expected_status": case.expected_status,
+                    "metric_ids": case.gold_metric_ids,
+                    "dimension_ids": case.gold_dimension_ids,
+                    "semantic_filters": case.gold_semantic_filters,
+                    "time_range": case.gold_time_range,
+                    "tables": case.gold_tables,
+                    "columns": case.gold_columns,
+                    "joins": case.gold_joins,
+                    "sql": case.gold_sql,
+                    "result_hash": case.expected_result_hash,
+                },
                 predicted_status=output.status,
                 semantic_output=(
                     output.semantic_query.model_dump(mode="json") if output.semantic_query else None
                 ),
                 retrieved_context=output.retrieved_context,
+                retrieved_tables=retrieved_tables,
+                retrieved_columns=retrieved_columns,
                 raw_model_output=output.raw_model_output,
                 generated_sql=output.generated_sql,
                 referenced_tables=output.selected_tables,
@@ -211,6 +232,11 @@ class EvaluationService:
                     if run.strategy_variant == "ontology_full"
                     else None
                 ),
+                template_compatible=(
+                    output.selected_sql_asset is not None
+                    if run.strategy_variant == "ontology_full"
+                    else None
+                ),
                 selected_sql_asset_id=selected_asset_id,
                 success=success,
                 failure_category=failure_category,
@@ -220,12 +246,45 @@ class EvaluationService:
             return EvaluationCaseResult(
                 run_id=run.run_id,
                 case_id=case.id,
+                question=case.question,
+                category=case.category,
+                difficulty=case.difficulty,
+                gold={
+                    "expected_status": case.expected_status,
+                    "sql": case.gold_sql,
+                    "result_hash": case.expected_result_hash,
+                },
                 status="FAILED",
                 predicted_status="failed",
                 success=False,
                 failure_category="model_error",
                 failure_reason=str(exc),
             )
+
+    @staticmethod
+    def _retrieved_physical_assets(
+        context: list[dict[str, Any]] | None,
+    ) -> tuple[list[str], list[str]]:
+        """Extract ranked physical evidence without interpreting semantic concepts."""
+
+        tables: list[str] = []
+        columns: list[str] = []
+        for item in context or []:
+            document = item.get("document", item)
+            if not isinstance(document, dict):
+                continue
+            table = document.get("table")
+            column = document.get("column")
+            if isinstance(table, str) and table not in tables:
+                tables.append(table)
+            qualified = (
+                f"{table}.{column}"
+                if isinstance(table, str) and isinstance(column, str)
+                else None
+            )
+            if qualified and qualified not in columns:
+                columns.append(qualified)
+        return tables, columns
 
     @staticmethod
     def _failure(
@@ -235,6 +294,8 @@ class EvaluationService:
         policy_violations: list[str],
     ) -> tuple[str | None, str | None]:
         if output.status != case.expected_status:
+            if case.expected_status == "success" and not output.selected_tables:
+                return "retrieval_miss", "strategy produced no usable physical assets"
             category = (
                 "clarification_error"
                 if case.expected_status == "clarification_required"
@@ -246,9 +307,46 @@ class EvaluationService:
             )
             return category, f"expected {case.expected_status}, got {output.status}"
         if output.common_validation_report and not output.common_validation_report.valid:
-            return "validation_error", "; ".join(output.common_validation_report.errors)
+            reason = "; ".join(output.common_validation_report.errors)
+            lowered = reason.lower()
+            if "parse" in lowered:
+                category = "sql_parse_error"
+            elif "explain" in lowered:
+                category = "explain_error"
+            elif "does not exist" in lowered or "execution" in lowered:
+                category = "execution_error"
+            elif "column" in lowered:
+                category = "wrong_column"
+            elif "table" in lowered:
+                category = "wrong_table"
+            else:
+                category = "validation_error"
+            return category, reason
         if policy_violations:
-            return "business_policy_error", "; ".join(policy_violations)
+            reason = "; ".join(policy_violations)
+            lowered = reason.lower()
+            if any(item in lowered for item in ("deprecated", "temporary", "test")):
+                category = "lifecycle_error"
+            elif "join" in lowered:
+                category = "wrong_join"
+            elif any(item in lowered for item in ("amount field", "time field", "column")):
+                category = "wrong_column"
+            else:
+                category = "business_policy_error"
+            return category, reason
+        if set(output.selected_tables) != set(case.gold_tables):
+            return "wrong_table", "generated SQL table set differs from Gold"
+        referenced_columns = {
+            f"{table}.{column}"
+            for table, columns in output.selected_columns.items()
+            for column in columns
+        }
+        if referenced_columns != set(case.gold_columns):
+            return "wrong_column", "generated SQL column set differs from Gold"
+        if case.gold_joins and {
+            normalize_join(item) for item in output.discovered_joins
+        } != {normalize_join(item) for item in case.gold_joins}:
+            return "wrong_join", "generated SQL Join set differs from Gold"
         if case.expected_result_hash and result_hash != case.expected_result_hash:
             return "result_mismatch", "execution result hash differs from Gold"
         return None, None
@@ -265,6 +363,14 @@ class EvaluationService:
             self.repository.list_cases(run_id),
             strategy_variant=run.strategy_variant,
         )
+
+    def metrics_for_run(self, run_id: str) -> EvaluationMetrics:
+        """Calculate metrics using the exact allow-listed benchmark stored by the run."""
+
+        run = self.repository.get_run(run_id)
+        if run is None:
+            raise DataAssetAgentsError(f"Evaluation run not found: {run_id}")
+        return self.metrics(run_id, run.benchmark_path)
 
     def compare(
         self,
@@ -290,7 +396,7 @@ class EvaluationService:
         if warnings and not allow_mismatch:
             raise DataAssetAgentsError("; ".join(warnings))
         return EvaluationComparison(
-            runs=[self.metrics(run.run_id, benchmark_path) for run in present],
+            runs=[self.metrics_for_run(run.run_id) for run in present],
             warnings=warnings,
         )
 

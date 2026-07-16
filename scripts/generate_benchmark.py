@@ -3,13 +3,27 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import sqlglot
 from sqlglot import exp
 
 OUTPUT = Path("data/benchmark/text2sql_v1.json")
+HASHES_PATH = Path("data/benchmark/text2sql_v1_hashes.json")
 PLACEHOLDER_HASH = "0" * 64
+
+
+def load_reviewed_hashes() -> dict[str, str]:
+    """Load hashes materialized against the fixed MiniBank seed, when available."""
+
+    if not HASHES_PATH.exists():
+        return {}
+    payload = json.loads(HASHES_PATH.read_text(encoding="utf-8"))
+    return {str(case_id): str(value) for case_id, value in payload.items()}
+
+
+REVIEWED_HASHES = load_reviewed_hashes()
 
 
 def references(sql: str) -> tuple[list[str], list[str]]:
@@ -27,6 +41,22 @@ def references(sql: str) -> tuple[list[str], list[str]]:
         }
     )
     return tables, columns
+
+
+def gold_time_range(sql: str) -> dict[str, object]:
+    """Derive the reviewed semantic time contract from controlled DSL SQL."""
+
+    relative = re.search(r"CURRENT_DATE\s*-\s*INTERVAL\s*'(\d+) days'", sql)
+    if relative:
+        return {"kind": "relative_days", "days": int(relative.group(1))}
+    dates = re.findall(r"DATE\s*'(\d{4}-\d{2}-\d{2})'", sql)
+    if dates:
+        return {
+            "kind": "absolute",
+            "start": dates[0],
+            "end": dates[-1] if len(dates) > 1 else dates[0],
+        }
+    return {"kind": "none"}
 
 
 def success_case(
@@ -53,11 +83,13 @@ def success_case(
         "gold_metric_ids": metrics,
         "gold_dimension_ids": dimensions,
         "gold_filters": filters or [],
+        "gold_semantic_filters": [],
+        "gold_time_range": gold_time_range(sql),
         "gold_tables": tables,
         "gold_columns": columns,
         "gold_joins": joins or [],
         "gold_sql": sql,
-        "expected_result_hash": PLACEHOLDER_HASH,
+        "expected_result_hash": REVIEWED_HASHES.get(case_id, PLACEHOLDER_HASH),
         "result_order_sensitive": ordered,
         "tags": tags or [],
         "notes": "Gold SQL is authored by the controlled benchmark DSL templates.",

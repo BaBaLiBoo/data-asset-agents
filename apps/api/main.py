@@ -1,8 +1,10 @@
+import csv
+import io
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine
@@ -10,12 +12,18 @@ from sqlalchemy import create_engine
 from data_asset_agents.core.config import get_settings
 from data_asset_agents.core.errors import DataAssetAgentsError, UnsupportedQueryError
 from data_asset_agents.evaluation import (
+    EvaluationComparison,
+    EvaluationRun,
+    EvaluationRunRequest,
     OntologyStrategy,
     PhysicalRAGIndex,
     PhysicalRAGStrategy,
     SchemaBaselineStrategy,
     StrategyRouter,
 )
+from data_asset_agents.evaluation.models import EvaluationCaseResult
+from data_asset_agents.evaluation.repository import PostgresEvaluationRepository
+from data_asset_agents.evaluation.service import EvaluationService, database_snapshot_hash
 from data_asset_agents.execution.executor import QueryExecutor
 from data_asset_agents.llm.factory import ModelFactory
 from data_asset_agents.metadata import MetadataInspector
@@ -93,7 +101,7 @@ async def lifespan(app: FastAPI):
         settings,
         model_factory,
     )
-    sql_asset_service.initialize_if_needed()
+    sql_asset_build = sql_asset_service.initialize_if_needed()
     physical_rag = PhysicalRAGIndex(dimensions=min(settings.embedding_dimensions, 128))
     business_catalog = executor.catalog.business_only()
     physical_rag.build(business_catalog, settings.historical_sql_path)
@@ -135,6 +143,18 @@ async def lifespan(app: FastAPI):
     app.state.strategy_router = strategy_router
     app.state.evaluation_policy_inspector = EvaluationPolicyInspector(
         ontology.bundle, ontology.ontology_version_id
+    )
+    app.state.evaluation_service = EvaluationService(
+        PostgresEvaluationRepository(engine),
+        strategy_router,
+        app.state.evaluation_policy_inspector,
+        settings,
+        database_snapshot_hash=database_snapshot_hash(
+            business_catalog.model_dump_json(), "data/seed/002_seed.sql"
+        ),
+        physical_rag_build_id=physical_rag.build_id,
+        ontology_version_id=ontology.ontology_version_id,
+        sql_asset_build_id=(sql_asset_build.build_id if sql_asset_build else None),
     )
     app.state.graph = ontology_full
     yield
@@ -303,6 +323,113 @@ def search_sql_assets(
     return request.app.state.sql_asset_service.search(payload)
 
 
+@app.post(
+    "/api/v1/evaluation/runs",
+    response_model=EvaluationRun,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def create_evaluation_run(
+    payload: EvaluationRunRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+) -> EvaluationRun:
+    run = request.app.state.evaluation_service.create_run(payload)
+    background_tasks.add_task(
+        request.app.state.evaluation_service.execute_run,
+        run.run_id,
+        payload.benchmark_path,
+    )
+    return run
+
+
+@app.get("/api/v1/evaluation/runs", response_model=list[EvaluationRun])
+def list_evaluation_runs(request: Request, limit: int = 100) -> list[EvaluationRun]:
+    if not 1 <= limit <= 1000:
+        raise HTTPException(status_code=422, detail="Invalid limit")
+    return request.app.state.evaluation_service.repository.list_runs(limit)
+
+
+@app.get("/api/v1/evaluation/runs/{run_id}")
+def get_evaluation_run(run_id: str, request: Request) -> dict[str, Any]:
+    service = request.app.state.evaluation_service
+    run = service.repository.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Evaluation run not found")
+    response: dict[str, Any] = {"run": run.model_dump(mode="json"), "metrics": None}
+    if run.status == "COMPLETED":
+        response["metrics"] = service.metrics_for_run(run_id).model_dump(mode="json")
+    return response
+
+
+@app.get(
+    "/api/v1/evaluation/runs/{run_id}/cases",
+    response_model=list[EvaluationCaseResult],
+)
+def get_evaluation_cases(
+    run_id: str, request: Request
+) -> list[EvaluationCaseResult]:
+    if request.app.state.evaluation_service.repository.get_run(run_id) is None:
+        raise HTTPException(status_code=404, detail="Evaluation run not found")
+    return request.app.state.evaluation_service.repository.list_cases(run_id)
+
+
+@app.get("/api/v1/evaluation/compare", response_model=EvaluationComparison)
+def compare_evaluation_runs(
+    request: Request,
+    run_id: Annotated[list[str] | None, Query()] = None,
+    allow_mismatch: bool = False,
+) -> EvaluationComparison:
+    service = request.app.state.evaluation_service
+    selected = run_id or [
+        run.run_id
+        for run in service.repository.list_runs(20)
+        if run.status == "COMPLETED"
+    ][:4]
+    if not selected:
+        return EvaluationComparison(runs=[], warnings=["No completed runs"])
+    return service.compare(
+        selected,
+        str(get_settings().evaluation_benchmark_path),
+        allow_mismatch=allow_mismatch,
+    )
+
+
+@app.get("/api/v1/evaluation/runs/{run_id}/export")
+def export_evaluation_run(
+    run_id: str,
+    request: Request,
+    format: str = Query(default="json", pattern="^(json|csv)$"),
+) -> Response:
+    cases = request.app.state.evaluation_service.repository.list_cases(run_id)
+    if not cases:
+        raise HTTPException(status_code=404, detail="Evaluation cases not found")
+    rows = [item.model_dump(mode="json") for item in cases]
+    if format == "json":
+        import json
+
+        body = json.dumps(rows, ensure_ascii=False, indent=2)
+        media_type = "application/json"
+    else:
+        output = io.StringIO()
+        fieldnames = sorted({key for row in rows for key in row})
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {
+                    key: str(value) if isinstance(value, (dict, list)) else value
+                    for key, value in row.items()
+                }
+            )
+        body = output.getvalue()
+        media_type = "text/csv"
+    return Response(
+        body,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="evaluation-{run_id}.{format}"'},
+    )
+
+
 @app.post("/api/v1/ontology/build", response_model=OntologyBuildResult)
 def build_ontology(
     payload: OntologyBuildRequest, request: Request
@@ -466,6 +593,18 @@ def _activate_runtime(app_instance: FastAPI, version: OntologyVersion) -> None:
     app_instance.state.evaluation_policy_inspector = EvaluationPolicyInspector(
         app_instance.state.ontology.bundle,
         app_instance.state.ontology.ontology_version_id,
+    )
+    evaluation_service = app_instance.state.evaluation_service
+    evaluation_service.strategies = app_instance.state.strategy_router
+    evaluation_service.inspector = app_instance.state.evaluation_policy_inspector
+    evaluation_service.ontology_version_id = (
+        app_instance.state.ontology.ontology_version_id
+    )
+    latest_sql_build = app_instance.state.sql_asset_service.repository.latest_ready(
+        app_instance.state.ontology.ontology_version_id
+    )
+    evaluation_service.sql_asset_build_id = (
+        latest_sql_build.build_id if latest_sql_build else None
     )
 
 

@@ -21,13 +21,13 @@ if ([string]::IsNullOrWhiteSpace($env:DOCKER_DATABASE_URL)) {
 }
 
 try {
-    Write-Host "[1/8] Validating Docker Compose configuration..."
+    Write-Host "[1/12] Validating Docker Compose configuration..."
     docker compose -p $ComposeProject config --quiet
 
-    Write-Host "[2/8] Building and starting services..."
+    Write-Host "[2/12] Building and starting services..."
     docker compose -p $ComposeProject up --build -d
 
-    Write-Host "[3/8] Waiting for API health..."
+    Write-Host "[3/12] Waiting for API health..."
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $healthy = $false
     while ((Get-Date) -lt $deadline) {
@@ -46,7 +46,7 @@ try {
         throw "API did not become healthy within $TimeoutSeconds seconds"
     }
 
-    Write-Host "[4/8] Waiting for Streamlit health..."
+    Write-Host "[4/12] Waiting for Streamlit health..."
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $webHealthy = $false
     while ((Get-Date) -lt $deadline) {
@@ -68,7 +68,7 @@ try {
         throw "Streamlit did not become healthy within $TimeoutSeconds seconds"
     }
 
-    Write-Host "[5/8] Running the target ontology query..."
+    Write-Host "[5/12] Running the target ontology query..."
     $body = @{
         question = "查询近30天各分行信用卡交易金额和交易笔数。"
         query_mode = "ontology"
@@ -91,7 +91,7 @@ try {
     Write-Host "Returned rows: $($result.execution_result.row_count)"
     Write-Host $result.generated_sql
 
-    Write-Host "[6/8] Verifying SQL asset search..."
+    Write-Host "[6/12] Verifying SQL asset search..."
     $searchBody = @{ question = "查询各分行信用卡交易金额"; limit = 3 } |
         ConvertTo-Json
     $assets = Invoke-RestMethod `
@@ -104,7 +104,7 @@ try {
         throw "SQL asset hybrid search returned no lifecycle-valid template"
     }
 
-    Write-Host "[7/8] Running certified CTE + window rewrite..."
+    Write-Host "[7/12] Running certified CTE + window rewrite..."
     $complexBody = @{
         question = "查询近30天各分行信用卡交易金额和排名。"
         query_mode = "ontology"
@@ -128,7 +128,100 @@ try {
         throw "Complex rewrite failed validation, EXPLAIN, or execution"
     }
 
-    Write-Host "[8/8] Container status..."
+    Write-Host "[8/12] Running isolated strategy smoke queries..."
+    $strategyCases = @(
+        @{ mode = "schema"; sqlAssets = $false; variant = "schema" },
+        @{ mode = "rag"; sqlAssets = $false; variant = "rag" },
+        @{
+            mode = "ontology"
+            sqlAssets = $false
+            variant = "ontology_no_sql_asset"
+        },
+        @{ mode = "ontology"; sqlAssets = $true; variant = "ontology_full" }
+    )
+    foreach ($strategy in $strategyCases) {
+        $strategyBody = @{
+            question = "查询近30天各分行信用卡交易金额和交易笔数。"
+            query_mode = $strategy.mode
+            sql_asset_enabled = $strategy.sqlAssets
+        } | ConvertTo-Json
+        $strategyResult = Invoke-RestMethod `
+            -Method Post `
+            -Uri "http://localhost:8000/api/v1/query" `
+            -ContentType "application/json; charset=utf-8" `
+            -Body $strategyBody `
+            -TimeoutSec 30
+        if ($strategyResult.status -ne "success" -or
+            $strategyResult.strategy_variant -ne $strategy.variant) {
+            throw "Strategy smoke failed for $($strategy.variant)"
+        }
+        if ($strategy.variant -eq "ontology_no_sql_asset" -and
+            $null -ne $strategyResult.selected_sql_asset) {
+            throw "Ontology ablation unexpectedly selected a SQLAsset"
+        }
+    }
+
+    Write-Host "[9/12] Validating the 80-case benchmark..."
+    docker compose -p $ComposeProject exec -T api `
+        python -m data_asset_agents.evaluation.cli validate-benchmark
+    if ($LASTEXITCODE -ne 0) {
+        throw "Benchmark validation failed"
+    }
+    docker compose -p $ComposeProject exec -T api `
+        python scripts/materialize_benchmark_hashes.py --check
+    if ($LASTEXITCODE -ne 0) {
+        throw "Benchmark result hashes did not match the fixed MiniBank seed"
+    }
+
+    Write-Host "[10/12] Creating smoke EvaluationRuns..."
+    $runIds = @()
+    foreach ($strategy in $strategyCases) {
+        $runBody = @{
+            query_mode = $strategy.mode
+            strategy_variant = $strategy.variant
+            sql_asset_enabled = $strategy.sqlAssets
+            run_kind = "smoke"
+            max_cases = 2
+            concurrency = 1
+        } | ConvertTo-Json
+        $run = Invoke-RestMethod `
+            -Method Post `
+            -Uri "http://localhost:8000/api/v1/evaluation/runs" `
+            -ContentType "application/json; charset=utf-8" `
+            -Body $runBody `
+            -TimeoutSec 30
+        $runIds += $run.run_id
+    }
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        $allCompleted = $true
+        foreach ($runId in $runIds) {
+            $runState = Invoke-RestMethod `
+                -Uri "http://localhost:8000/api/v1/evaluation/runs/$runId" `
+                -TimeoutSec 10
+            if ($runState.run.status -eq "FAILED") {
+                throw "EvaluationRun $runId failed: $($runState.run.error_message)"
+            }
+            if ($runState.run.status -ne "COMPLETED") {
+                $allCompleted = $false
+            }
+        }
+        if (-not $allCompleted) { Start-Sleep -Seconds 1 }
+    } while (-not $allCompleted -and (Get-Date) -lt $deadline)
+    if (-not $allCompleted) {
+        throw "Smoke EvaluationRuns did not finish before timeout"
+    }
+
+    Write-Host "[11/12] Comparing smoke runs..."
+    $compareQuery = ($runIds | ForEach-Object { "run_id=$_" }) -join "&"
+    $comparison = Invoke-RestMethod `
+        -Uri "http://localhost:8000/api/v1/evaluation/compare?$compareQuery" `
+        -TimeoutSec 30
+    if ($comparison.runs.Count -ne 4 -or $comparison.warnings.Count -ne 0) {
+        throw "Smoke comparison did not return four fair runs"
+    }
+
+    Write-Host "[12/12] Container status..."
     docker compose -p $ComposeProject ps
     Write-Host "Acceptance passed."
 }

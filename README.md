@@ -62,6 +62,18 @@ Data Asset Agents 是一个面向企业数据资产研发场景的多智能体�
 表字段覆盖 `15%` + Join `10%` + AST 标签 `5%` + 认证等级 `10%` +
 生命周期 `10%`。该公式不参与硬门槛判定；任一硬门槛失败的资产不会因得分高而返回。
 
+## 可复现对照评测
+
+- `SchemaBaselineStrategy`、`PhysicalRAGStrategy` 和 `OntologyStrategy` 使用统一 `StrategyResult`，但知识源严格隔离。
+- Ontology 通过 `sql_asset_enabled` 拆分为 `ontology_no_sql_asset` 与 `ontology_full`，单独测量 SQLAsset/AST 改写贡献。
+- 公共只读安全、本体业务策略和隐藏评测审计分别由三个 Validator/Inspector 负责，Schema/RAG 不会被本体规则自动纠正。
+- Physical RAG 使用单独的物理文档索引，不复用概念检索、Ontology JoinPlanner 或 SQLAssetService。
+- 80 条 MiniBank Benchmark 覆盖指标、维度、Join、时间、IN、Top N、CTE、窗口、子查询、同义词、金额字段歧义、生命周期与澄清/域外问题。
+- EvaluationRun 固化模型、版本、Git SHA、数据库快照、RAG/本体/SQLAsset Build 和 Benchmark 版本；每完成一个 Case 立即写库。
+- mock 运行标记为 `smoke`，仅验证工程链路；正式效果比较必须使用相同模型配置的 `live` 运行。
+
+完整实验协议、指标公式和知识边界见 [`docs/evaluation.md`](docs/evaluation.md)。
+
 离线与在线边界：
 
 ```text
@@ -94,6 +106,7 @@ src/data_asset_agents/
   validation/                SQLGlot 安全校验
   execution/                 PostgreSQL 只读执行器
   metadata/                  离线元数据抽取骨架
+  evaluation/                隔离策略、Physical RAG、Benchmark、指标、CLI 与持久化
 ontology/retail_banking/     人工审核语义定义源
 data/ddl/                    MiniBank DDL
 data/seed/                   固定种子生成器及生成 SQL
@@ -110,6 +123,7 @@ git clone https://github.com/BaBaLiBoo/data-asset-agents.git
 cd data-asset-agents
 git switch feature/text2sql-mvp
 Copy-Item .env.example .env
+# 在 .env 中设置本地 POSTGRES_PASSWORD，并按注释填写两个 DATABASE_URL。
 docker compose up --build -d
 docker compose ps
 ```
@@ -156,6 +170,8 @@ docker compose exec postgres psql -U minibank -d minibank `
   -f /docker-entrypoint-initdb.d/004_sql_assets.sql
 docker compose exec postgres psql -U minibank -d minibank `
   -f /docker-entrypoint-initdb.d/005_sql_asset_builds.sql
+docker compose exec postgres psql -U minibank -d minibank `
+  -f /docker-entrypoint-initdb.d/006_evaluation.sql
 ```
 
 ## 本地 Python 开发
@@ -184,7 +200,9 @@ python data/seed/generate_seed.py
 
 ## mock / live 配置
 
-Docker Compose 使用 `${VARIABLE:-default}` 把 `.env` 中的配置传入容器，不再强制覆盖 `LLM_MODE`。默认配置如下：
+Docker Compose 使用环境变量把 `.env` 配置传入容器，不再强制覆盖 `LLM_MODE`。
+模型配置带安全默认值；数据库口令和 `DOCKER_DATABASE_URL` 必须在本地 `.env`
+显式设置，仓库不提供固定共享口令。默认模型配置如下：
 
 ```dotenv
 LLM_MODE=mock
@@ -239,6 +257,12 @@ EMBEDDING_API_KEY=your-key
 | GET | `/api/v1/ontology/versions` | 查看正式本体版本 |
 | POST | `/api/v1/ontology/versions/{version}/activate` | 激活或回滚已发布版本 |
 | GET | `/api/v1/graph` | 查看节点与边 |
+| POST | `/api/v1/evaluation/runs` | 创建异步 smoke/live 评测运行 |
+| GET | `/api/v1/evaluation/runs` | 查看评测运行与可复现元数据 |
+| GET | `/api/v1/evaluation/runs/{run_id}` | 查看运行状态和指标 |
+| GET | `/api/v1/evaluation/runs/{run_id}/cases` | 查看逐案例结果与 Gold 快照 |
+| GET | `/api/v1/evaluation/compare` | 公平性校验后对比多个运行 |
+| GET | `/api/v1/evaluation/runs/{run_id}/export` | 导出 JSON 或 CSV |
 
 不支持问题的响应示例：
 
@@ -314,7 +338,7 @@ YAML 是初始化种子和故障回退；在线事实源是 PostgreSQL 中当前
 ## 当前边界
 
 - 仅保证已发布指标、维度及其同义表达的闭环；域外问题返回 unsupported，低置信度问题要求澄清，不会生成占位 SQL。
-- `ontology` 是第一阶段唯一真实实现的查询模式；`rag`、`schema` 仅保留接口和前端选项，当前复用同一 ontology 链路，不代表独立能力。
+- `schema`、`rag` 和 `ontology` 已使用独立 Strategy；mock smoke 只能证明隔离与工程可运行，不能代表 live 模型效果。
 - 概念向量只匹配当前发布的标准业务语义，绝不直接选择物理表；SQL 资产向量只召回已认证模板，物理表仍由本体映射确定。
 - AST 改写支持受控的表/字段角色映射、外层时间与筛选条件、Group By、Order By、Limit，并保留模板中的 CTE、子查询和窗口表达式；跨事实表、相关子查询语义迁移和任意结构合成不在本轮范围内。
 - 表映射必须由相同业务概念的 Physical Mapping 证明，不再按表位置猜测；复杂模板 Join 与目标 Join 不一致时直接回退，只有简单结构可以从确定性 SQL AST 安全重建 FROM/JOIN。
@@ -323,5 +347,5 @@ YAML 是初始化种子和故障回退；在线事实源是 PostgreSQL 中当前
 - SQL 资产认证状态由受控源文件提供；本轮没有实现多人签名认证工作流，也没有增量 CDC 或异步构建队列。
 - 本轮实现的是受控离线构建，不是无人值守的“自动本体”：业务骨架仍来自人工定义，LLM 只生成候选，发布必须人工审核。
 - 自动修复仅支持补齐校验器明确指出的必要指标过滤条件；字段错误、未审核 Join、禁用表和数据库执行错误不会被猜测性修改。
-- 已实现版本激活和回滚，但尚未实现细粒度权限、多人审批、版本签名、完整审计检索和评测平台。
-- 不实现 schema/rag/ontology 完整对照、多事实表 SQL、历史 SQL 自由 AST 合成、复杂 LLM SQL 修复、OWL/RDF/SPARQL/Neo4j 或其他 Agent。
+- 已实现版本激活、回滚和可复现评测；尚未实现细粒度权限、多人审批、版本签名和分布式评测队列。
+- 本轮已实现 schema/rag/ontology 四组严格隔离对照；尚不实现多事实表 SQL、历史 SQL 自由 AST 合成、复杂 LLM SQL 修复、OWL/RDF/SPARQL/Neo4j 或其他 Agent。

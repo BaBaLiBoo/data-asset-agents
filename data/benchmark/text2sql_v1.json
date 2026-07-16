@@ -21,6 +21,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -30,7 +34,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "30908c6af98d63d34fc8dabd0e99c8441dc8328f7505704da6a9b4959b83b34c",
       "result_order_sensitive": false,
       "tags": [
         "business_policy"
@@ -63,6 +67,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -73,7 +81,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "8fc4c944ae49f0cd8d3ebdc39554733d3bf1bf8c246d8d96c7d509ec2ce4fb65",
       "result_order_sensitive": false,
       "tags": [
         "business_policy"
@@ -99,6 +107,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -108,7 +120,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "082a6289bb7a8a437a316537009c7aed92c32a663d5f03915d613181de3dc998",
       "result_order_sensitive": false,
       "tags": [
         "business_policy"
@@ -141,6 +153,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -151,7 +167,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT COUNT(DISTINCT t.transaction_id) AS credit_card_transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "25cf54dc86c9446c3fb104e24f89d6e52b24e65b5fbf06136ffdf717a6128b67",
       "result_order_sensitive": false,
       "tags": [
         "business_policy"
@@ -177,6 +193,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -186,7 +206,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT AVG(t.txn_amount_cny) AS average_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "faaa217e573df6437ba76645ca5511062193a4d73ce259fb20b40e805ef88e6d",
       "result_order_sensitive": false,
       "tags": [
         "business_policy"
@@ -212,6 +232,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -221,7 +245,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT COUNT(DISTINCT t.customer_id) AS active_customer_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "172bbf24a5baa51d67384f496dc33ce29f71ed989c01e49e6dd710a1046f135c",
       "result_order_sensitive": false,
       "tags": [
         "business_policy"
@@ -247,6 +271,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -256,7 +284,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "30908c6af98d63d34fc8dabd0e99c8441dc8328f7505704da6a9b4959b83b34c",
       "result_order_sensitive": false,
       "tags": [
         "business_policy"
@@ -289,6 +317,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -299,7 +331,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "8fc4c944ae49f0cd8d3ebdc39554733d3bf1bf8c246d8d96c7d509ec2ce4fb65",
       "result_order_sensitive": false,
       "tags": [
         "business_policy"
@@ -325,6 +357,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -334,7 +370,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "082a6289bb7a8a437a316537009c7aed92c32a663d5f03915d613181de3dc998",
       "result_order_sensitive": false,
       "tags": [
         "business_policy"
@@ -367,6 +403,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -377,7 +417,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT COUNT(DISTINCT t.transaction_id) AS credit_card_transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "25cf54dc86c9446c3fb104e24f89d6e52b24e65b5fbf06136ffdf717a6128b67",
       "result_order_sensitive": false,
       "tags": [
         "business_policy"
@@ -405,6 +445,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -420,7 +464,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "6cab8c111e82c9961fb7563ef0eb8721fcfbf2e114517039fc3c6fe84aaf98b8",
       "result_order_sensitive": true,
       "tags": [
         "business_policy"
@@ -448,6 +492,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -458,7 +506,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_channel ORDER BY t.transaction_channel",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "737cb115242acc631349339da84bc15be1c7f92cab1534b6cc7094f2d4ec9c4b",
       "result_order_sensitive": true,
       "tags": [
         "business_policy"
@@ -486,6 +534,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -496,7 +548,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT t.card_type, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.card_type ORDER BY t.card_type",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "61f98855ae9f9916ecfa8286144be1f2396877ac34e752bce5b0595bf8198b0e",
       "result_order_sensitive": true,
       "tags": [
         "business_policy"
@@ -524,6 +576,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -534,7 +590,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT t.transaction_date, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date ORDER BY t.transaction_date",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "65b93a79d080c03f8fe3cb9ca184cdcd220215aaeb3461925b3c97ce5019d04a",
       "result_order_sensitive": true,
       "tags": [
         "business_policy"
@@ -562,6 +618,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -577,7 +637,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "6cab8c111e82c9961fb7563ef0eb8721fcfbf2e114517039fc3c6fe84aaf98b8",
       "result_order_sensitive": true,
       "tags": [
         "business_policy"
@@ -605,6 +665,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -615,7 +679,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_channel ORDER BY t.transaction_channel",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "737cb115242acc631349339da84bc15be1c7f92cab1534b6cc7094f2d4ec9c4b",
       "result_order_sensitive": true,
       "tags": [
         "business_policy"
@@ -644,6 +708,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -655,7 +723,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT t.card_type, t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.card_type, t.transaction_channel ORDER BY t.card_type, t.transaction_channel",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "0b9f04d354a227fe28678f1d8fc2191bb1c4d2799c5e5378fe30c966fe053a94",
       "result_order_sensitive": true,
       "tags": [
         "business_policy"
@@ -684,6 +752,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -695,7 +767,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT t.transaction_date, t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date, t.transaction_channel ORDER BY t.transaction_date, t.transaction_channel",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "267c68df0af0682552c80a303db04c3f694868c983dac780d9ea7c334a218455",
       "result_order_sensitive": true,
       "tags": [
         "business_policy"
@@ -724,6 +796,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -740,7 +816,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name, t.transaction_channel ORDER BY b.branch_name, t.transaction_channel",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "234245aca177a5d1179f7074d2f0ca8419ba730ec0addddfa28cd5e40f128d83",
       "result_order_sensitive": true,
       "tags": [
         "business_policy"
@@ -768,6 +844,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -778,7 +858,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_channel ORDER BY t.transaction_channel",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "737cb115242acc631349339da84bc15be1c7f92cab1534b6cc7094f2d4ec9c4b",
       "result_order_sensitive": true,
       "tags": [
         "business_policy"
@@ -806,6 +886,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -821,7 +905,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -850,6 +934,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_customer",
         "dwd_card_transaction"
@@ -865,7 +953,7 @@
         "dwd_card_transaction.customer_id = dim_customer.customer_id"
       ],
       "gold_sql": "SELECT c.customer_type, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_customer c ON t.customer_id = c.customer_id WHERE t.transaction_status = 'POSTED' GROUP BY c.customer_type ORDER BY c.customer_type",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "cf028b468ee2e8b7d35395261bd868c799ef272345c810e7bc4bbbfa07c3ee93",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -894,6 +982,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_merchant",
         "dwd_card_transaction"
@@ -909,7 +1001,7 @@
         "dwd_card_transaction.merchant_id = dim_merchant.merchant_id"
       ],
       "gold_sql": "SELECT m.merchant_category, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_merchant m ON t.merchant_id = m.merchant_id WHERE t.transaction_status = 'POSTED' GROUP BY m.merchant_category ORDER BY m.merchant_category",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "e59348234c51e1787aec5a777da9e4ee7d5a344827239d30f4414796e689a8e4",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -938,6 +1030,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -953,7 +1049,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -983,6 +1079,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_customer",
         "dim_merchant",
@@ -1003,7 +1103,7 @@
         "dwd_card_transaction.merchant_id = dim_merchant.merchant_id"
       ],
       "gold_sql": "SELECT c.customer_type, m.merchant_category, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_customer c ON t.customer_id = c.customer_id JOIN dim_merchant m ON t.merchant_id = m.merchant_id WHERE t.transaction_status = 'POSTED' GROUP BY c.customer_type, m.merchant_category ORDER BY c.customer_type, m.merchant_category",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "f7ce360999a5e0795fadc251dd4e0ebab69c23d0c044212b8675aaafe5a08e49",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -1033,6 +1133,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dim_merchant",
@@ -1053,7 +1157,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT m.merchant_category, b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_merchant m ON t.merchant_id = m.merchant_id JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY m.merchant_category, b.branch_name ORDER BY m.merchant_category, b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "1643e12cb7d12929efa820fcf1180864bcc52afaf1c1bc21a1de72f5346127ae",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -1083,6 +1187,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dim_customer",
@@ -1103,7 +1211,7 @@
         "dwd_card_transaction.customer_id = dim_customer.customer_id"
       ],
       "gold_sql": "SELECT b.branch_name, c.customer_type, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id JOIN dim_customer c ON t.customer_id = c.customer_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name, c.customer_type ORDER BY b.branch_name, c.customer_type",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "4fb6d8ee9b9a4b653dd94e36dd94008ce07f02a5922297e76ca8b514318538eb",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -1133,6 +1241,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_customer",
         "dim_merchant",
@@ -1153,7 +1265,7 @@
         "dwd_card_transaction.merchant_id = dim_merchant.merchant_id"
       ],
       "gold_sql": "SELECT c.customer_type, m.merchant_category, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_customer c ON t.customer_id = c.customer_id JOIN dim_merchant m ON t.merchant_id = m.merchant_id WHERE t.transaction_status = 'POSTED' GROUP BY c.customer_type, m.merchant_category ORDER BY c.customer_type, m.merchant_category",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "f7ce360999a5e0795fadc251dd4e0ebab69c23d0c044212b8675aaafe5a08e49",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -1183,6 +1295,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dim_merchant",
@@ -1203,7 +1319,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT m.merchant_category, b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_merchant m ON t.merchant_id = m.merchant_id JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY m.merchant_category, b.branch_name ORDER BY m.merchant_category, b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "1643e12cb7d12929efa820fcf1180864bcc52afaf1c1bc21a1de72f5346127ae",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -1233,6 +1349,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dim_customer",
@@ -1253,7 +1373,7 @@
         "dwd_card_transaction.customer_id = dim_customer.customer_id"
       ],
       "gold_sql": "SELECT b.branch_name, c.customer_type, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id JOIN dim_customer c ON t.customer_id = c.customer_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name, c.customer_type ORDER BY b.branch_name, c.customer_type",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "4fb6d8ee9b9a4b653dd94e36dd94008ce07f02a5922297e76ca8b514318538eb",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -1287,6 +1407,11 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "relative_days",
+        "days": 7
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -1298,7 +1423,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '7 days'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "9039cab6425f141269a4c5a724b52f39413301129472c87ea9eae36bbee69ba9",
       "result_order_sensitive": false,
       "tags": [
         "business_policy",
@@ -1332,6 +1457,11 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "relative_days",
+        "days": 30
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -1343,7 +1473,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '30 days'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "080131d0b9560d21b6f94d541b5db9fd2dd9577f101a6c20ff37c800bf49d885",
       "result_order_sensitive": false,
       "tags": [
         "business_policy",
@@ -1377,6 +1507,11 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "relative_days",
+        "days": 60
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -1388,7 +1523,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '60 days'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "8fc4c944ae49f0cd8d3ebdc39554733d3bf1bf8c246d8d96c7d509ec2ce4fb65",
       "result_order_sensitive": false,
       "tags": [
         "business_policy",
@@ -1422,6 +1557,11 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "relative_days",
+        "days": 14
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -1433,7 +1573,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '14 days'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "0cc6222559329148e2432fc25537dee2ece5b4189428d24933ed8e981739a6f6",
       "result_order_sensitive": false,
       "tags": [
         "business_policy",
@@ -1467,6 +1607,12 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "absolute",
+        "start": "2026-07-01",
+        "end": "2026-07-31"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -1478,7 +1624,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date BETWEEN DATE '2026-07-01' AND DATE '2026-07-31'",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "491f041f737410359d5ac5d02243e705c44e395b8700ff8c35956a1d4a36332e",
       "result_order_sensitive": false,
       "tags": [
         "business_policy",
@@ -1512,6 +1658,11 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "relative_days",
+        "days": 7
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -1524,7 +1675,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '7 days' AND t.transaction_channel IN ('APP', 'POS')",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "6be13b2fb30d09542e19eaaf879c7e1a3826ea5cfeb61a598ce2db41908fb4ac",
       "result_order_sensitive": false,
       "tags": [
         "business_policy",
@@ -1559,6 +1710,11 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "relative_days",
+        "days": 30
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -1571,7 +1727,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '30 days' AND t.transaction_channel IN ('APP', 'POS')",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "f388a4de903861a1cc15fa17d02b280e8876462a311ad2cc57bb7dd06e203d8b",
       "result_order_sensitive": false,
       "tags": [
         "business_policy",
@@ -1606,6 +1762,11 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "relative_days",
+        "days": 60
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -1618,7 +1779,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '60 days' AND t.transaction_channel IN ('APP', 'POS')",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "c22807916c1ace79dfd3c8b06493fe253b0689cfd0444ea2e8f3bc20b4fc8c3e",
       "result_order_sensitive": false,
       "tags": [
         "business_policy",
@@ -1653,6 +1814,11 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "relative_days",
+        "days": 14
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -1665,7 +1831,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '14 days' AND t.transaction_channel IN ('APP', 'POS')",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "fda8b34111491e593f243079b43142e59ab5e100ffb3843b472b3daf4f14f399",
       "result_order_sensitive": false,
       "tags": [
         "business_policy",
@@ -1700,6 +1866,12 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "absolute",
+        "start": "2026-07-01",
+        "end": "2026-07-31"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -1712,7 +1884,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date BETWEEN DATE '2026-07-01' AND DATE '2026-07-31' AND t.transaction_channel IN ('APP', 'POS')",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "ef8fad266fc2ec59f99857c38d8fb065db2185d4ad2cd5d05b157b7d836180cb",
       "result_order_sensitive": false,
       "tags": [
         "business_policy",
@@ -1749,6 +1921,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -1765,7 +1941,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 3",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "e5b21db047d84bf2e613e375ad7bc5942230af780a505f18cda56e1c93986bc6",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -1801,6 +1977,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -1817,7 +1997,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 4",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "4afb2ed2cf3a16e30d331ccb208f764d69038c73ffa52f1e151d74156fa713ef",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -1853,6 +2033,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -1869,7 +2053,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 5",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "ac1b812cc23805a71257f8fde922e4c2df907961ca085c86817084bbca0c87f0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -1905,6 +2089,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -1921,7 +2109,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 6",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "ac1b812cc23805a71257f8fde922e4c2df907961ca085c86817084bbca0c87f0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -1957,6 +2145,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -1973,7 +2165,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 7",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "ac1b812cc23805a71257f8fde922e4c2df907961ca085c86817084bbca0c87f0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2009,6 +2201,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2025,7 +2221,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 8",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "ac1b812cc23805a71257f8fde922e4c2df907961ca085c86817084bbca0c87f0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2061,6 +2257,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2077,7 +2277,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 9",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "ac1b812cc23805a71257f8fde922e4c2df907961ca085c86817084bbca0c87f0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2113,6 +2313,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2129,7 +2333,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 10",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "ac1b812cc23805a71257f8fde922e4c2df907961ca085c86817084bbca0c87f0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2165,6 +2369,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2181,7 +2389,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "WITH totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name) SELECT branch_name, amount, DENSE_RANK() OVER (ORDER BY amount DESC) AS amount_rank FROM totals ORDER BY amount_rank",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "c97a7e2105bc58cda0b672504c17d069295bd0ce42d9707e7d804cd08bdd79d3",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2210,6 +2418,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2225,7 +2437,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.txn_amount_cny > (SELECT AVG(x.txn_amount_cny) FROM dwd_card_transaction x WHERE x.transaction_status = 'POSTED') GROUP BY b.branch_name ORDER BY amount DESC",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "bba09341c87d83d28991d741f232f795d2fef5a4101f3fa313441705a0f3f93d",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2254,6 +2466,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -2264,7 +2480,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "WITH daily AS (SELECT t.transaction_date, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date) SELECT transaction_date, amount, SUM(amount) OVER (ORDER BY transaction_date) AS running_amount FROM daily ORDER BY transaction_date",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "63d66123a04967f8edfdccf645131ce57e439f127224da36f820c667a6b8f472",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2300,6 +2516,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2316,7 +2536,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "WITH totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name) SELECT branch_name, amount, DENSE_RANK() OVER (ORDER BY amount DESC) AS amount_rank FROM totals ORDER BY amount_rank",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "c97a7e2105bc58cda0b672504c17d069295bd0ce42d9707e7d804cd08bdd79d3",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2345,6 +2565,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2360,7 +2584,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.txn_amount_cny > (SELECT AVG(x.txn_amount_cny) FROM dwd_card_transaction x WHERE x.transaction_status = 'POSTED') GROUP BY b.branch_name ORDER BY amount DESC",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "bba09341c87d83d28991d741f232f795d2fef5a4101f3fa313441705a0f3f93d",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2389,6 +2613,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -2399,7 +2627,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "WITH daily AS (SELECT t.transaction_date, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date) SELECT transaction_date, amount, SUM(amount) OVER (ORDER BY transaction_date) AS running_amount FROM daily ORDER BY transaction_date",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "63d66123a04967f8edfdccf645131ce57e439f127224da36f820c667a6b8f472",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2435,6 +2663,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2451,7 +2683,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "WITH totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name) SELECT branch_name, amount, DENSE_RANK() OVER (ORDER BY amount DESC) AS amount_rank FROM totals ORDER BY amount_rank",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "c97a7e2105bc58cda0b672504c17d069295bd0ce42d9707e7d804cd08bdd79d3",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2480,6 +2712,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2495,7 +2731,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.txn_amount_cny > (SELECT AVG(x.txn_amount_cny) FROM dwd_card_transaction x WHERE x.transaction_status = 'POSTED') GROUP BY b.branch_name ORDER BY amount DESC",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "bba09341c87d83d28991d741f232f795d2fef5a4101f3fa313441705a0f3f93d",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2524,6 +2760,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dwd_card_transaction"
       ],
@@ -2534,7 +2774,7 @@
       ],
       "gold_joins": [],
       "gold_sql": "WITH daily AS (SELECT t.transaction_date, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date) SELECT transaction_date, amount, SUM(amount) OVER (ORDER BY transaction_date) AS running_amount FROM daily ORDER BY transaction_date",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "63d66123a04967f8edfdccf645131ce57e439f127224da36f820c667a6b8f472",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2570,6 +2810,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2586,7 +2830,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "WITH totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name) SELECT branch_name, amount, DENSE_RANK() OVER (ORDER BY amount DESC) AS amount_rank FROM totals ORDER BY amount_rank",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "c97a7e2105bc58cda0b672504c17d069295bd0ce42d9707e7d804cd08bdd79d3",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2622,6 +2866,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2638,7 +2886,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "3cea3cc77cc2f11a8958ce61bbdf7dd410ad382292c824747525e1c3b8650ff0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2675,6 +2923,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2691,7 +2943,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "3cea3cc77cc2f11a8958ce61bbdf7dd410ad382292c824747525e1c3b8650ff0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2728,6 +2980,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2744,7 +3000,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "3cea3cc77cc2f11a8958ce61bbdf7dd410ad382292c824747525e1c3b8650ff0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2781,6 +3037,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2797,7 +3057,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "3cea3cc77cc2f11a8958ce61bbdf7dd410ad382292c824747525e1c3b8650ff0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2834,6 +3094,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2850,7 +3114,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "3cea3cc77cc2f11a8958ce61bbdf7dd410ad382292c824747525e1c3b8650ff0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2887,6 +3151,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2903,7 +3171,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "3cea3cc77cc2f11a8958ce61bbdf7dd410ad382292c824747525e1c3b8650ff0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2940,6 +3208,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -2956,7 +3228,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "3cea3cc77cc2f11a8958ce61bbdf7dd410ad382292c824747525e1c3b8650ff0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -2993,6 +3265,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -3009,7 +3285,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "3cea3cc77cc2f11a8958ce61bbdf7dd410ad382292c824747525e1c3b8650ff0",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -3039,6 +3315,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -3054,7 +3334,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -3084,6 +3364,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -3099,7 +3383,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -3129,6 +3413,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -3144,7 +3432,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -3174,6 +3462,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -3189,7 +3481,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -3219,6 +3511,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -3234,7 +3530,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -3264,6 +3560,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -3279,7 +3579,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -3309,6 +3609,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -3324,7 +3628,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
@@ -3354,6 +3658,10 @@
           "source": "metric_policy"
         }
       ],
+      "gold_semantic_filters": [],
+      "gold_time_range": {
+        "kind": "none"
+      },
       "gold_tables": [
         "dim_branch",
         "dwd_card_transaction"
@@ -3369,7 +3677,7 @@
         "dwd_card_transaction.branch_id = dim_branch.branch_id"
       ],
       "gold_sql": "SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
-      "expected_result_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_result_hash": "1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a",
       "result_order_sensitive": true,
       "tags": [
         "business_policy",
