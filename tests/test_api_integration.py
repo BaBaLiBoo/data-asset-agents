@@ -128,7 +128,10 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
             assert response.json()["status"] == "success"
         assert isolated_results["schema"]["semantic_query"] is None
         assert isolated_results["rag"]["semantic_query"] is None
+        assert isolated_results["schema"]["sql_asset_candidates"] is None
+        assert isolated_results["rag"]["sql_asset_candidates"] is None
         assert isolated_results["ontology_no_sql_asset"]["selected_sql_asset"] is None
+        assert isolated_results["ontology_no_sql_asset"]["sql_asset_candidates"] is None
         assert isolated_results["ontology_no_sql_asset"]["sql_rewrite"] is None
         assert isolated_results["ontology_full"]["sql_asset_candidates"]
 
