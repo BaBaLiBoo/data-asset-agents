@@ -49,9 +49,13 @@ jobs:
       - run: ruff check .
       - run: pytest
       - name: Validate benchmark Gold SQL
-        run: python -m data_asset_agents.evaluation.cli validate-benchmark 2>&1 | tee benchmark.log
+        run: |
+          set -o pipefail
+          python -m data_asset_agents.evaluation.cli validate-benchmark 2>&1 | tee benchmark.log
       - name: Validate benchmark result hashes
-        run: python scripts/materialize_benchmark_hashes.py --check 2>&1 | tee -a benchmark.log
+        run: |
+          set -o pipefail
+          python scripts/materialize_benchmark_hashes.py --check 2>&1 | tee -a benchmark.log
       - name: Upload test diagnostics
         if: always()
         uses: actions/upload-artifact@v4

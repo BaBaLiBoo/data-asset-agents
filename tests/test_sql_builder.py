@@ -16,5 +16,5 @@ def test_sql_builder_uses_generic_aliases_and_reviewed_time_dimension(
     assert "FROM dwd_card_transaction t0" in sql
     assert "JOIN dim_branch t1 ON t0.branch_id = t1.branch_id" in sql
     assert "COUNT(DISTINCT t0.transaction_id)" in sql
-    assert "t0.transaction_date >= CURRENT_DATE" in sql
+    assert "t0.transaction_date >= DATE '2026-07-16'" in sql
     assert "dwd_card_transaction." not in sql

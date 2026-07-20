@@ -1422,7 +1422,7 @@
         "dwd_card_transaction.txn_amount_cny"
       ],
       "gold_joins": [],
-      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '7 days'",
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '7 days'",
       "expected_result_hash": "9039cab6425f141269a4c5a724b52f39413301129472c87ea9eae36bbee69ba9",
       "result_order_sensitive": false,
       "tags": [
@@ -1472,7 +1472,7 @@
         "dwd_card_transaction.txn_amount_cny"
       ],
       "gold_joins": [],
-      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '30 days'",
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '30 days'",
       "expected_result_hash": "080131d0b9560d21b6f94d541b5db9fd2dd9577f101a6c20ff37c800bf49d885",
       "result_order_sensitive": false,
       "tags": [
@@ -1522,7 +1522,7 @@
         "dwd_card_transaction.txn_amount_cny"
       ],
       "gold_joins": [],
-      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '60 days'",
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '60 days'",
       "expected_result_hash": "8fc4c944ae49f0cd8d3ebdc39554733d3bf1bf8c246d8d96c7d509ec2ce4fb65",
       "result_order_sensitive": false,
       "tags": [
@@ -1572,7 +1572,7 @@
         "dwd_card_transaction.txn_amount_cny"
       ],
       "gold_joins": [],
-      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '14 days'",
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '14 days'",
       "expected_result_hash": "0cc6222559329148e2432fc25537dee2ece5b4189428d24933ed8e981739a6f6",
       "result_order_sensitive": false,
       "tags": [
@@ -1674,7 +1674,7 @@
         "dwd_card_transaction.txn_amount_cny"
       ],
       "gold_joins": [],
-      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '7 days' AND t.transaction_channel IN ('APP', 'POS')",
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '7 days' AND t.transaction_channel IN ('APP', 'POS')",
       "expected_result_hash": "6be13b2fb30d09542e19eaaf879c7e1a3826ea5cfeb61a598ce2db41908fb4ac",
       "result_order_sensitive": false,
       "tags": [
@@ -1726,7 +1726,7 @@
         "dwd_card_transaction.txn_amount_cny"
       ],
       "gold_joins": [],
-      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '30 days' AND t.transaction_channel IN ('APP', 'POS')",
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '30 days' AND t.transaction_channel IN ('APP', 'POS')",
       "expected_result_hash": "f388a4de903861a1cc15fa17d02b280e8876462a311ad2cc57bb7dd06e203d8b",
       "result_order_sensitive": false,
       "tags": [
@@ -1778,7 +1778,7 @@
         "dwd_card_transaction.txn_amount_cny"
       ],
       "gold_joins": [],
-      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '60 days' AND t.transaction_channel IN ('APP', 'POS')",
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '60 days' AND t.transaction_channel IN ('APP', 'POS')",
       "expected_result_hash": "c22807916c1ace79dfd3c8b06493fe253b0689cfd0444ea2e8f3bc20b4fc8c3e",
       "result_order_sensitive": false,
       "tags": [
@@ -1830,7 +1830,7 @@
         "dwd_card_transaction.txn_amount_cny"
       ],
       "gold_joins": [],
-      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= CURRENT_DATE - INTERVAL '14 days' AND t.transaction_channel IN ('APP', 'POS')",
+      "gold_sql": "SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '14 days' AND t.transaction_channel IN ('APP', 'POS')",
       "expected_result_hash": "fda8b34111491e593f243079b43142e59ab5e100ffb3843b472b3daf4f14f399",
       "result_order_sensitive": false,
       "tags": [

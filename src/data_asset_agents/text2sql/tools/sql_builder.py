@@ -1,4 +1,5 @@
 import re
+from datetime import date
 
 from data_asset_agents.core.errors import UnsupportedQueryError
 from data_asset_agents.ontology.models import Dimension, Metric
@@ -36,6 +37,21 @@ def _replace_qualifiers(expression: str, aliases: dict[str, str]) -> str:
 
 def _literal(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
+
+
+def _reference_date_expression(ontology: OntologyService) -> str:
+    """Return the governed snapshot date, or normal wall-clock SQL semantics."""
+
+    raw_value = ontology.bundle.domain.get("data_reference_date")
+    if raw_value is None:
+        return "CURRENT_DATE"
+    try:
+        reference_date = date.fromisoformat(str(raw_value))
+    except ValueError as exc:
+        raise UnsupportedQueryError(
+            "本体 data_reference_date 必须为 ISO 日期"
+        ) from exc
+    return f"DATE '{reference_date.isoformat()}'"
 
 
 def _filter_predicate(
@@ -129,7 +145,7 @@ def build_select_sql(
             )
         predicates.append(
             f"{_qualified(time_dimension.table, time_dimension.column, aliases)} "
-            f">= CURRENT_DATE - INTERVAL '{days} days'"
+            f">= {_reference_date_expression(ontology)} - INTERVAL '{days} days'"
         )
     elif semantic_query.time_range.kind == "absolute":
         time_dimensions = {metric.time_dimension for metric in metrics}

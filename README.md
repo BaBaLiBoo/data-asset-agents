@@ -90,6 +90,11 @@ flowchart LR
 
 ## 可复现对照评测
 
+MiniBank 是冻结于 `2026-07-16` 的完全虚构数据快照。相对时间问题以
+`domain.yaml` 中审核过的 `data_reference_date` 为准，而不是运行机器的墙上
+日期；因此 Docker、CI 与本地 Gold 结果可重复。其他未声明该字段的数据域仍
+使用 PostgreSQL `CURRENT_DATE`。
+
 - `SchemaBaselineStrategy`、`PhysicalRAGStrategy` 和 `OntologyStrategy` 使用统一 `StrategyResult`，但知识源严格隔离。
 - Ontology 通过 `sql_asset_enabled` 拆分为 `ontology_no_sql_asset` 与 `ontology_full`，单独测量 SQLAsset/AST 改写贡献。
 - 公共只读安全、本体业务策略和隐藏评测审计分别由三个 Validator/Inspector 负责，Schema/RAG 不会被本体规则自动纠正。
