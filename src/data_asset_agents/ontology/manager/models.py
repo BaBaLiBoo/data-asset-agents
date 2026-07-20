@@ -59,6 +59,7 @@ class DraftStatus(StrEnum):
 class BindingSyncStatus(StrEnum):
     UNCHECKED = "UNCHECKED"
     HEALTHY = "HEALTHY"
+    STALE = "STALE"
     DRIFTED = "DRIFTED"
     FAILED = "FAILED"
 
@@ -109,12 +110,22 @@ class PropertyDefinition(BaseModel):
 
 class PhysicalJoinDefinition(BaseModel):
     id: ResourceId
+    name: str = ""
+    description: str = ""
+    left_data_source_id: ResourceId = "minibank-postgres"
+    left_schema: PhysicalIdentifier = "public"
     left_table: PhysicalIdentifier
     left_column: PhysicalIdentifier
+    right_data_source_id: ResourceId = "minibank-postgres"
+    right_schema: PhysicalIdentifier = "public"
     right_table: PhysicalIdentifier
     right_column: PhysicalIdentifier
     relationship: str = "many_to_one"
+    cardinality: Cardinality = Cardinality.MANY_TO_ONE
     enabled: bool = True
+    confidence: float = Field(default=1.0, ge=0, le=1)
+    evidence: list[str] = Field(default_factory=list)
+    lifecycle_status: LifecycleStatus = LifecycleStatus.ACTIVE
 
     @property
     def expression(self) -> str:
@@ -169,6 +180,8 @@ class ObjectDataSourceBinding(BaseModel):
     sync_status: BindingSyncStatus = BindingSyncStatus.UNCHECKED
     last_inspected_at: datetime | None = None
     error_message: str | None = None
+    schema_columns: dict[str, str] = Field(default_factory=dict)
+    primary_key_columns: list[str] = Field(default_factory=list)
 
     @field_validator("property_bindings")
     @classmethod
@@ -195,6 +208,7 @@ class DraftValidationReport(BaseModel):
     checked_at: datetime = Field(default_factory=utc_now)
     benchmark_sql: str | None = None
     explain_passed: bool | None = None
+    dry_run_cases: list[dict[str, object]] = Field(default_factory=list)
 
 
 class OntologyDraft(BaseModel):
@@ -247,6 +261,8 @@ class RejectDraftRequest(ActorRequest):
 class PublishDraftRequest(ActorRequest):
     version: str = Field(pattern=r"^[A-Za-z0-9_.-]{1,80}$")
     description: str = "Object-first ontology manager publication"
+    acknowledge_breaking_changes: bool = False
+    change_ticket: str | None = None
 
 
 class MigrateLegacyRequest(BaseModel):
@@ -319,7 +335,9 @@ class ObjectGraph(BaseModel):
 
 
 class DraftResourceMutation(BaseModel):
-    resource_type: Literal["object_type", "property", "link_type", "binding"]
+    resource_type: Literal[
+        "object_type", "property", "link_type", "binding", "physical_join"
+    ]
     resource_id: str
 
     @model_validator(mode="after")

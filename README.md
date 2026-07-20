@@ -48,7 +48,7 @@ Data Asset Agents 是一个面向企业数据资产研发场景的多智能体�
 Ontology Manager 在原有分析语义层上增加一层可编辑、可审核的业务对象模型，三层职责明确分离：
 
 - **业务对象模型**：`ObjectType / PropertyDefinition / LinkType` 描述客户、账户、卡、交易、分行和商户，以及对象之间的业务关系。
-- **分析语义模型**：现有 `Metric / Dimension / Rule` 继续定义查询口径，本轮不重写指标表达式。
+- **分析语义模型**：`Metric / Dimension` 通过强类型 Property ID 引用业务属性；发布对象资源存在时由 `ObjectSemanticCompiler` 从属性绑定编译表达式、过滤、时间字段和支持维度，YAML 只作回退。
 - **物理实现模型**：`DataSourceDefinition / ObjectDataSourceBinding / PhysicalJoinDefinition` 描述受控 PostgreSQL、属性字段绑定和审核 Join。
 - **运行时资产**：不可变 `OntologyVersion` 与版本匹配的 `SQLAssetBuild` 供在线查询读取。
 
@@ -56,18 +56,27 @@ Ontology Manager 在原有分析语义层上增加一层可编辑、可审核的
 flowchart LR
   M[MetadataSnapshot + Verified evidence] --> C[Object-first candidates]
   C --> D[OntologyDraft]
-  D --> V[Draft Validator + SQLGlot + EXPLAIN]
+  D --> V[Contract + 4-case Dry Run]
   V --> R[Human review]
   R --> P[PUBLISHED OntologyVersion]
   P --> O[Object / Property / Link]
-  P --> X[Compatibility projection]
+  P --> X[ObjectSemanticCompiler]
   X --> T[Metric / Dimension / Mapping / Join]
   T --> G[Text-to-SQL LangGraph]
 ```
 
 一个业务对象不等于一张表：同一对象可以在后续由多个经过治理的物理来源实现，而汇总表只表达特定粒度的分析结果。`dws_*` 汇总表、`tmp_*`/`test_*` 技术表以及废弃表因此不会自动变成对象。业务 Link（例如 `Transaction belongsTo Branch`）描述业务含义；Physical Join（例如 `dwd_card_transaction.branch_id = dim_branch.branch_id`）只是它的审核物理实现。
 
-字段级 Candidate 仍作为机器证据，不能直接发布；Draft 是一次包含多个对象、属性、Link 和绑定的原子变更集。只有 `VALIDATED` Draft 能发布，`DRAFT / IN_REVIEW / REJECTED` 资源与在线查询完全隔离。`LegacyOntologyObjectMigrator` 可重复地把现有审核 YAML 转为首个对象 Draft；`CompatibilityProjectionService` 只补充并校验旧 Bundle，不删除现有 Metric、Dimension、PhysicalMapping 或 Join。
+字段级 Candidate 仍作为机器证据，不能直接发布；Draft 是一次包含多个对象、属性、Link、版本化 Physical Join 和绑定的原子变更集。只有 `VALIDATED` Draft 能发布，`DRAFT / IN_REVIEW / REJECTED` 资源与在线查询完全隔离。`LegacyOntologyObjectMigrator` 可重复地把现有审核 YAML 转为首个对象 Draft。发布对象资源存在时，YAML 与对象属性绑定对同一语义产生不同物理口径会被视为契约冲突并阻断发布，不会静默混用。
+
+## 对象运行时与变更治理
+
+- 发布校验动态编译 4 个核心问题（分行信用卡金额/笔数、分行排名、渠道金额、分行活跃客户），逐项返回 Property、Binding、Join、SQLGlot、业务策略与 PostgreSQL `EXPLAIN` 证据。
+- Draft Diff 将对象、属性、Link、Binding 和 Physical Join 分类为新增、修改、废弃或删除；Impact 报告列出受影响 Metric、Dimension、Join Path、SQLAsset、Benchmark 以及需要重建的索引。
+- 删除资源、修改主键/类型/Binding/Physical Join 等 Breaking Change 必须在发布请求中显式确认并填写变更工单；未确认时拒绝发布。
+- Metadata Sync 使用只读数据库元数据对比发布时保存的字段、类型、主键和 schema hash，区分 `NONE / ADDITIVE / BREAKING`；Breaking Drift 会阻断后续发布。
+- Ontology IndexBuild 按 `ontology_version_id`、资源类型与 embedding 模型留存 `BUILDING / READY / FAILED / STALE` 状态。新 READY 构建原子切换，失败构建不覆盖旧索引。
+- Object Explorer 只按当前发布的对象属性白名单生成参数化 `SELECT`，最多返回 100 行；敏感属性脱敏，未知查询参数、任意字段、任意 SQL 和写操作均被拒绝。
 
 ## 认证 SQL 资产能力
 
@@ -206,6 +215,8 @@ docker compose exec postgres psql -U minibank -d minibank `
   -f /docker-entrypoint-initdb.d/006_evaluation.sql
 docker compose exec postgres psql -U minibank -d minibank `
   -f /docker-entrypoint-initdb.d/006_ontology_manager_core.sql
+docker compose exec postgres psql -U minibank -d minibank `
+  -f /docker-entrypoint-initdb.d/007_ontology_runtime_governance.sql
 ```
 
 ## 本地 Python 开发
@@ -295,7 +306,10 @@ EMBEDDING_API_KEY=your-key
 | POST/PUT/DELETE | `/api/v1/ontology/drafts/{draft_id}/object-types` | 编辑 Draft 对象类型 |
 | POST/PUT/DELETE | `/api/v1/ontology/drafts/{draft_id}/properties` | 编辑 Draft 属性 |
 | POST/PUT/DELETE | `/api/v1/ontology/drafts/{draft_id}/link-types` | 编辑 Draft 业务 Link |
+| POST/PUT/DELETE | `/api/v1/ontology/drafts/{draft_id}/physical-joins` | 编辑版本化审核 Physical Join |
 | POST/PUT | `/api/v1/ontology/drafts/{draft_id}/bindings` | 编辑对象物理绑定 |
+| GET | `/api/v1/ontology/drafts/{draft_id}/diff` | 计算 Draft 结构化变更集合 |
+| GET | `/api/v1/ontology/drafts/{draft_id}/impact` | 计算下游影响与 Breaking Change |
 | POST | `/api/v1/ontology/drafts/migrate-legacy` | 幂等迁移审核 YAML 到新 Draft |
 | POST | `/api/v1/ontology/drafts/{draft_id}/validate` | 运行对象、物理、投影、SQLGlot 与 EXPLAIN 校验 |
 | POST | `/api/v1/ontology/drafts/{draft_id}/submit` | 提交审核并锁定编辑 |
@@ -306,6 +320,12 @@ EMBEDDING_API_KEY=your-key
 | GET | `/api/v1/ontology/link-types` | 当前正式业务 Link |
 | GET | `/api/v1/ontology/object-graph` | 当前正式对象图 |
 | GET/POST | `/api/v1/ontology/data-sources` | 查看并检查受控数据源（不返回 Secret） |
+| POST/GET | `/api/v1/ontology/sync-runs` | 运行或查看 Metadata Sync |
+| GET | `/api/v1/ontology/drift` | 查看版本化 Schema Drift 报告 |
+| POST/GET | `/api/v1/ontology/index-builds` | 构建或查看版本化本体检索索引 |
+| GET | `/api/v1/objects/{object_type}` | 安全列出发布对象，支持白名单过滤 |
+| GET | `/api/v1/objects/{object_type}/{id}` | 读取发布对象详情 |
+| GET | `/api/v1/objects/{object_type}/{id}/links/{link}` | 沿审核 Link 只读导航 |
 | GET | `/api/v1/graph` | 查看节点与边 |
 | POST | `/api/v1/evaluation/runs` | 创建异步 smoke/live 评测运行 |
 | GET | `/api/v1/evaluation/runs` | 查看评测运行与可复现元数据 |
@@ -353,7 +373,7 @@ docker compose down
 
 脚本还会执行真实复杂模板问题“查询近30天各分行信用卡交易金额和排名”，并断言：召回认证模板、`sql_rewrite.used_template=true`、SQL 保留 `WITH` 和 `DENSE_RANK`、SQLValidator/EXPLAIN 通过且结果非空。
 
-同一验收还会迁移对象 Draft，核对 `Transaction.amount` 的物理绑定和 Transaction → Branch Link，完成校验、审核、原子发布，再运行上述两个 Text-to-SQL 回归问题。
+同一验收还会迁移对象 Draft，核对 `Transaction.amount` 的物理绑定和 Transaction → Branch Link，检查 Diff/Impact，完成 4 个动态 Dry Run、审核和原子发布；随后构建版本化概念索引、执行 Metadata Sync、验证 Object Explorer 的脱敏与 Link 导航，再运行上述两个 Text-to-SQL 回归问题。
 
 代码检查：
 
@@ -396,7 +416,7 @@ python -m data_asset_agents.ontology.manager.cli migrate-legacy --dry-run `
   --created-by demo --draft-name "MiniBank object model"
 ```
 
-数据库迁移 `data/ddl/006_ontology_manager_core.sql` 新增 Draft 与 published 资源表以及 `ontology_version_object_resource` 来源关联。DDL 使用 `IF NOT EXISTS`，新卷由 Compose 自动加载；已有演示卷按上文命令单独执行。删除 Draft 只级联 Draft 资源，不会删除任何正式版本。
+数据库迁移 `data/ddl/006_ontology_manager_core.sql` 新增 Draft 与 published 资源表以及 `ontology_version_object_resource` 来源关联；`data/ddl/007_ontology_runtime_governance.sql` 新增版本化 Physical Join、ChangeSet/Impact、Sync/Drift 和 Ontology IndexBuild/Search Document 表。DDL 使用 `IF NOT EXISTS`，新卷由 Compose 自动加载；已有演示卷按上文命令依次执行。删除 Draft 只级联 Draft 资源，不会删除任何正式版本。
 
 ## 当前边界
 
@@ -413,5 +433,7 @@ python -m data_asset_agents.ontology.manager.cli migrate-legacy --dry-run `
 - 已实现版本激活、回滚和可复现评测；尚未实现细粒度权限、多人审批、版本签名和分布式评测队列。
 - 本轮已实现 schema/rag/ontology 四组严格隔离对照；尚不实现多事实表 SQL、历史 SQL 自由 AST 合成、复杂 LLM SQL 修复、OWL/RDF/SPARQL/Neo4j 或其他 Agent。
 - Ontology Manager 当前只连接应用已经配置的 PostgreSQL Engine；`connection_ref` 仅保存环境变量名，不支持 API 任意新增主机。
-- `account.status` 与 `card.status` 已作为对象属性保留，但当前虚构物理表没有对应字段，因此不会伪造物理绑定或进入兼容物理投影。
-- 本轮未实现 ActionType、写回 Function、SharedProperty、Interface、行列权限、Automate、多数据库动态接入或完整 Ontology IndexBuild。
+- `account.status` 与 `card.status` 已作为对象属性保留，但当前虚构物理表没有对应字段，因此不会伪造物理绑定或进入运行时投影。
+- Object Explorer 仅支持单对象白名单筛选和审核 Link 导航，不提供自由查询语言、任意排序、导出、写回或细粒度用户权限。
+- Metadata Drift 是按需只读检查，不是 CDC；索引构建第一版同步执行，不含异步队列、增量分片和跨数据库连接。
+- 本轮未实现 ActionType、写回 Function、SharedProperty、Interface、行列权限、Automate 或多数据库动态接入。

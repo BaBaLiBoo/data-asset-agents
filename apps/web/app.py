@@ -579,6 +579,8 @@ def ontology_manager_page() -> None:
         sources = api_request("GET", "/api/v1/ontology/data-sources")
         metrics = api_request("GET", "/api/v1/ontology/metrics")
         table_assets = api_request("GET", "/api/v1/ontology/tables")
+        drift_reports = api_request("GET", "/api/v1/ontology/drift")
+        index_builds = api_request("GET", "/api/v1/ontology/index-builds")
     except RuntimeError as exc:
         st.error(str(exc))
         return
@@ -606,13 +608,19 @@ def ontology_manager_page() -> None:
 
     objects = api_request("GET", "/api/v1/ontology/object-types")
     links = api_request("GET", "/api/v1/ontology/link-types")
-    columns = st.columns(6)
+    columns = st.columns(8)
     columns[0].metric("正式版本", graph.get("version_id") or "YAML fallback")
     columns[1].metric("Draft", len(drafts))
     columns[2].metric("对象", len(objects))
     columns[3].metric("Link", len(links))
     columns[4].metric("指标", len(metrics))
     columns[5].metric("数据源", len(sources))
+    columns[6].metric(
+        "Schema Drift",
+        sum(item["severity"] == "BREAKING" for item in drift_reports),
+    )
+    current_indexes = [item for item in index_builds if item["is_current"]]
+    columns[7].metric("当前索引", len(current_indexes))
     if graph.get("nodes"):
         dot = ["digraph ontology {", "rankdir=LR;"]
         dot += [f'"{node["id"]}" [label="{node["label"]}"];' for node in graph["nodes"]]
@@ -653,7 +661,19 @@ def ontology_manager_page() -> None:
         f"状态 {draft['status']} · 基线 {draft.get('base_version_id') or 'YAML'} · "
         f"Snapshot {draft.get('source_snapshot_id') or 'legacy seed'}"
     )
-    tabs = st.tabs(["对象类型", "属性", "业务关系", "数据源映射", "校验与发布"])
+    tabs = st.tabs(
+        [
+            "对象类型",
+            "属性",
+            "业务关系",
+            "数据源映射",
+            "校验与发布",
+            "Draft Diff",
+            "Physical Join",
+            "Drift / Index",
+            "Object Explorer",
+        ]
+    )
     with tabs[0]:
         st.dataframe(
             [
@@ -849,15 +869,121 @@ def ontology_manager_page() -> None:
             st.dataframe(report["issues"], use_container_width=True, hide_index=True)
         with st.form("manager_publish_form"):
             version = st.text_input("新版本号", "object-1.0")
+            acknowledge_breaking = st.checkbox("确认已审阅 Breaking Change")
+            change_ticket = st.text_input("变更工单（Breaking Change 必填）")
             if st.form_submit_button("原子发布并刷新在线查询", type="primary"):
                 result = api_request(
                     "POST",
                     f"/api/v1/ontology/drafts/{draft_id}/publish",
-                    json={"actor": "ontology-reviewer", "version": version},
+                    json={
+                        "actor": "ontology-reviewer",
+                        "version": version,
+                        "acknowledge_breaking_changes": acknowledge_breaking,
+                        "change_ticket": change_ticket or None,
+                    },
                     timeout=180,
                 )
                 st.success(f"已发布 {result['version']}")
                 st.rerun()
+    with tabs[5]:
+        diff = api_request("GET", f"/api/v1/ontology/drafts/{draft_id}/diff")
+        impact = api_request("GET", f"/api/v1/ontology/drafts/{draft_id}/impact")
+        st.markdown("#### 变更集合")
+        change_rows = []
+        for key, values in diff.items():
+            if isinstance(values, list):
+                change_rows.extend(
+                    {"group": key, **item} for item in values if isinstance(item, dict)
+                )
+        st.dataframe(change_rows, use_container_width=True, hide_index=True)
+        if impact["breaking_changes"]:
+            st.error("存在 Breaking Change，发布时必须确认并填写变更工单。")
+        st.markdown("#### 影响分析")
+        st.json(impact)
+    with tabs[6]:
+        st.dataframe(
+            resources["physical_joins"], use_container_width=True, hide_index=True
+        )
+        with st.form("manager_physical_join_form"):
+            join_id = st.text_input("Join ID", "transaction_to_branch")
+            join_name = st.text_input("名称", "交易连接分行")
+            left_table = st.text_input("左表", "dwd_card_transaction")
+            left_column = st.text_input("左字段", "branch_id")
+            right_table = st.text_input("右表", "dim_branch")
+            right_column = st.text_input("右字段", "branch_id")
+            relationship = st.selectbox(
+                "关系", ["many_to_one", "one_to_one", "one_to_many", "many_to_many"]
+            )
+            evidence = st.text_area("审核证据", "MiniBank DDL 外键与元数据检查")
+            if st.form_submit_button("保存版本化 Physical Join"):
+                api_request(
+                    "POST",
+                    f"/api/v1/ontology/drafts/{draft_id}/physical-joins",
+                    json={
+                        "id": join_id,
+                        "name": join_name,
+                        "left_table": left_table,
+                        "left_column": left_column,
+                        "right_table": right_table,
+                        "right_column": right_column,
+                        "relationship": relationship,
+                        "evidence": [evidence],
+                        "lifecycle_status": "ACTIVE",
+                    },
+                )
+                st.rerun()
+    with tabs[7]:
+        sync_col, index_col = st.columns(2)
+        if sync_col.button("运行 Metadata Sync", use_container_width=True):
+            sync_col.json(
+                api_request("POST", "/api/v1/ontology/sync-runs", timeout=120)
+            )
+        if index_col.button("构建业务概念索引", use_container_width=True):
+            index_col.json(
+                api_request(
+                    "POST",
+                    "/api/v1/ontology/index-builds",
+                    json={"index_type": "BUSINESS_CONCEPT"},
+                    timeout=120,
+                )
+            )
+        st.markdown("#### Drift 报告")
+        st.dataframe(drift_reports, use_container_width=True, hide_index=True)
+        st.markdown("#### 版本化索引构建")
+        st.dataframe(index_builds, use_container_width=True, hide_index=True)
+    with tabs[8]:
+        published_object_ids = [item["id"] for item in objects]
+        if not published_object_ids:
+            st.info("发布对象模型后可使用只读 Object Explorer。")
+        else:
+            explored_type = st.selectbox("对象类型", published_object_ids)
+            explorer_limit = st.slider("返回条数", 1, 100, 20)
+            if st.button("加载对象记录", use_container_width=True):
+                records = api_request(
+                    "GET",
+                    f"/api/v1/objects/{explored_type}?limit={explorer_limit}",
+                )
+                st.session_state["object_explorer_records"] = records
+            records = st.session_state.get("object_explorer_records", [])
+            st.dataframe(records, use_container_width=True, hide_index=True)
+            if records:
+                selected_record = st.selectbox(
+                    "对象主键", [str(item["primary_key"]) for item in records]
+                )
+                selected_payload = next(
+                    item for item in records if str(item["primary_key"]) == selected_record
+                )
+                st.json(selected_payload)
+                available_links = selected_payload.get("available_links", [])
+                if available_links:
+                    selected_link = st.selectbox("关系导航", available_links)
+                    if st.button("沿 Link 查询"):
+                        linked = api_request(
+                            "GET",
+                            f"/api/v1/objects/{explored_type}/{selected_record}/links/"
+                            f"{selected_link}?limit=20",
+                        )
+                        st.dataframe(linked, use_container_width=True, hide_index=True)
 
 
 page = st.sidebar.radio(

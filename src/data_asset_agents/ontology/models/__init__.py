@@ -33,8 +33,10 @@ from data_asset_agents.ontology.models.entities import (
     Dimension,
     JoinDefinition,
     Metric,
+    MetricAggregation,
     OntologyBundle,
     PhysicalMapping,
+    PropertyFilterPredicate,
     TableAsset,
 )
 
@@ -59,6 +61,7 @@ __all__ = [
     "JoinDefinition",
     "MetadataSnapshot",
     "Metric",
+    "MetricAggregation",
     "OntologyBuildRequest",
     "OntologyBuildResult",
     "OntologyBundle",
@@ -68,6 +71,7 @@ __all__ = [
     "ParsedAggregate",
     "ParsedJoin",
     "PhysicalMapping",
+    "PropertyFilterPredicate",
     "PublishDryRunReport",
     "ReviewStatus",
     "TableAsset",

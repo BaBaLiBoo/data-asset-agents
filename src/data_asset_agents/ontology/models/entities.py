@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -11,6 +12,21 @@ class BusinessConcept(BaseModel):
     synonyms: list[str] = Field(default_factory=list)
 
 
+class MetricAggregation(StrEnum):
+    SUM = "SUM"
+    COUNT = "COUNT"
+    COUNT_DISTINCT = "COUNT_DISTINCT"
+    AVG = "AVG"
+    MIN = "MIN"
+    MAX = "MAX"
+
+
+class PropertyFilterPredicate(BaseModel):
+    property_id: str
+    operator: Literal["EQ", "NE", "GT", "GTE", "LT", "LTE", "IN"] = "EQ"
+    value: str | list[str]
+
+
 class Metric(BaseModel):
     id: str
     name: str
@@ -21,6 +37,11 @@ class Metric(BaseModel):
     supported_dimensions: list[str] = Field(default_factory=list)
     time_dimension: str | None = None
     synonyms: list[str] = Field(default_factory=list)
+    measure_property_id: str | None = None
+    aggregation: MetricAggregation | None = None
+    filter_predicates: list[PropertyFilterPredicate] = Field(default_factory=list)
+    time_property_id: str | None = None
+    supported_dimension_property_ids: list[str] = Field(default_factory=list)
 
 
 class Dimension(BaseModel):
@@ -30,6 +51,7 @@ class Dimension(BaseModel):
     table: str
     column: str
     synonyms: list[str] = Field(default_factory=list)
+    property_id: str | None = None
 
 
 class PhysicalMapping(BaseModel):

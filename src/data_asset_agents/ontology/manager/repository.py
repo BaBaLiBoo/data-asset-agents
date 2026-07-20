@@ -21,6 +21,7 @@ from .models import (
     ObjectType,
     OntologyDraft,
     OntologyDraftAggregate,
+    PhysicalJoinDefinition,
     PropertyDefinition,
 )
 
@@ -60,12 +61,14 @@ RESOURCE_TABLES = {
     PropertyDefinition: ("draft_property_definition", "property_id"),
     LinkType: ("draft_link_type", "link_type_id"),
     ObjectDataSourceBinding: ("draft_object_data_source_binding", "binding_id"),
+    PhysicalJoinDefinition: ("draft_physical_join", "physical_join_id"),
 }
 KIND_TABLES = {
     "object_type": ("draft_object_type", "object_type_id"),
     "property": ("draft_property_definition", "property_id"),
     "link_type": ("draft_link_type", "link_type_id"),
     "binding": ("draft_object_data_source_binding", "binding_id"),
+    "physical_join": ("draft_physical_join", "physical_join_id"),
 }
 
 
@@ -76,6 +79,7 @@ class MemoryOntologyManagerRepository:
         self.drafts: dict[str, OntologyDraftAggregate] = {}
         self.sources: dict[str, DataSourceDefinition] = {}
         self.current: tuple[str | None, DraftResources] = (None, DraftResources())
+        self.versions: dict[str, DraftResources] = {}
 
     def save_data_source(self, source: DataSourceDefinition) -> None:
         self.sources[source.id] = deepcopy(source)
@@ -112,6 +116,7 @@ class MemoryOntologyManagerRepository:
             PropertyDefinition: resources.properties,
             LinkType: resources.link_types,
             ObjectDataSourceBinding: resources.bindings,
+            PhysicalJoinDefinition: resources.physical_joins,
         }[type(resource)]
         collection[:] = [item for item in collection if item.id != resource.id]
         collection.append(deepcopy(resource))
@@ -123,12 +128,15 @@ class MemoryOntologyManagerRepository:
             "property": resources.properties,
             "link_type": resources.link_types,
             "binding": resources.bindings,
+            "physical_join": resources.physical_joins,
         }[kind]
         collection[:] = [item for item in collection if item.id != resource_id]
 
     def published_resources(
         self, version_id: str | None = None
     ) -> tuple[str | None, DraftResources]:
+        if version_id is not None:
+            return version_id, deepcopy(self.versions.get(version_id, DraftResources()))
         return deepcopy(self.current)
 
     def publish(
@@ -139,6 +147,7 @@ class MemoryOntologyManagerRepository:
         bundle: OntologyBundle,
     ) -> None:
         self.current = (version.id, deepcopy(resources))
+        self.versions[version.id] = deepcopy(resources)
         self.drafts[draft.id] = OntologyDraftAggregate(
             draft=deepcopy(draft), resources=deepcopy(resources)
         )
@@ -211,6 +220,7 @@ class PostgresOntologyManagerRepository:
             resources.properties,
             resources.link_types,
             resources.bindings,
+            resources.physical_joins,
         ]
         for group in groups:
             for resource in group:
@@ -268,6 +278,12 @@ class PostgresOntologyManagerRepository:
                         "draft_object_data_source_binding",
                         draft_id,
                         ObjectDataSourceBinding,
+                    ),
+                    physical_joins=self._payloads(
+                        connection,
+                        "draft_physical_join",
+                        draft_id,
+                        PhysicalJoinDefinition,
                     ),
                 ),
             )
@@ -383,6 +399,7 @@ class PostgresOntologyManagerRepository:
                 properties=rows("published_property_definition", PropertyDefinition),
                 link_types=rows("published_link_type", LinkType),
                 bindings=rows("published_object_data_source_binding", ObjectDataSourceBinding),
+                physical_joins=rows("published_physical_join", PhysicalJoinDefinition),
             )
 
     def publish(
@@ -441,6 +458,12 @@ class PostgresOntologyManagerRepository:
                         "binding_id",
                         "BINDING",
                         resources.bindings,
+                    ),
+                    (
+                        "published_physical_join",
+                        "physical_join_id",
+                        "PHYSICAL_JOIN",
+                        resources.physical_joins,
                     ),
                 ]
                 for table, key, kind, items in groups:

@@ -16,6 +16,7 @@ services:
       - ./data/ddl/005_sql_asset_builds.sql:/docker-entrypoint-initdb.d/005_sql_asset_builds.sql:ro
       - ./data/ddl/006_evaluation.sql:/docker-entrypoint-initdb.d/006_evaluation.sql:ro
       - ./data/ddl/006_ontology_manager_core.sql:/docker-entrypoint-initdb.d/006_ontology_manager_core.sql:ro
+      - ./data/ddl/007_ontology_runtime_governance.sql:/docker-entrypoint-initdb.d/007_ontology_runtime_governance.sql:ro
       - ./data/seed/002_seed.sql:/docker-entrypoint-initdb.d/002_seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]

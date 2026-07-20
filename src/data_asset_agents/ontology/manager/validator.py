@@ -7,10 +7,13 @@ from collections import Counter, defaultdict
 import sqlglot
 from sqlalchemy import Engine, inspect
 
+from data_asset_agents.core.errors import OntologyError
 from data_asset_agents.execution.executor import QueryExecutor
 from data_asset_agents.ontology.models import OntologyBundle
 from data_asset_agents.ontology.validation import OntologyContractValidator
 
+from .compiler import ObjectSemanticCompiler
+from .dry_run import DraftSemanticDryRun
 from .models import (
     DraftResources,
     DraftValidationReport,
@@ -19,7 +22,6 @@ from .models import (
     SemanticRole,
     ValidationIssue,
 )
-from .projection import CompatibilityProjectionService
 
 BENCHMARK_SQL = """SELECT b.branch_name,
        SUM(t.txn_amount_cny) AS credit_card_transaction_amount,
@@ -45,7 +47,6 @@ class OntologyDraftValidator:
         self.bundle = bundle
         self.engine = engine
         self.executor = executor
-        self.projection = CompatibilityProjectionService()
 
     @staticmethod
     def _issue(
@@ -124,6 +125,7 @@ class OntologyDraftValidator:
             ("object_type", [x.id for x in resources.object_types]),
             ("property", [x.id for x in resources.properties]),
             ("link_type", [x.id for x in resources.link_types]),
+            ("physical_join", [x.id for x in resources.physical_joins]),
         ):
             for identifier, count in Counter(values).items():
                 if count > 1:
@@ -312,6 +314,43 @@ class OntologyDraftValidator:
                 )
 
         object_tables = {b.object_type_id: b.table_name for b in resources.bindings}
+        for join in resources.physical_joins:
+            if not join.evidence:
+                self._issue(
+                    issues,
+                    "PHYSICAL_JOIN_EVIDENCE_REQUIRED",
+                    "physical_join",
+                    join.id,
+                    "Physical Join has no review evidence",
+                    "Record metadata, foreign-key, or reviewed SQL evidence",
+                    "evidence",
+                )
+            if {
+                join.left_data_source_id,
+                join.right_data_source_id,
+            } != {"minibank-postgres"}:
+                self._issue(
+                    issues,
+                    "PHYSICAL_JOIN_DATA_SOURCE_INVALID",
+                    "physical_join",
+                    join.id,
+                    "Only the managed PostgreSQL data source is supported",
+                    "Use minibank-postgres on both endpoints",
+                    "left_data_source_id",
+                )
+            for table, column in (
+                (join.left_table, join.left_column),
+                (join.right_table, join.right_column),
+            ):
+                if table not in schema or column not in schema[table]:
+                    self._issue(
+                        issues,
+                        "PHYSICAL_JOIN_COLUMN_NOT_FOUND",
+                        "physical_join",
+                        join.id,
+                        f"Join endpoint {table}.{column} does not exist",
+                        "Use inspected join endpoints",
+                    )
         for link in resources.link_types:
             if (
                 link.source_object_type_id not in objects
@@ -368,7 +407,28 @@ class OntologyDraftValidator:
                         "physical_join_ids",
                     )
 
-        projected = self.projection.project(self.bundle, resources)
+        try:
+            compilation = ObjectSemanticCompiler(self.bundle).compile(resources)
+            for conflict in compilation.conflicts:
+                self._issue(
+                    issues,
+                    "OBJECT_LEGACY_SEMANTIC_CONFLICT",
+                    "semantic_compilation",
+                    "analytical-contract",
+                    conflict,
+                    "Update the object Property/Binding or align the compatibility fields",
+                )
+            projected = compilation.bundle
+        except OntologyError as exc:
+            self._issue(
+                issues,
+                "OBJECT_SEMANTIC_COMPILATION_FAILED",
+                "semantic_compilation",
+                "analytical-contract",
+                str(exc),
+                "Bind every referenced Property and align Metric/Dimension references",
+            )
+            projected = self.bundle
         contract = OntologyContractValidator(self.engine).validate(
             projected,
             snapshot_id=source_snapshot_id or "legacy-seed",
@@ -386,6 +446,7 @@ class OntologyDraftValidator:
                 )
 
         explain_passed: bool | None = None
+        dry_run_cases: list[dict[str, object]] = []
         try:
             sqlglot.parse_one(BENCHMARK_SQL, read="postgres")
             if self.executor is not None:
@@ -395,16 +456,36 @@ class OntologyDraftValidator:
             explain_passed = False
             self._issue(
                 issues,
-                "BENCHMARK_VALIDATION_FAILED",
-                "benchmark",
-                "core-branch-card",
+                "DATABASE_HEALTH_PROBE_FAILED",
+                "database",
+                "read-only-explain",
                 str(exc),
                 "Repair projection, schema binding, or database health",
             )
+
+        if self.executor is not None:
+            reports = DraftSemanticDryRun(self.executor).run(resources, self.bundle)
+            dry_run_cases = [item.model_dump(mode="json") for item in reports]
+            for report in reports:
+                if (
+                    report.errors
+                    or not report.sqlglot_valid
+                    or not report.ontology_policy_valid
+                    or not report.explain_passed
+                ):
+                    self._issue(
+                        issues,
+                        "DYNAMIC_SEMANTIC_DRY_RUN_FAILED",
+                        "benchmark",
+                        report.benchmark_case_id,
+                        "; ".join(report.errors) or "A semantic Dry Run contract failed",
+                        "Repair Property references, Binding, Link, or Physical Join",
+                    )
 
         return DraftValidationReport(
             valid=not any(item.severity == "ERROR" for item in issues),
             issues=issues,
             benchmark_sql=BENCHMARK_SQL,
             explain_passed=explain_passed,
+            dry_run_cases=dry_run_cases,
         )

@@ -7,6 +7,12 @@
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
   time_dimension: transaction_date
   synonyms: [交易额]
+  measure_property_id: transaction.amount
+  aggregation: SUM
+  filter_predicates:
+    - {property_id: transaction.status, operator: EQ, value: POSTED}
+  time_property_id: transaction.event_time
+  supported_dimension_property_ids: [branch.name, card.card_type, transaction.channel, transaction.event_time]
 - id: credit_card_transaction_amount
   name: 信用卡交易金额
   description: 已入账贷记卡交易的人民币金额合计
@@ -16,6 +22,13 @@
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
   time_dimension: transaction_date
   synonyms: [消费金额, 信用卡消费金额, 贷记卡交易金额]
+  measure_property_id: transaction.amount
+  aggregation: SUM
+  filter_predicates:
+    - {property_id: transaction.card_type, operator: EQ, value: CREDIT}
+    - {property_id: transaction.status, operator: EQ, value: POSTED}
+  time_property_id: transaction.event_time
+  supported_dimension_property_ids: [branch.name, card.card_type, transaction.channel, transaction.event_time]
 - id: transaction_count
   name: 交易笔数
   description: 按交易 ID 去重后的交易数量
@@ -25,6 +38,12 @@
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
   time_dimension: transaction_date
   synonyms: [流水笔数]
+  measure_property_id: transaction.transaction_id
+  aggregation: COUNT_DISTINCT
+  filter_predicates:
+    - {property_id: transaction.status, operator: EQ, value: POSTED}
+  time_property_id: transaction.event_time
+  supported_dimension_property_ids: [branch.name, card.card_type, transaction.channel, transaction.event_time]
 - id: credit_card_transaction_count
   name: 信用卡交易笔数
   description: 已入账贷记卡交易 ID 去重数量
@@ -34,6 +53,13 @@
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
   time_dimension: transaction_date
   synonyms: [信用卡流水笔数, 贷记卡交易笔数]
+  measure_property_id: transaction.transaction_id
+  aggregation: COUNT_DISTINCT
+  filter_predicates:
+    - {property_id: transaction.card_type, operator: EQ, value: CREDIT}
+    - {property_id: transaction.status, operator: EQ, value: POSTED}
+  time_property_id: transaction.event_time
+  supported_dimension_property_ids: [branch.name, card.card_type, transaction.channel, transaction.event_time]
 - id: active_customer_count
   name: 活跃客户数
   description: 发生过已入账交易的去重客户数
@@ -43,6 +69,12 @@
   supported_dimensions: [branch, transaction_date, customer_type]
   time_dimension: transaction_date
   synonyms: [活跃用户数]
+  measure_property_id: transaction.customer_id
+  aggregation: COUNT_DISTINCT
+  filter_predicates:
+    - {property_id: transaction.status, operator: EQ, value: POSTED}
+  time_property_id: transaction.event_time
+  supported_dimension_property_ids: [branch.name, transaction.event_time, customer.customer_type]
 - id: average_transaction_amount
   name: 平均交易金额
   description: 已入账交易的平均人民币金额
@@ -52,3 +84,9 @@
   supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
   time_dimension: transaction_date
   synonyms: [平均交易额, 客单价]
+  measure_property_id: transaction.amount
+  aggregation: AVG
+  filter_predicates:
+    - {property_id: transaction.status, operator: EQ, value: POSTED}
+  time_property_id: transaction.event_time
+  supported_dimension_property_ids: [branch.name, card.card_type, transaction.channel, transaction.event_time]

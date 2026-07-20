@@ -115,9 +115,20 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
             item["id"] == "transaction_belongs_to_branch"
             for item in draft["resources"]["link_types"]
         )
+        draft_diff = client.get(f"/api/v1/ontology/drafts/{draft_id}/diff")
+        assert draft_diff.status_code == 200, draft_diff.text
+        assert draft_diff.json()["added_objects"]
+        draft_impact = client.get(f"/api/v1/ontology/drafts/{draft_id}/impact")
+        assert draft_impact.status_code == 200, draft_impact.text
+        assert draft_impact.json()["rebuild_concept_index"]
         validated_draft = client.post(f"/api/v1/ontology/drafts/{draft_id}/validate")
         assert validated_draft.status_code == 200, validated_draft.text
         assert validated_draft.json()["draft"]["validation_report"]["valid"]
+        dry_run_cases = validated_draft.json()["draft"]["validation_report"][
+            "dry_run_cases"
+        ]
+        assert len(dry_run_cases) == 4
+        assert all(item["explain_passed"] for item in dry_run_cases)
         submitted_draft = client.post(
             f"/api/v1/ontology/drafts/{draft_id}/submit",
             json={"actor": "api-author"},
@@ -147,6 +158,42 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         published_transaction = client.get("/api/v1/ontology/object-types/transaction")
         assert published_transaction.status_code == 200
         assert "transaction.amount" in published_transaction.json()["property_ids"]
+
+        index_build = client.post(
+            "/api/v1/ontology/index-builds",
+            json={"index_type": "BUSINESS_CONCEPT"},
+        )
+        assert index_build.status_code == 200, index_build.text
+        assert index_build.json()["status"] == "READY"
+        assert index_build.json()["document_count"] > 0
+        assert index_build.json()["is_current"]
+        sync_run = client.post("/api/v1/ontology/sync-runs")
+        assert sync_run.status_code == 200, sync_run.text
+        assert sync_run.json()["status"] == "READY"
+        assert all(
+            item["severity"] != "BREAKING" for item in sync_run.json()["reports"]
+        )
+
+        object_records = client.get("/api/v1/objects/transaction?limit=2")
+        assert object_records.status_code == 200, object_records.text
+        assert object_records.json()
+        record = object_records.json()[0]
+        assert "transaction_belongs_to_branch" in record["available_links"]
+        assert "***MASKED***" in record["properties"].values()
+        object_detail = client.get(
+            f"/api/v1/objects/transaction/{record['primary_key']}"
+        )
+        assert object_detail.status_code == 200, object_detail.text
+        linked_branch = client.get(
+            f"/api/v1/objects/transaction/{record['primary_key']}/links/"
+            "transaction_belongs_to_branch"
+        )
+        assert linked_branch.status_code == 200, linked_branch.text
+        assert linked_branch.json()
+        rejected_parameter = client.get(
+            "/api/v1/objects/transaction?raw_sql=select+1"
+        )
+        assert rejected_parameter.status_code == 422
 
         object_query = client.post(
             "/api/v1/query",

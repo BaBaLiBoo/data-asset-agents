@@ -44,6 +44,7 @@ jobs:
           psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/005_sql_asset_builds.sql
           psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/006_evaluation.sql
           psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/006_ontology_manager_core.sql
+          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/007_ontology_runtime_governance.sql
           psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/seed/002_seed.sql
       - run: python -m pip install -e ".[dev]"
       - run: ruff check .

@@ -13,8 +13,12 @@
   enabled joins connecting the actual bound object tables.
 - DataSourceDefinition stores an environment-variable name such as DATABASE_URL, never a resolved
   URL or secret. The first manager release may inspect only the application-managed PostgreSQL.
-- Compatibility projection must supplement the stable analytical bundle and must not drop existing
-  Metric, Dimension, PhysicalMapping, JoinDefinition, or TableAsset resources.
+- Published object resources are authoritative for Metric/Dimension physical compilation. YAML is
+  fallback only; conflicting property references and legacy physical contracts must block publish.
+- Versioned PhysicalJoinDefinition resources, Draft Diff/Impact, breaking-change acknowledgement,
+  metadata drift, and dynamic Dry Run are publication gates and must not be bypassed.
+- Object Explorer may issue only bounded, parameterized, allowlisted read-only SELECT statements
+  from current published bindings; sensitive properties must remain masked.
 - Metadata profiling accepts only allowlisted identifiers and stores bounded, masked samples.
 - All generated SQL is read-only, statically validated, explained, and executed in a read-only transaction.
 - Historical SQL assets are retrieval templates only. Uncertified, lifecycle-invalid, parse-invalid,

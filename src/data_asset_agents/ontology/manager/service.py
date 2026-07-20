@@ -16,7 +16,9 @@ from data_asset_agents.ontology.models import (
     ReviewStatus,
 )
 
-from .migration import LegacyOntologyObjectMigrator, adapt_physical_joins
+from .change_analysis import OntologyChangeAnalyzer
+from .governance_models import OntologyChangeSet, OntologyImpactReport
+from .migration import LegacyOntologyObjectMigrator
 from .models import (
     ActorRequest,
     BindingSyncStatus,
@@ -31,6 +33,7 @@ from .models import (
     ObjectType,
     OntologyDraft,
     OntologyDraftAggregate,
+    PhysicalJoinDefinition,
     PropertyDataType,
     PropertyDefinition,
     PublishDraftRequest,
@@ -61,11 +64,49 @@ class OntologyManagerService:
         self.candidate_repository = candidate_repository
         self.migrator = LegacyOntologyObjectMigrator(base_bundle)
         self.projection = CompatibilityProjectionService()
+        self.change_analyzer = OntologyChangeAnalyzer(repository, base_bundle, engine)
+        self.drift_service: object | None = None
         self.repository.save_data_source(self.migrator.data_source())
 
     def _with_joins(self, aggregate: OntologyDraftAggregate) -> OntologyDraftAggregate:
-        aggregate.resources.physical_joins = adapt_physical_joins(self.base_bundle.joins)
+        """Compatibility wrapper retained for callers; joins now belong to the Draft."""
         return aggregate
+
+    def _refresh_binding_schema(
+        self, binding: ObjectDataSourceBinding
+    ) -> ObjectDataSourceBinding:
+        if self.engine is None:
+            return binding
+        inspector = inspect(self.engine)
+        columns = inspector.get_columns(binding.table_name, schema=binding.schema_name)
+        schema_columns = {
+            str(column["name"]): str(column["type"]).lower() for column in columns
+        }
+        primary_keys = list(
+            inspector.get_pk_constraint(
+                binding.table_name, schema=binding.schema_name
+            ).get("constrained_columns")
+            or []
+        )
+        return binding.model_copy(
+            update={
+                "schema_hash": hashlib.sha256(
+                    (
+                        f"{binding.schema_name}.{binding.table_name}:"
+                        + ",".join(
+                            sorted(f"{name}:{kind}" for name, kind in schema_columns.items())
+                        )
+                        + ":pk="
+                        + ",".join(primary_keys)
+                    ).encode()
+                ).hexdigest(),
+                "schema_columns": schema_columns,
+                "primary_key_columns": primary_keys,
+                "sync_status": BindingSyncStatus.HEALTHY,
+                "last_inspected_at": datetime.now(UTC),
+                "error_message": None,
+            }
+        )
 
     def create_draft(self, request: CreateDraftRequest) -> OntologyDraftAggregate:
         resources = DraftResources()
@@ -83,6 +124,9 @@ class OntologyManagerService:
 
     def migrate_legacy(self, request: MigrateLegacyRequest) -> OntologyDraftAggregate:
         resources = self.migrator.migrate(request.source_snapshot_id)
+        resources.bindings = [
+            self._refresh_binding_schema(binding) for binding in resources.bindings
+        ]
         draft = OntologyDraft(
             id=f"draft-legacy-{uuid4().hex}",
             name=request.draft_name,
@@ -154,18 +198,7 @@ class OntologyManagerService:
                     **resource.property_bindings,
                 }
             if self.engine is not None:
-                inspector = inspect(self.engine)
-                columns = inspector.get_columns(resource.table_name, schema=resource.schema_name)
-                resource.schema_hash = hashlib.sha256(
-                    (
-                        f"{resource.schema_name}.{resource.table_name}:"
-                        + ",".join(
-                            sorted(f"{column['name']}:{column['type']}" for column in columns)
-                        )
-                    ).encode()
-                ).hexdigest()
-                resource.sync_status = BindingSyncStatus.HEALTHY
-                resource.last_inspected_at = datetime.now(UTC)
+                resource = self._refresh_binding_schema(resource)
         self.repository.save_resource(draft_id, resource)
         return self.get_draft(draft_id)
 
@@ -211,12 +244,14 @@ class OntologyManagerService:
             PropertyDefinition: {x.id for x in aggregate.resources.properties},
             LinkType: {x.id for x in aggregate.resources.link_types},
             ObjectDataSourceBinding: {x.id for x in aggregate.resources.bindings},
+            PhysicalJoinDefinition: {x.id for x in aggregate.resources.physical_joins},
         }
         for group in (
             migrated.object_types,
             migrated.properties,
             migrated.link_types,
             migrated.bindings,
+            migrated.physical_joins,
         ):
             for resource in group:
                 if resource.id not in existing[type(resource)]:
@@ -328,6 +363,19 @@ class OntologyManagerService:
         aggregate = self.get_draft(draft_id)
         if aggregate.draft.status != DraftStatus.VALIDATED:
             raise OntologyConflictError("Only a VALIDATED Draft can be published")
+        impact = self.impact(draft_id)
+        if impact.breaking_changes and not request.acknowledge_breaking_changes:
+            raise OntologyConflictError(
+                "Breaking changes require acknowledge_breaking_changes=true"
+            )
+        if impact.breaking_changes and not request.change_ticket:
+            raise OntologyConflictError("Breaking changes require a change_ticket")
+        if (
+            self.drift_service is not None
+            and aggregate.draft.base_version_id
+            and self.drift_service.has_breaking_drift(aggregate.draft.base_version_id)
+        ):
+            raise OntologyError("Breaking metadata drift blocks publication")
         report = self.validator.validate(aggregate.resources, aggregate.draft.source_snapshot_id)
         if not report.valid:
             raise OntologyError("Draft Dry Run failed; publication is blocked")
@@ -349,6 +397,13 @@ class OntologyManagerService:
         aggregate.draft.validation_report = report
         self.repository.publish(aggregate.draft, aggregate.resources, version, bundle)
         return version
+
+    def diff(self, draft_id: str) -> OntologyChangeSet:
+        return self.change_analyzer.diff(self.get_draft(draft_id))
+
+    def impact(self, draft_id: str) -> OntologyImpactReport:
+        aggregate = self.get_draft(draft_id)
+        return self.change_analyzer.impact(aggregate, self.change_analyzer.diff(aggregate))
 
     def inspect_data_source(self, data_source_id: str) -> DataSourceInspection:
         sources = {item.id: item for item in self.repository.list_data_sources()}
@@ -385,9 +440,7 @@ class OntologyManagerService:
             )
 
     def published(self) -> tuple[str | None, DraftResources]:
-        version_id, resources = self.repository.published_resources()
-        resources.physical_joins = adapt_physical_joins(self.base_bundle.joins)
-        return version_id, resources
+        return self.repository.published_resources()
 
     def object_graph(self) -> ObjectGraph:
         version_id, resources = self.published()

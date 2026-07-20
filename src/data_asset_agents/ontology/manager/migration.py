@@ -80,7 +80,15 @@ def physical_join_id(join: JoinDefinition) -> str:
 
 def adapt_physical_joins(joins: Iterable[JoinDefinition]) -> list[PhysicalJoinDefinition]:
     return [
-        PhysicalJoinDefinition(id=physical_join_id(join), **join.model_dump()) for join in joins
+        PhysicalJoinDefinition(
+            id=physical_join_id(join),
+            name=physical_join_id(join).replace("_", " "),
+            description="Migrated reviewed physical join",
+            cardinality=Cardinality.MANY_TO_ONE,
+            evidence=["reviewed joins.yaml compatibility seed"],
+            **join.model_dump(),
+        )
+        for join in joins
     ]
 
 
@@ -133,6 +141,7 @@ class LegacyOntologyObjectMigrator:
                         "branch_id": "branch_id",
                         "merchant_id": "merchant_id",
                         "channel": "transaction_channel",
+                        "card_type": "card_type",
                     }
                 )
             primary_column = next(
@@ -156,6 +165,7 @@ class LegacyOntologyObjectMigrator:
                         semantic_role=semantic_role,
                         nullable=column != primary_column,
                         groupable=semantic_role in {SemanticRole.DIMENSION, SemanticRole.STATUS},
+                        sensitive=object_id == "transaction" and role == "customer_id",
                         unit="CNY" if semantic_role == SemanticRole.MEASURE else None,
                         lifecycle_status=LifecycleStatus.ACTIVE,
                     )

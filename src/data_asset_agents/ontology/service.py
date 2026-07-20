@@ -65,6 +65,7 @@ class OntologyService:
             else self._seed_version_id(self.bundle)
         )
         self.semantic_parser = SemanticQueryParser(self.settings, self.model_factory)
+        self.index_service: object | None = None
         self.retriever = HybridConceptRetriever(self.settings.embedding_dimensions)
         self._refresh_indexes()
 
@@ -188,6 +189,13 @@ class OntologyService:
         return self.semantic_parser.parse(question, self.bundle, allowed)
 
     def search(self, text: str, limit: int = 10) -> list[MatchedConcept]:
+        if self.index_service is not None:
+            try:
+                indexed = self.index_service.search(text, limit)
+                if indexed:
+                    return indexed
+            except OntologyError:
+                pass
         if self.runtime_repository is not None and hasattr(
             self.runtime_repository, "hybrid_search"
         ):
@@ -210,6 +218,17 @@ class OntologyService:
         return deterministic_embedding(text, self.settings.embedding_dimensions)
 
     def rebuild_search_index(self, version_id: str) -> None:
+        if self.index_service is not None:
+            from data_asset_agents.ontology.manager.governance_models import (
+                OntologyIndexBuildRequest,
+                OntologyIndexType,
+            )
+
+            if self.index_service.current(
+                self.ontology_version_id, OntologyIndexType.BUSINESS_CONCEPT
+            ) is None:
+                self.index_service.build(OntologyIndexBuildRequest())
+            return
         if self.runtime_repository is None:
             return
         documents = published_documents(self.bundle)

@@ -32,6 +32,20 @@ from data_asset_agents.execution.executor import QueryExecutor
 from data_asset_agents.llm.factory import ModelFactory
 from data_asset_agents.metadata import MetadataInspector
 from data_asset_agents.ontology.builder import CandidateGenerator, OntologyBuildService
+from data_asset_agents.ontology.manager.compiler import ObjectSemanticCompiler
+from data_asset_agents.ontology.manager.drift import MetadataDriftService
+from data_asset_agents.ontology.manager.governance_models import (
+    ObjectFilter,
+    ObjectFilterOperator,
+    ObjectRecord,
+    OntologyChangeSet,
+    OntologyImpactReport,
+    OntologyIndexBuild,
+    OntologyIndexBuildRequest,
+    OntologySyncRun,
+    SchemaDriftReport,
+)
+from data_asset_agents.ontology.manager.indexing import OntologyIndexService
 from data_asset_agents.ontology.manager.models import (
     ActorRequest,
     CreateDraftRequest,
@@ -44,10 +58,12 @@ from data_asset_agents.ontology.manager.models import (
     ObjectType,
     OntologyDraft,
     OntologyDraftAggregate,
+    PhysicalJoinDefinition,
     PropertyDefinition,
     PublishDraftRequest,
     RejectDraftRequest,
 )
+from data_asset_agents.ontology.manager.object_query import ObjectQueryService
 from data_asset_agents.ontology.manager.repository import (
     PostgresOntologyManagerRepository,
 )
@@ -116,6 +132,37 @@ async def lifespan(app: FastAPI):
         engine=engine,
         candidate_repository=runtime_repository,
     )
+    _, published_object_resources = ontology_manager_repository.published_resources(
+        ontology.ontology_version_id
+    )
+    if published_object_resources.object_types:
+        compilation = ObjectSemanticCompiler(ontology.bundle).compile(
+            published_object_resources
+        )
+        if compilation.conflicts:
+            raise RuntimeError(
+                "Published object semantics conflict with analytical compatibility fields"
+            )
+        ontology.bundle = compilation.bundle
+        ontology._refresh_indexes()
+        executor.set_ontology(ontology.bundle)
+    drift_service = MetadataDriftService(
+        ontology_manager_repository,
+        ontology.bundle,
+        engine,
+        lambda: ontology.ontology_version_id,
+    )
+    ontology_manager.drift_service = drift_service
+    ontology_index_service = OntologyIndexService(
+        engine,
+        ontology_manager_repository,
+        settings,
+        model_factory,
+        lambda: ontology.bundle,
+        lambda: ontology.ontology_version_id,
+    )
+    ontology.index_service = ontology_index_service
+    object_query_service = ObjectQueryService(engine, ontology_manager_repository)
     builder = OntologyBuildService(
         inspector=MetadataInspector(engine),
         sql_parser=HistoricalSQLParser(),
@@ -166,6 +213,9 @@ async def lifespan(app: FastAPI):
     app.state.ontology_repository = runtime_repository
     app.state.ontology_builder = builder
     app.state.ontology_manager = ontology_manager
+    app.state.ontology_drift_service = drift_service
+    app.state.ontology_index_service = ontology_index_service
+    app.state.object_query_service = object_query_service
     app.state.sql_asset_service = sql_asset_service
     app.state.physical_rag = physical_rag
     app.state.strategy_router = strategy_router
@@ -414,6 +464,59 @@ def delete_link_type(draft_id: str, link_id: str, request: Request) -> OntologyD
     return request.app.state.ontology_manager.delete_resource(draft_id, "link_type", link_id)
 
 
+@app.post(
+    "/api/v1/ontology/drafts/{draft_id}/physical-joins",
+    response_model=OntologyDraftAggregate,
+)
+def create_physical_join(
+    draft_id: str, payload: PhysicalJoinDefinition, request: Request
+) -> OntologyDraftAggregate:
+    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+
+
+@app.put(
+    "/api/v1/ontology/drafts/{draft_id}/physical-joins/{join_id}",
+    response_model=OntologyDraftAggregate,
+)
+def update_physical_join(
+    draft_id: str,
+    join_id: str,
+    payload: PhysicalJoinDefinition,
+    request: Request,
+) -> OntologyDraftAggregate:
+    if payload.id != join_id:
+        raise HTTPException(status_code=422, detail="join_id must match payload.id")
+    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+
+
+@app.delete(
+    "/api/v1/ontology/drafts/{draft_id}/physical-joins/{join_id}",
+    response_model=OntologyDraftAggregate,
+)
+def delete_physical_join(
+    draft_id: str, join_id: str, request: Request
+) -> OntologyDraftAggregate:
+    return request.app.state.ontology_manager.delete_resource(
+        draft_id, "physical_join", join_id
+    )
+
+
+@app.get(
+    "/api/v1/ontology/drafts/{draft_id}/diff",
+    response_model=OntologyChangeSet,
+)
+def ontology_draft_diff(draft_id: str, request: Request) -> OntologyChangeSet:
+    return request.app.state.ontology_manager.diff(draft_id)
+
+
+@app.get(
+    "/api/v1/ontology/drafts/{draft_id}/impact",
+    response_model=OntologyImpactReport,
+)
+def ontology_draft_impact(draft_id: str, request: Request) -> OntologyImpactReport:
+    return request.app.state.ontology_manager.impact(draft_id)
+
+
 @app.get("/api/v1/ontology/data-sources", response_model=list[DataSourceDefinition])
 def list_ontology_data_sources(request: Request) -> list[DataSourceDefinition]:
     return request.app.state.ontology_manager.repository.list_data_sources()
@@ -552,6 +655,126 @@ def published_link_types(request: Request) -> list[LinkType]:
 @app.get("/api/v1/ontology/object-graph", response_model=ObjectGraph)
 def published_object_graph(request: Request) -> ObjectGraph:
     return request.app.state.ontology_manager.object_graph()
+
+
+@app.post("/api/v1/ontology/sync-runs", response_model=OntologySyncRun)
+def create_ontology_sync_run(request: Request) -> OntologySyncRun:
+    return request.app.state.ontology_drift_service.create_run()
+
+
+@app.get("/api/v1/ontology/sync-runs", response_model=list[OntologySyncRun])
+def list_ontology_sync_runs(request: Request) -> list[OntologySyncRun]:
+    return request.app.state.ontology_drift_service.list_runs()
+
+
+@app.get("/api/v1/ontology/sync-runs/{run_id}", response_model=OntologySyncRun)
+def get_ontology_sync_run(run_id: str, request: Request) -> OntologySyncRun:
+    run = request.app.state.ontology_drift_service.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Ontology sync run not found")
+    return run
+
+
+@app.post(
+    "/api/v1/ontology/bindings/{binding_id}/inspect",
+    response_model=SchemaDriftReport,
+)
+def inspect_published_binding(binding_id: str, request: Request) -> SchemaDriftReport:
+    return request.app.state.ontology_drift_service.inspect_binding(binding_id)
+
+
+@app.get("/api/v1/ontology/drift", response_model=list[SchemaDriftReport])
+def list_ontology_drift(request: Request) -> list[SchemaDriftReport]:
+    return request.app.state.ontology_drift_service.list_reports()
+
+
+@app.get("/api/v1/ontology/index-builds", response_model=list[OntologyIndexBuild])
+def list_ontology_index_builds(request: Request) -> list[OntologyIndexBuild]:
+    return request.app.state.ontology_index_service.list()
+
+
+@app.post("/api/v1/ontology/index-builds", response_model=OntologyIndexBuild)
+def create_ontology_index_build(
+    payload: OntologyIndexBuildRequest, request: Request
+) -> OntologyIndexBuild:
+    return request.app.state.ontology_index_service.build(payload)
+
+
+@app.get(
+    "/api/v1/ontology/index-builds/{build_id}", response_model=OntologyIndexBuild
+)
+def get_ontology_index_build(build_id: str, request: Request) -> OntologyIndexBuild:
+    build = request.app.state.ontology_index_service.get(build_id)
+    if build is None:
+        raise HTTPException(status_code=404, detail="Ontology index build not found")
+    return build
+
+
+def _reject_unknown_object_query_parameters(
+    request: Request, allowed: set[str]
+) -> None:
+    unexpected = set(request.query_params) - allowed
+    if unexpected:
+        raise HTTPException(
+            status_code=422,
+            detail="Unsupported Object Explorer query parameter(s): "
+            + ", ".join(sorted(unexpected)),
+        )
+
+
+@app.get("/api/v1/objects/{object_type_id}", response_model=list[ObjectRecord])
+def list_objects(
+    object_type_id: str,
+    request: Request,
+    property_id: str | None = None,
+    operator: ObjectFilterOperator = ObjectFilterOperator.EQ,
+    value: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> list[ObjectRecord]:
+    _reject_unknown_object_query_parameters(
+        request, {"property_id", "operator", "value", "limit"}
+    )
+    filters: list[ObjectFilter] = []
+    if property_id is not None:
+        if value is None:
+            raise HTTPException(status_code=422, detail="Filtered property requires value")
+        parsed_value: str | list[str] = (
+            [item.strip() for item in value.split(",") if item.strip()]
+            if operator == ObjectFilterOperator.IN
+            else value
+        )
+        filters.append(
+            ObjectFilter(property_id=property_id, operator=operator, value=parsed_value)
+        )
+    return request.app.state.object_query_service.list_objects(
+        object_type_id, filters, limit
+    )
+
+
+@app.get("/api/v1/objects/{object_type_id}/{object_id}", response_model=ObjectRecord)
+def get_object(object_type_id: str, object_id: str, request: Request) -> ObjectRecord:
+    _reject_unknown_object_query_parameters(request, set())
+    record = request.app.state.object_query_service.get_object(object_type_id, object_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Object not found")
+    return record
+
+
+@app.get(
+    "/api/v1/objects/{object_type_id}/{object_id}/links/{link_type_id}",
+    response_model=list[ObjectRecord],
+)
+def navigate_object_link(
+    object_type_id: str,
+    object_id: str,
+    link_type_id: str,
+    request: Request,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> list[ObjectRecord]:
+    _reject_unknown_object_query_parameters(request, {"limit"})
+    return request.app.state.object_query_service.navigate(
+        object_type_id, object_id, link_type_id, limit
+    )
 
 
 @app.post("/api/v1/sql-assets/build", response_model=SQLAssetBuildReport)
@@ -834,6 +1057,8 @@ def _activate_runtime(app_instance: FastAPI, version: OntologyVersion) -> None:
         engine=app_instance.state.executor.engine,
         executor=app_instance.state.executor,
     )
+    manager.change_analyzer.bundle = app_instance.state.ontology.bundle
+    app_instance.state.ontology_drift_service.bundle = app_instance.state.ontology.bundle
     app_instance.state.ontology.rebuild_search_index(version.id)
     app_instance.state.sql_asset_service.ontology = app_instance.state.ontology
     app_instance.state.sql_asset_service.parser = HistoricalSQLParser()

@@ -95,12 +95,27 @@ try {
         $null -eq $branchLink) {
         throw "Legacy object migration did not produce the governed Transaction model"
     }
+    $draftDiff = Invoke-RestMethod `
+        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/diff" `
+        -TimeoutSec 30
+    $draftImpact = Invoke-RestMethod `
+        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/impact" `
+        -TimeoutSec 30
+    if ($draftDiff.added_objects.Count -le 0 -or
+        -not $draftImpact.rebuild_concept_index) {
+        throw "Draft Diff and impact analysis did not identify the migrated resources"
+    }
     $validated = Invoke-RestMethod `
         -Method Post `
         -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/validate" `
         -TimeoutSec 30
     if (-not $validated.draft.validation_report.valid) {
         throw "Object model Draft validation failed"
+    }
+    if ($validated.draft.validation_report.dry_run_cases.Count -ne 4 -or
+        ($validated.draft.validation_report.dry_run_cases |
+            Where-Object { -not $_.explain_passed }).Count -ne 0) {
+        throw "Dynamic semantic Dry Run did not pass all four core questions"
     }
 
     Write-Host "[6/15] Reviewing and atomically publishing the object model..."
@@ -137,6 +152,46 @@ try {
     if ($objectGraph.nodes.Count -ne 6 -or
         ($objectGraph.edges.id -notcontains "transaction_belongs_to_branch")) {
         throw "Published object graph is incomplete"
+    }
+
+    Write-Host "[7a/15] Building versioned ontology index and checking drift..."
+    $indexBody = @{ index_type = "BUSINESS_CONCEPT" } | ConvertTo-Json
+    $indexBuild = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/ontology/index-builds" `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $indexBody `
+        -TimeoutSec 120
+    if ($indexBuild.status -ne "READY" -or
+        -not $indexBuild.is_current -or
+        $indexBuild.document_count -le 0) {
+        throw "Versioned ontology index did not become READY and current"
+    }
+    $syncRun = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/ontology/sync-runs" `
+        -TimeoutSec 120
+    if ($syncRun.status -ne "READY" -or
+        ($syncRun.reports | Where-Object { $_.severity -eq "BREAKING" }).Count -gt 0) {
+        throw "Metadata sync failed or reported unexpected breaking drift"
+    }
+
+    Write-Host "[7b/15] Exercising the read-only Object Explorer..."
+    $records = Invoke-RestMethod `
+        -Uri "http://localhost:8000/api/v1/objects/transaction?limit=2" `
+        -TimeoutSec 30
+    if ($records.Count -le 0 -or
+        $records[0].available_links -notcontains "transaction_belongs_to_branch" -or
+        $records[0].properties.PSObject.Properties.Value -notcontains "***MASKED***") {
+        throw "Object Explorer returned no safe governed Transaction records"
+    }
+    $objectId = $records[0].primary_key
+    $branchRecords = Invoke-RestMethod `
+        -Uri ("http://localhost:8000/api/v1/objects/transaction/" + $objectId +
+              "/links/transaction_belongs_to_branch?limit=2") `
+        -TimeoutSec 30
+    if ($branchRecords.Count -le 0) {
+        throw "Object Explorer Link navigation returned no Branch"
     }
 
     Write-Host "[8/15] Running the target ontology query..."

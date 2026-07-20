@@ -169,14 +169,19 @@ def test_governed_bad_tables_cannot_bind_active_objects(bundle, migrated, table,
     assert expected in {item.code for item in report.issues}
 
 
-def test_projection_preserves_all_analytical_resources(bundle, migrated) -> None:
+def test_projection_preserves_analytical_ids_and_compiles_object_bindings(
+    bundle, migrated
+) -> None:
     projected = CompatibilityProjectionService().project(bundle, migrated)
-    assert [item.model_dump() for item in projected.metrics] == [
-        item.model_dump() for item in bundle.metrics
+    assert [item.id for item in projected.metrics] == [item.id for item in bundle.metrics]
+    assert [item.id for item in projected.dimensions] == [
+        item.id for item in bundle.dimensions
     ]
-    assert [item.model_dump() for item in projected.dimensions] == [
-        item.model_dump() for item in bundle.dimensions
-    ]
+    metric = next(item for item in projected.metrics if item.id == "transaction_amount")
+    assert metric.expression == "SUM(dwd_card_transaction.txn_amount_cny)"
+    assert metric.required_filters == {"transaction_status": "POSTED"}
+    branch = next(item for item in projected.dimensions if item.id == "branch")
+    assert (branch.table, branch.column) == ("dim_branch", "branch_name")
     assert {item.concept_id for item in bundle.mappings} <= {
         item.concept_id for item in projected.mappings
     }
