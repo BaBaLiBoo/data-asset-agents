@@ -112,9 +112,12 @@ try {
     if (-not $validated.draft.validation_report.valid) {
         throw "Object model Draft validation failed"
     }
-    if ($validated.draft.validation_report.dry_run_cases.Count -ne 4 -or
-        ($validated.draft.validation_report.dry_run_cases |
-            Where-Object { -not $_.explain_passed }).Count -ne 0) {
+    $failedDryRuns = @(
+        $validated.draft.validation_report.dry_run_cases |
+            Where-Object { -not $_.explain_passed }
+    )
+    if (@($validated.draft.validation_report.dry_run_cases).Count -ne 4 -or
+        $failedDryRuns.Count -ne 0) {
         throw "Dynamic semantic Dry Run did not pass all four core questions"
     }
 
@@ -171,8 +174,10 @@ try {
         -Method Post `
         -Uri "http://localhost:8000/api/v1/ontology/sync-runs" `
         -TimeoutSec 120
-    if ($syncRun.status -ne "READY" -or
-        ($syncRun.reports | Where-Object { $_.severity -eq "BREAKING" }).Count -gt 0) {
+    $breakingDrift = @(
+        $syncRun.reports | Where-Object { $_.severity -eq "BREAKING" }
+    )
+    if ($syncRun.status -ne "READY" -or $breakingDrift.Count -gt 0) {
         throw "Metadata sync failed or reported unexpected breaking drift"
     }
 

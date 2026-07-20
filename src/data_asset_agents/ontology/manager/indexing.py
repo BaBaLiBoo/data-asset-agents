@@ -271,15 +271,32 @@ class OntologyIndexService:
         with self.engine.connect() as connection:
             rows = connection.execute(
                 text("""
-                SELECT resource_id,name,resource_type,synonyms,
-                       1 - (embedding <=> CAST(:embedding AS vector)) AS vector_score,
-                       ts_rank_cd(to_tsvector('simple', search_text),
-                                  plainto_tsquery('simple', :query)) AS keyword_score
-                FROM ontology_search_document
-                WHERE build_id=:build_id
-                ORDER BY (0.65 * (1 - (embedding <=> CAST(:embedding AS vector))) +
-                          0.35 * ts_rank_cd(to_tsvector('simple', search_text),
-                                           plainto_tsquery('simple', :query))) DESC
+                WITH scored AS (
+                  SELECT resource_id,name,resource_type,synonyms,
+                         CASE WHEN lower(name)=lower(:query) THEN 1.0
+                              WHEN position(lower(name) IN lower(:query)) > 0 THEN 0.92
+                              ELSE 0.0 END AS exact_score,
+                         CASE WHEN EXISTS (
+                           SELECT 1 FROM jsonb_array_elements_text(synonyms) synonym
+                           WHERE lower(synonym)=lower(:query)
+                              OR position(lower(synonym) IN lower(:query)) > 0
+                         ) THEN 1.0 ELSE 0.0 END AS synonym_score,
+                         LEAST(1.0, ts_rank_cd(
+                           to_tsvector('simple',search_text),
+                           plainto_tsquery('simple',:query)
+                         )) AS keyword_score,
+                         GREATEST(0.0, 1-(embedding <=> CAST(:embedding AS vector)))
+                           AS vector_score
+                  FROM ontology_search_document WHERE build_id=:build_id
+                )
+                SELECT *, GREATEST(
+                  exact_score,
+                  synonym_score * 0.95,
+                  keyword_score * 0.55 + vector_score * 0.35
+                ) AS total_score
+                FROM scored
+                WHERE GREATEST(exact_score,synonym_score,keyword_score,vector_score) > 0
+                ORDER BY total_score DESC, name
                 LIMIT :limit
                 """),
                 {
@@ -294,9 +311,15 @@ class OntologyIndexService:
                     id=str(row["resource_id"]),
                     name=str(row["name"]),
                     kind=str(row["resource_type"]).lower(),
-                    matched_text=str(row["name"]),
-                    score=max(0.0, float(row["vector_score"] or 0)),
-                    evidence=[f"versioned index build: {current.build_id}"],
+                    matched_text=(query if row["synonym_score"] else str(row["name"])),
+                    score=float(row["total_score"] or 0),
+                    evidence=[
+                        f"versioned index build: {current.build_id}",
+                        *(["标准名称精确匹配"] if row["exact_score"] else []),
+                        *([f"同义词匹配：{query}"] if row["synonym_score"] else []),
+                    ],
+                    exact_score=float(row["exact_score"] or 0),
+                    synonym_score=float(row["synonym_score"] or 0),
                     keyword_score=float(row["keyword_score"] or 0),
                     vector_score=float(row["vector_score"] or 0),
                 )
