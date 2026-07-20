@@ -123,7 +123,7 @@ try {
 
     Write-Host "[6/15] Reviewing and atomically publishing the object model..."
     $actorBody = @{ actor = "acceptance-reviewer" } | ConvertTo-Json
-    $publishedBase = Invoke-RestMethod `
+    Invoke-RestMethod `
         -Method Post `
         -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/submit" `
         -ContentType "application/json; charset=utf-8" `
@@ -141,7 +141,7 @@ try {
         version = $objectVersion
         description = "Acceptance object model"
     } | ConvertTo-Json
-    Invoke-RestMethod `
+    $publishedBase = Invoke-RestMethod `
         -Method Post `
         -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/publish" `
         -ContentType "application/json; charset=utf-8" `
