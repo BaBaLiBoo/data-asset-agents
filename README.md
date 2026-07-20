@@ -348,6 +348,8 @@ docker compose down
 
 脚本还会执行真实复杂模板问题“查询近30天各分行信用卡交易金额和排名”，并断言：召回认证模板、`sql_rewrite.used_template=true`、SQL 保留 `WITH` 和 `DENSE_RANK`、SQLValidator/EXPLAIN 通过且结果非空。
 
+同一验收还会迁移对象 Draft，核对 `Transaction.amount` 的物理绑定和 Transaction → Branch Link，完成校验、审核、原子发布，再运行上述两个 Text-to-SQL 回归问题。
+
 代码检查：
 
 ```powershell
