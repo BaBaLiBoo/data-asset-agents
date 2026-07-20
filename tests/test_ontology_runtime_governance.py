@@ -101,6 +101,29 @@ def test_diff_classifies_physical_contract_changes_as_breaking(bundle) -> None:
     assert impact.rebuild_sql_assets
 
 
+def test_property_description_change_is_non_breaking(bundle) -> None:
+    repository = MemoryOntologyManagerRepository()
+    base = LegacyOntologyObjectMigrator(bundle).migrate("snapshot-a")
+    repository.current = ("version-a", deepcopy(base))
+    repository.versions["version-a"] = deepcopy(base)
+    changed = deepcopy(base)
+    changed.properties[0].description = "Clarified fictional business description"
+    aggregate = OntologyDraftAggregate(
+        draft=OntologyDraft(
+            id="draft-description",
+            name="description",
+            base_version_id="version-a",
+            created_by="test",
+        ),
+        resources=changed,
+    )
+    analyzer = OntologyChangeAnalyzer(repository, bundle)
+    changes = analyzer.diff(aggregate)
+    impact = analyzer.impact(aggregate, changes)
+    assert changes.modified_properties[0].breaking_level == BreakingLevel.NON_BREAKING
+    assert impact.automatic_publish_allowed
+
+
 def test_breaking_publish_requires_acknowledgement_and_ticket(bundle) -> None:
     repository = MemoryOntologyManagerRepository()
     service = OntologyManagerService(

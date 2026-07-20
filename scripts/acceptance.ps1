@@ -123,7 +123,7 @@ try {
 
     Write-Host "[6/15] Reviewing and atomically publishing the object model..."
     $actorBody = @{ actor = "acceptance-reviewer" } | ConvertTo-Json
-    Invoke-RestMethod `
+    $publishedBase = Invoke-RestMethod `
         -Method Post `
         -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/submit" `
         -ContentType "application/json; charset=utf-8" `
@@ -146,6 +146,74 @@ try {
         -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/publish" `
         -ContentType "application/json; charset=utf-8" `
         -Body $publishBody `
+        -TimeoutSec 120
+
+    Write-Host "[6a/15] Proving a non-breaking incremental Draft..."
+    $incrementalBody = @{
+        name = "Acceptance non-breaking description update"
+        created_by = "acceptance"
+        base_version_id = $publishedBase.id
+    } | ConvertTo-Json
+    $incremental = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/ontology/drafts" `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $incrementalBody `
+        -TimeoutSec 30
+    $statusProperty = $incremental.resources.properties |
+        Where-Object { $_.id -eq "transaction.status" } |
+        Select-Object -First 1
+    $statusProperty.description = "Acceptance-only clarified fictional status description"
+    Invoke-RestMethod `
+        -Method Put `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $incremental.draft.id + "/properties/transaction.status") `
+        -ContentType "application/json; charset=utf-8" `
+        -Body ($statusProperty | ConvertTo-Json -Depth 20) `
+        -TimeoutSec 30 | Out-Null
+    $incrementalDiff = Invoke-RestMethod `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $incremental.draft.id + "/diff") `
+        -TimeoutSec 30
+    $incrementalImpact = Invoke-RestMethod `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $incremental.draft.id + "/impact") `
+        -TimeoutSec 30
+    if (@($incrementalDiff.modified_properties).Count -ne 1 -or
+        $incrementalDiff.modified_properties[0].breaking_level -ne "NON_BREAKING" -or
+        -not $incrementalImpact.automatic_publish_allowed) {
+        throw "Description-only Draft was not classified as NON_BREAKING"
+    }
+    Invoke-RestMethod `
+        -Method Post `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $incremental.draft.id + "/validate") `
+        -TimeoutSec 120 | Out-Null
+    Invoke-RestMethod `
+        -Method Post `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $incremental.draft.id + "/submit") `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $actorBody `
+        -TimeoutSec 30 | Out-Null
+    Invoke-RestMethod `
+        -Method Post `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $incremental.draft.id + "/approve") `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $actorBody `
+        -TimeoutSec 120 | Out-Null
+    $incrementalPublishBody = @{
+        actor = "acceptance-reviewer"
+        version = "$objectVersion-followup"
+        description = "Acceptance non-breaking follow-up"
+    } | ConvertTo-Json
+    Invoke-RestMethod `
+        -Method Post `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $incremental.draft.id + "/publish") `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $incrementalPublishBody `
         -TimeoutSec 120 | Out-Null
 
     Write-Host "[7/15] Verifying the published object graph..."

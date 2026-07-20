@@ -71,6 +71,8 @@ flowchart LR
 
 ## 对象运行时与变更治理
 
+完整编译契约、变更生命周期和安全边界见 [`docs/ontology-runtime.md`](docs/ontology-runtime.md)。
+
 - 发布校验动态编译 4 个核心问题（分行信用卡金额/笔数、分行排名、渠道金额、分行活跃客户），逐项返回 Property、Binding、Join、SQLGlot、业务策略与 PostgreSQL `EXPLAIN` 证据。
 - Draft Diff 将对象、属性、Link、Binding 和 Physical Join 分类为新增、修改、废弃或删除；Impact 报告列出受影响 Metric、Dimension、Join Path、SQLAsset、Benchmark 以及需要重建的索引。
 - 删除资源、修改主键/类型/Binding/Physical Join 等 Breaking Change 必须在发布请求中显式确认并填写变更工单；未确认时拒绝发布。

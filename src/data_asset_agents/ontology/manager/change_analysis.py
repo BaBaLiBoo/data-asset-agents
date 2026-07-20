@@ -97,6 +97,13 @@ class OntologyChangeAnalyzer:
                 breaking, reason = True, "Changed property data type"
             elif resource_type in {"binding", "physical_join"}:
                 breaking, reason = True, f"Changed physical {resource_type} contract"
+            non_breaking_fields = {"name", "description", "synonyms"}
+            changed_fields = {
+                key
+                for key in old_payload.keys() | new_payload.keys()
+                if old_payload.get(key) != new_payload.get(key)
+            }
+            presentation_only = changed_fields <= non_breaking_fields
             changes.append(
                 ResourceChange(
                     resource_type=resource_type,
@@ -107,6 +114,8 @@ class OntologyChangeAnalyzer:
                     breaking_level=(
                         BreakingLevel.BREAKING
                         if breaking
+                        else BreakingLevel.NON_BREAKING
+                        if presentation_only
                         else BreakingLevel.POTENTIALLY_BREAKING
                     ),
                     reason=reason,
