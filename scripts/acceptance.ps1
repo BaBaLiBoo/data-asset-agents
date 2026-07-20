@@ -21,13 +21,13 @@ if ([string]::IsNullOrWhiteSpace($env:DOCKER_DATABASE_URL)) {
 }
 
 try {
-    Write-Host "[1/12] Validating Docker Compose configuration..."
+    Write-Host "[1/15] Validating Docker Compose configuration..."
     docker compose -p $ComposeProject config --quiet
 
-    Write-Host "[2/12] Building and starting services..."
+    Write-Host "[2/15] Building and starting services..."
     docker compose -p $ComposeProject up --build -d
 
-    Write-Host "[3/12] Waiting for API health..."
+    Write-Host "[3/15] Waiting for API health..."
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $healthy = $false
     while ((Get-Date) -lt $deadline) {
@@ -46,7 +46,7 @@ try {
         throw "API did not become healthy within $TimeoutSeconds seconds"
     }
 
-    Write-Host "[4/12] Waiting for Streamlit health..."
+    Write-Host "[4/15] Waiting for Streamlit health..."
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $webHealthy = $false
     while ((Get-Date) -lt $deadline) {
@@ -68,7 +68,78 @@ try {
         throw "Streamlit did not become healthy within $TimeoutSeconds seconds"
     }
 
-    Write-Host "[5/12] Running the target ontology query..."
+    Write-Host "[5/15] Migrating and validating the object model Draft..."
+    $draftBody = @{
+        draft_name = "Acceptance object migration"
+        created_by = "acceptance"
+    } | ConvertTo-Json
+    $draft = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/ontology/drafts/migrate-legacy" `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $draftBody `
+        -TimeoutSec 30
+    $transaction = $draft.resources.object_types |
+        Where-Object { $_.id -eq "transaction" } |
+        Select-Object -First 1
+    $binding = $draft.resources.bindings |
+        Where-Object { $_.object_type_id -eq "transaction" } |
+        Select-Object -First 1
+    $branchLink = $draft.resources.link_types |
+        Where-Object { $_.id -eq "transaction_belongs_to_branch" } |
+        Select-Object -First 1
+    if ($null -eq $transaction -or
+        $transaction.property_ids -notcontains "transaction.amount" -or
+        $binding.table_name -ne "dwd_card_transaction" -or
+        $binding.property_bindings."transaction.amount" -ne "txn_amount_cny" -or
+        $null -eq $branchLink) {
+        throw "Legacy object migration did not produce the governed Transaction model"
+    }
+    $validated = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/validate" `
+        -TimeoutSec 30
+    if (-not $validated.draft.validation_report.valid) {
+        throw "Object model Draft validation failed"
+    }
+
+    Write-Host "[6/15] Reviewing and atomically publishing the object model..."
+    $actorBody = @{ actor = "acceptance-reviewer" } | ConvertTo-Json
+    Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/submit" `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $actorBody `
+        -TimeoutSec 30 | Out-Null
+    Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/approve" `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $actorBody `
+        -TimeoutSec 30 | Out-Null
+    $objectVersion = "acceptance-object-$([Guid]::NewGuid().ToString('N'))"
+    $publishBody = @{
+        actor = "acceptance-reviewer"
+        version = $objectVersion
+        description = "Acceptance object model"
+    } | ConvertTo-Json
+    Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/publish" `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $publishBody `
+        -TimeoutSec 120 | Out-Null
+
+    Write-Host "[7/15] Verifying the published object graph..."
+    $objectGraph = Invoke-RestMethod `
+        -Uri "http://localhost:8000/api/v1/ontology/object-graph" `
+        -TimeoutSec 30
+    if ($objectGraph.nodes.Count -ne 6 -or
+        ($objectGraph.edges.id -notcontains "transaction_belongs_to_branch")) {
+        throw "Published object graph is incomplete"
+    }
+
+    Write-Host "[8/15] Running the target ontology query..."
     $body = @{
         question = "查询近30天各分行信用卡交易金额和交易笔数。"
         query_mode = "ontology"
@@ -91,7 +162,7 @@ try {
     Write-Host "Returned rows: $($result.execution_result.row_count)"
     Write-Host $result.generated_sql
 
-    Write-Host "[6/12] Verifying SQL asset search..."
+    Write-Host "[9/15] Verifying SQL asset search..."
     $searchBody = @{ question = "查询各分行信用卡交易金额"; limit = 3 } |
         ConvertTo-Json
     $assets = Invoke-RestMethod `
@@ -104,7 +175,7 @@ try {
         throw "SQL asset hybrid search returned no lifecycle-valid template"
     }
 
-    Write-Host "[7/12] Running certified CTE + window rewrite..."
+    Write-Host "[10/15] Running certified CTE + window rewrite..."
     $complexBody = @{
         question = "查询近30天各分行信用卡交易金额和排名。"
         query_mode = "ontology"
@@ -128,7 +199,7 @@ try {
         throw "Complex rewrite failed validation, EXPLAIN, or execution"
     }
 
-    Write-Host "[8/12] Running isolated strategy smoke queries..."
+    Write-Host "[11/15] Running isolated strategy smoke queries..."
     $strategyCases = @(
         @{ mode = "schema"; sqlAssets = $false; variant = "schema" },
         @{ mode = "rag"; sqlAssets = $false; variant = "rag" },
@@ -161,7 +232,7 @@ try {
         }
     }
 
-    Write-Host "[9/12] Validating the 80-case benchmark..."
+    Write-Host "[12/15] Validating the 80-case benchmark..."
     docker compose -p $ComposeProject exec -T api `
         python -m data_asset_agents.evaluation.cli validate-benchmark
     if ($LASTEXITCODE -ne 0) {
@@ -173,7 +244,7 @@ try {
         throw "Benchmark result hashes did not match the fixed MiniBank seed"
     }
 
-    Write-Host "[10/12] Creating smoke EvaluationRuns..."
+    Write-Host "[13/15] Creating smoke EvaluationRuns..."
     $runIds = @()
     foreach ($strategy in $strategyCases) {
         $runBody = @{
@@ -212,7 +283,7 @@ try {
         throw "Smoke EvaluationRuns did not finish before timeout"
     }
 
-    Write-Host "[11/12] Comparing smoke runs..."
+    Write-Host "[14/15] Comparing smoke runs..."
     $compareQuery = ($runIds | ForEach-Object { "run_id=$_" }) -join "&"
     $comparison = Invoke-RestMethod `
         -Uri "http://localhost:8000/api/v1/evaluation/compare?$compareQuery" `
@@ -221,7 +292,7 @@ try {
         throw "Smoke comparison did not return four fair runs"
     }
 
-    Write-Host "[12/12] Container status..."
+    Write-Host "[15/15] Container status..."
     docker compose -p $ComposeProject ps
     Write-Host "Acceptance passed."
 }

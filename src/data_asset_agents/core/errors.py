@@ -6,6 +6,10 @@ class OntologyError(DataAssetAgentsError):
     """Raised when reviewed ontology data is invalid or incomplete."""
 
 
+class OntologyConflictError(OntologyError):
+    """Raised when an ontology Draft state transition is not allowed."""
+
+
 class UnsafeSQLError(DataAssetAgentsError):
     """Raised when SQL violates the read-only execution policy."""
 

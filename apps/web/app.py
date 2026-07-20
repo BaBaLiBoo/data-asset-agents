@@ -51,9 +51,7 @@ def text_to_sql_page() -> None:
         st.header("查询设置")
         example = st.selectbox("示例问题", EXAMPLES)
         mode = st.radio("检索模式", ["ontology", "rag", "schema"], horizontal=True)
-        sql_asset_enabled = st.toggle(
-            "启用认证 SQLAsset", value=True, disabled=mode != "ontology"
-        )
+        sql_asset_enabled = st.toggle("启用认证 SQLAsset", value=True, disabled=mode != "ontology")
         st.info("schema、rag 与 ontology 使用严格隔离的查询策略。")
     question = st.text_area("自然语言问题", value=example, height=90)
     if not st.button("执行 Text-to-SQL", type="primary", use_container_width=True):
@@ -113,9 +111,7 @@ def text_to_sql_page() -> None:
                 {
                     "selected": data.get("selected_sql_asset"),
                     "selected_template_rank": data.get("selected_template_rank"),
-                    "template_rejection_reasons": data.get(
-                        "template_rejection_reasons", {}
-                    ),
+                    "template_rejection_reasons": data.get("template_rejection_reasons", {}),
                     "rewrite": data.get("sql_rewrite"),
                     "evidence": candidates[0].get("evidence", []),
                 }
@@ -216,9 +212,7 @@ def ontology_builder_page() -> None:
                     st.json(analysis)
     with review_tab:
         candidate_type = st.selectbox("候选类型", ["concept", "mapping", "join"])
-        status_filter = st.selectbox(
-            "审核状态", ["CANDIDATE", "VERIFIED", "REJECTED"]
-        )
+        status_filter = st.selectbox("审核状态", ["CANDIDATE", "VERIFIED", "REJECTED"])
         try:
             candidates = api_request(
                 "GET",
@@ -226,9 +220,7 @@ def ontology_builder_page() -> None:
                 params={
                     "candidate_type": candidate_type,
                     "status_filter": status_filter,
-                    "snapshot_id": (
-                        build["snapshot"]["id"] if build is not None else None
-                    ),
+                    "snapshot_id": (build["snapshot"]["id"] if build is not None else None),
                     "limit": 500,
                 },
             )
@@ -262,12 +254,8 @@ def ontology_builder_page() -> None:
             edits: dict[str, Any] = {}
             if candidate_type == "concept":
                 payload = selected["payload"]
-                edits["business_name"] = st.text_input(
-                    "业务名称", payload["business_name"]
-                )
-                edits["semantic_property"] = st.text_input(
-                    "语义属性", payload["semantic_property"]
-                )
+                edits["business_name"] = st.text_input("业务名称", payload["business_name"])
+                edits["semantic_property"] = st.text_input("语义属性", payload["semantic_property"])
                 synonyms = st.text_input("同义词（逗号分隔）", ",".join(payload["synonyms"]))
                 edits["synonyms"] = [item.strip() for item in synonyms.split(",") if item.strip()]
             verify_col, reject_col = st.columns(2)
@@ -326,13 +314,9 @@ def ontology_builder_page() -> None:
                 st.json(result)
             except RuntimeError as exc:
                 st.error(str(exc))
-        if publish_col.button(
-            "发布正式本体版本", type="primary", use_container_width=True
-        ):
+        if publish_col.button("发布正式本体版本", type="primary", use_container_width=True):
             try:
-                result = api_request(
-                    "POST", "/api/v1/ontology/publish", json=publish_payload
-                )
+                result = api_request("POST", "/api/v1/ontology/publish", json=publish_payload)
                 st.success(f"本体版本 {result['version']} 已发布并切换为在线版本。")
                 st.rerun()
             except RuntimeError as exc:
@@ -405,9 +389,7 @@ def sql_asset_page() -> None:
         selected_result = st.selectbox(
             "查看候选详情",
             results,
-            format_func=lambda item: (
-                f"{item['asset']['question']} · {item['score']['total']:.3f}"
-            ),
+            format_func=lambda item: f"{item['asset']['question']} · {item['score']['total']:.3f}",
         )
         st.write("检索证据：", selected_result["evidence"])
         st.code(selected_result["asset"]["sql_text"], language="sql")
@@ -438,9 +420,7 @@ def sql_asset_page() -> None:
 
 def evaluation_page() -> None:
     st.title("模式对比与评测")
-    st.caption(
-        "Schema / Physical RAG / Ontology without SQLAsset / Ontology full 严格隔离对照"
-    )
+    st.caption("Schema / Physical RAG / Ontology without SQLAsset / Ontology full 严格隔离对照")
     st.warning("SMOKE 结果仅用于工程验证，不能代表真实模型效果。")
     variants = {
         "Schema": ("schema", "schema", False),
@@ -456,9 +436,7 @@ def evaluation_page() -> None:
         st.header("评测设置")
         max_cases = st.number_input("Smoke 案例数", 1, 20, 4)
         concurrency = st.number_input("并发数", 1, 8, 1)
-        selected_variants = st.multiselect(
-            "实验组", list(variants), default=list(variants)
-        )
+        selected_variants = st.multiselect("实验组", list(variants), default=list(variants))
         if st.button("创建四组 Smoke 运行", type="primary", use_container_width=True):
             created: list[str] = []
             try:
@@ -523,21 +501,15 @@ def evaluation_page() -> None:
         format_func=lambda run: f"{run['strategy_variant']} · {run['run_id']}",
     )
     try:
-        cases = api_request(
-            "GET", f"/api/v1/evaluation/runs/{selected_run['run_id']}/cases"
-        )
+        cases = api_request("GET", f"/api/v1/evaluation/runs/{selected_run['run_id']}/cases")
     except RuntimeError as exc:
         st.error(str(exc))
         return
     categories = sorted({item["category"] for item in cases if item.get("category")})
-    difficulties = sorted(
-        {item["difficulty"] for item in cases if item.get("difficulty")}
-    )
+    difficulties = sorted({item["difficulty"] for item in cases if item.get("difficulty")})
     category = st.selectbox("类别过滤", ["全部", *categories])
     difficulty = st.selectbox("难度过滤", ["全部", *difficulties])
-    failure_types = sorted(
-        {item["failure_category"] for item in cases if item["failure_category"]}
-    )
+    failure_types = sorted({item["failure_category"] for item in cases if item["failure_category"]})
     failure_type = st.selectbox("失败类型过滤", ["全部", *failure_types])
     filtered = [
         item
@@ -596,12 +568,312 @@ def evaluation_page() -> None:
     )
 
 
+def ontology_manager_page() -> None:
+    """Object-first editor backed by isolated Draft APIs."""
+
+    st.title("Ontology Manager")
+    st.caption("业务对象、属性、Link 与受控物理绑定；未发布 Draft 不影响在线查询")
+    try:
+        drafts = api_request("GET", "/api/v1/ontology/drafts")
+        graph = api_request("GET", "/api/v1/ontology/object-graph")
+        sources = api_request("GET", "/api/v1/ontology/data-sources")
+        metrics = api_request("GET", "/api/v1/ontology/metrics")
+        table_assets = api_request("GET", "/api/v1/ontology/tables")
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
+
+    with st.sidebar:
+        with st.form("manager_create_draft"):
+            name = st.text_input("Draft 名称", "MiniBank object model")
+            author = st.text_input("创建人", "ontology-manager")
+            if st.form_submit_button("创建空 Draft", use_container_width=True):
+                created = api_request(
+                    "POST",
+                    "/api/v1/ontology/drafts",
+                    json={"name": name, "created_by": author},
+                )
+                st.session_state["manager_draft"] = created["draft"]["id"]
+                st.rerun()
+        if st.button("从审核 YAML 迁移", use_container_width=True):
+            migrated = api_request(
+                "POST",
+                "/api/v1/ontology/drafts/migrate-legacy",
+                json={"draft_name": name, "created_by": author},
+            )
+            st.session_state["manager_draft"] = migrated["draft"]["id"]
+            st.rerun()
+
+    objects = api_request("GET", "/api/v1/ontology/object-types")
+    links = api_request("GET", "/api/v1/ontology/link-types")
+    columns = st.columns(6)
+    columns[0].metric("正式版本", graph.get("version_id") or "YAML fallback")
+    columns[1].metric("Draft", len(drafts))
+    columns[2].metric("对象", len(objects))
+    columns[3].metric("Link", len(links))
+    columns[4].metric("指标", len(metrics))
+    columns[5].metric("数据源", len(sources))
+    if graph.get("nodes"):
+        dot = ["digraph ontology {", "rankdir=LR;"]
+        dot += [f'"{node["id"]}" [label="{node["label"]}"];' for node in graph["nodes"]]
+        dot += [
+            f'"{edge["source"]}" -> "{edge["target"]}" [label="{edge["label"]}"];'
+            for edge in graph["edges"]
+        ]
+        st.graphviz_chart("\n".join([*dot, "}"]), use_container_width=True)
+    else:
+        st.info("尚未发布对象模型，可先迁移审核 YAML 创建首个 Draft。")
+
+    if sources:
+        source_col, inspect_col = st.columns([4, 1])
+        source_col.dataframe(
+            [
+                {key: item[key] for key in ("id", "name", "provider", "connection_ref", "enabled")}
+                for item in sources
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+        if inspect_col.button("检查数据源"):
+            health = api_request(
+                "POST", f"/api/v1/ontology/data-sources/{sources[0]['id']}/inspect"
+            )
+            inspect_col.success(
+                f"{'健康' if health['healthy'] else '异常'} · {health['table_count']} tables"
+            )
+    if not drafts:
+        return
+
+    labels = {f"{item['name']} · {item['status']}": item["id"] for item in drafts}
+    selected = st.selectbox("当前 Draft", list(labels))
+    draft_id = labels[selected]
+    detail = api_request("GET", f"/api/v1/ontology/drafts/{draft_id}")
+    draft, resources = detail["draft"], detail["resources"]
+    st.info(
+        f"状态 {draft['status']} · 基线 {draft.get('base_version_id') or 'YAML'} · "
+        f"Snapshot {draft.get('source_snapshot_id') or 'legacy seed'}"
+    )
+    tabs = st.tabs(["对象类型", "属性", "业务关系", "数据源映射", "校验与发布"])
+    with tabs[0]:
+        st.dataframe(
+            [
+                {
+                    "id": item["id"],
+                    "name": item["name"],
+                    "primary_key": item["primary_key_property_id"],
+                    "title": item["title_property_id"],
+                    "property_count": len(item["property_ids"]),
+                    "status": item["lifecycle_status"],
+                }
+                for item in resources["object_types"]
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+        with st.form("manager_object_form"):
+            object_id = st.text_input("对象 ID", "customer")
+            object_name = st.text_input("名称", "客户")
+            description = st.text_area("对象边界描述", "虚构 MiniBank 业务对象")
+            lifecycle = st.selectbox("生命周期", ["DRAFT", "ACTIVE", "DEPRECATED"])
+            if st.form_submit_button("保存对象"):
+                api_request(
+                    "POST",
+                    f"/api/v1/ontology/drafts/{draft_id}/object-types",
+                    json={
+                        "id": object_id,
+                        "name": object_name,
+                        "plural_name": f"{object_name}集合",
+                        "description": description,
+                        "lifecycle_status": lifecycle,
+                    },
+                )
+                st.rerun()
+    with tabs[1]:
+        st.dataframe(resources["properties"], use_container_width=True, hide_index=True)
+        object_ids = [item["id"] for item in resources["object_types"]]
+        if object_ids:
+            with st.form("manager_property_form"):
+                owner = st.selectbox("所属对象", object_ids)
+                suffix = st.text_input("属性 ID", "new_property")
+                property_name = st.text_input("属性名称", "新属性")
+                data_type = st.selectbox(
+                    "类型", ["STRING", "INTEGER", "DECIMAL", "BOOLEAN", "DATE", "DATETIME"]
+                )
+                role = st.selectbox(
+                    "语义角色",
+                    ["IDENTIFIER", "ATTRIBUTE", "STATUS", "MEASURE", "DIMENSION", "TIME"],
+                )
+                flag_cols = st.columns(3)
+                filterable = flag_cols[0].checkbox("可筛选", True)
+                groupable = flag_cols[1].checkbox("可分组")
+                sensitive = flag_cols[2].checkbox("敏感")
+                if st.form_submit_button("保存属性"):
+                    api_request(
+                        "POST",
+                        f"/api/v1/ontology/drafts/{draft_id}/properties",
+                        json={
+                            "id": f"{owner}.{suffix}",
+                            "object_type_id": owner,
+                            "name": property_name,
+                            "data_type": data_type,
+                            "semantic_role": role,
+                            "filterable": filterable,
+                            "groupable": groupable,
+                            "sensitive": sensitive,
+                        },
+                    )
+                    st.rerun()
+    with tabs[2]:
+        joins = {item["id"]: item for item in resources["physical_joins"]}
+        st.dataframe(
+            [
+                {
+                    "business_link": item["id"],
+                    "source": item["source_object_type_id"],
+                    "target": item["target_object_type_id"],
+                    "cardinality": item["cardinality"],
+                    "physical_join": ", ".join(item["physical_join_ids"]),
+                    "expression": ", ".join(
+                        joins[join_id]["left_table"]
+                        + "."
+                        + joins[join_id]["left_column"]
+                        + " = "
+                        + joins[join_id]["right_table"]
+                        + "."
+                        + joins[join_id]["right_column"]
+                        for join_id in item["physical_join_ids"]
+                        if join_id in joins
+                    ),
+                }
+                for item in resources["link_types"]
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.caption("业务 Link 表达对象关系；Physical Join 仅描述审核过的字段连接。")
+        object_ids = [item["id"] for item in resources["object_types"]]
+        join_ids = list(joins)
+        if len(object_ids) > 1 and join_ids:
+            with st.form("manager_link_form"):
+                link_id = st.text_input("Link ID", "transaction_belongs_to_branch")
+                link_name = st.text_input("业务关系名称", "交易归属分行")
+                source = st.selectbox("源对象", object_ids)
+                target = st.selectbox("目标对象", object_ids, index=1)
+                cardinality = st.selectbox(
+                    "基数",
+                    ["ONE_TO_ONE", "ONE_TO_MANY", "MANY_TO_ONE", "MANY_TO_MANY"],
+                )
+                physical_join = st.selectbox("审核 Physical Join", join_ids)
+                if st.form_submit_button("保存业务 Link"):
+                    api_request(
+                        "POST",
+                        f"/api/v1/ontology/drafts/{draft_id}/link-types",
+                        json={
+                            "id": link_id,
+                            "name": link_name,
+                            "source_object_type_id": source,
+                            "target_object_type_id": target,
+                            "source_role_name": target,
+                            "target_role_name": f"{source}s",
+                            "cardinality": cardinality,
+                            "physical_join_ids": [physical_join],
+                        },
+                    )
+                    st.rerun()
+    with tabs[3]:
+        for binding in resources["bindings"]:
+            st.markdown(
+                f"**{binding['object_type_id']} → "
+                f"{binding['schema_name']}.{binding['table_name']}**"
+            )
+            st.dataframe(
+                [
+                    {"property": prop, "column": column}
+                    for prop, column in binding["property_bindings"].items()
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+            st.caption(f"schema_hash {binding['schema_hash'][:16]}… · {binding['sync_status']}")
+        active_tables = [
+            item for item in table_assets if item["status"] == "ACTIVE" and item["selectable"]
+        ]
+        object_ids = [item["id"] for item in resources["object_types"]]
+        if object_ids and active_tables:
+            with st.form("manager_binding_form"):
+                bound_object = st.selectbox("绑定对象", object_ids)
+                selected_table = st.selectbox("物理表", [item["name"] for item in active_tables])
+                asset = next(item for item in active_tables if item["name"] == selected_table)
+                primary_key = st.selectbox("主键字段", asset["columns"])
+                owned_properties = [
+                    item["id"]
+                    for item in resources["properties"]
+                    if item["object_type_id"] == bound_object
+                ]
+                property_id = st.selectbox("属性", owned_properties or [f"{bound_object}.unmapped"])
+                column_name = st.selectbox("字段", asset["columns"])
+                if st.form_submit_button("保存单属性绑定"):
+                    api_request(
+                        "POST",
+                        f"/api/v1/ontology/drafts/{draft_id}/bindings",
+                        json={
+                            "id": f"{bound_object}_primary_binding",
+                            "object_type_id": bound_object,
+                            "data_source_id": "minibank-postgres",
+                            "schema_name": "public",
+                            "table_name": selected_table,
+                            "primary_key_column": primary_key,
+                            "property_bindings": {property_id: column_name},
+                            "schema_hash": "pending-validation",
+                        },
+                    )
+                    st.rerun()
+    with tabs[4]:
+        actions = st.columns(4)
+        action_specs = [
+            ("运行校验", "validate", None),
+            ("提交审核", "submit", {"actor": "ontology-author"}),
+            ("审核通过", "approve", {"actor": "ontology-reviewer"}),
+        ]
+        for column, (label, operation, payload) in zip(actions, action_specs, strict=False):
+            if column.button(label):
+                api_request(
+                    "POST",
+                    f"/api/v1/ontology/drafts/{draft_id}/{operation}",
+                    json=payload,
+                )
+                st.rerun()
+        report = draft.get("validation_report")
+        if report:
+            st.success("Dry Run 通过") if report["valid"] else st.error("存在阻断错误")
+            st.dataframe(report["issues"], use_container_width=True, hide_index=True)
+        with st.form("manager_publish_form"):
+            version = st.text_input("新版本号", "object-1.0")
+            if st.form_submit_button("原子发布并刷新在线查询", type="primary"):
+                result = api_request(
+                    "POST",
+                    f"/api/v1/ontology/drafts/{draft_id}/publish",
+                    json={"actor": "ontology-reviewer", "version": version},
+                    timeout=180,
+                )
+                st.success(f"已发布 {result['version']}")
+                st.rerun()
+
+
 page = st.sidebar.radio(
     "工作台",
-    ["Text-to-SQL", "模式对比与评测", "认证 SQL 资产", "本体构建与审核"],
+    [
+        "Text-to-SQL",
+        "Ontology Manager",
+        "模式对比与评测",
+        "认证 SQL 资产",
+        "本体构建与审核",
+    ],
 )
 if page == "Text-to-SQL":
     text_to_sql_page()
+elif page == "Ontology Manager":
+    ontology_manager_page()
 elif page == "模式对比与评测":
     evaluation_page()
 elif page == "认证 SQL 资产":

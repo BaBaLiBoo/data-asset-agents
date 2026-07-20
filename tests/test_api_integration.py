@@ -81,9 +81,7 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         assert complex_query.status_code == 200, complex_query.text
         complex_result = complex_query.json()
         assert complex_result["status"] == "success"
-        assert complex_result["selected_sql_asset"]["id"] == (
-            "sqlasset-branch-credit-window"
-        )
+        assert complex_result["selected_sql_asset"]["id"] == ("sqlasset-branch-credit-window")
         assert complex_result["selected_template_rank"] is not None
         assert complex_result["sql_rewrite"]["used_template"]
         assert "WITH branch_totals" in complex_result["generated_sql"]
@@ -91,6 +89,74 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         assert complex_result["validation_report"]["valid"]
         assert complex_result["validation_report"]["explain_passed"]
         assert complex_result["execution_result"]["row_count"] > 0
+
+        migrated_draft = client.post(
+            "/api/v1/ontology/drafts/migrate-legacy",
+            json={
+                "draft_name": "API object manager migration",
+                "created_by": "api-test",
+            },
+        )
+        assert migrated_draft.status_code == 200, migrated_draft.text
+        draft = migrated_draft.json()
+        draft_id = draft["draft"]["id"]
+        transaction = next(
+            item for item in draft["resources"]["object_types"] if item["id"] == "transaction"
+        )
+        assert "transaction.amount" in transaction["property_ids"]
+        binding = next(
+            item
+            for item in draft["resources"]["bindings"]
+            if item["object_type_id"] == "transaction"
+        )
+        assert binding["table_name"] == "dwd_card_transaction"
+        assert binding["property_bindings"]["transaction.amount"] == "txn_amount_cny"
+        assert any(
+            item["id"] == "transaction_belongs_to_branch"
+            for item in draft["resources"]["link_types"]
+        )
+        validated_draft = client.post(f"/api/v1/ontology/drafts/{draft_id}/validate")
+        assert validated_draft.status_code == 200, validated_draft.text
+        assert validated_draft.json()["draft"]["validation_report"]["valid"]
+        submitted_draft = client.post(
+            f"/api/v1/ontology/drafts/{draft_id}/submit",
+            json={"actor": "api-author"},
+        )
+        assert submitted_draft.status_code == 200
+        forbidden_edit = client.put(
+            f"/api/v1/ontology/drafts/{draft_id}/object-types/transaction",
+            json=transaction,
+        )
+        assert forbidden_edit.status_code == 409
+        approved_draft = client.post(
+            f"/api/v1/ontology/drafts/{draft_id}/approve",
+            json={"actor": "api-reviewer"},
+        )
+        assert approved_draft.status_code == 200, approved_draft.text
+        published_objects = client.post(
+            f"/api/v1/ontology/drafts/{draft_id}/publish",
+            json={"actor": "api-reviewer", "version": "api-object-0.1"},
+        )
+        assert published_objects.status_code == 200, published_objects.text
+        object_graph = client.get("/api/v1/ontology/object-graph")
+        assert object_graph.status_code == 200
+        assert len(object_graph.json()["nodes"]) == 6
+        assert any(
+            item["id"] == "transaction_belongs_to_branch" for item in object_graph.json()["edges"]
+        )
+        published_transaction = client.get("/api/v1/ontology/object-types/transaction")
+        assert published_transaction.status_code == 200
+        assert "transaction.amount" in published_transaction.json()["property_ids"]
+
+        object_query = client.post(
+            "/api/v1/query",
+            json={
+                "question": "查询近30天各分行信用卡交易金额和交易笔数。",
+                "query_mode": "ontology",
+            },
+        )
+        assert object_query.status_code == 200, object_query.text
+        assert object_query.json()["execution_result"]["row_count"] > 0
 
         unsupported = client.post(
             "/api/v1/query",
@@ -225,9 +291,7 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
             },
         ).json()
         mapping = next(
-            item
-            for item in mappings
-            if item["payload"]["candidate_concept_id"] == concept["id"]
+            item for item in mappings if item["payload"]["candidate_concept_id"] == concept["id"]
         )
         verified_mapping = client.post(
             f"/api/v1/ontology/candidates/{mapping['id']}/verify",
@@ -235,11 +299,7 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         )
         assert verified_mapping.status_code == 200
 
-        rejected_concept = next(
-            item
-            for item in candidates.json()
-            if item["id"] != concept["id"]
-        )
+        rejected_concept = next(item for item in candidates.json() if item["id"] != concept["id"])
         rejected = client.post(
             f"/api/v1/ontology/candidates/{rejected_concept['id']}/reject",
             json={"reviewer": "api-test", "note": "not accepted", "edits": {}},
@@ -277,9 +337,7 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
             json={"query": "消费金额", "limit": 5},
         )
         assert hybrid.status_code == 200
-        credit_metric = next(
-            item for item in hybrid.json() if item["name"] == "信用卡交易金额"
-        )
+        credit_metric = next(item for item in hybrid.json() if item["name"] == "信用卡交易金额")
         assert credit_metric["synonym_score"] == 1
         assert credit_metric["evidence"]
 
@@ -292,9 +350,7 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         assert second.status_code == 200, second.text
         assert second.json()["is_current"]
 
-        activated = client.post(
-            "/api/v1/ontology/versions/api-test-0.2/activate"
-        )
+        activated = client.post("/api/v1/ontology/versions/api-test-0.2/activate")
         assert activated.status_code == 200, activated.text
         assert activated.json()["version"] == "api-test-0.2"
         assert activated.json()["is_current"]
