@@ -87,9 +87,7 @@ def adapt_physical_joins(joins: Iterable[JoinDefinition]) -> list[PhysicalJoinDe
 def _role_and_type(role: str, column: str) -> tuple[SemanticRole, PropertyDataType]:
     lowered = role.lower()
     if lowered.endswith("_id") or column.lower().endswith("_id"):
-        return SemanticRole.IDENTIFIER if role == column.split(".")[
-            -1
-        ] else SemanticRole.ATTRIBUTE, PropertyDataType.STRING
+        return SemanticRole.ATTRIBUTE, PropertyDataType.INTEGER
     if lowered in {"amount", "txn_amount_cny"} or "amount" in column.lower():
         return SemanticRole.MEASURE, PropertyDataType.DECIMAL
     if lowered == "status" or "status" in column.lower():

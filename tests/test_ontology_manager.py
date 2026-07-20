@@ -84,6 +84,12 @@ def test_object_first_migration_is_stable_and_complete(bundle) -> None:
     }
     transaction = next(item for item in first.bindings if item.object_type_id == "transaction")
     assert transaction.property_bindings["transaction.amount"] == "txn_amount_cny"
+    transaction_id = next(
+        item for item in first.properties if item.id == "transaction.transaction_id"
+    )
+    assert transaction_id.data_type == PropertyDataType.INTEGER
+    branch_id = next(item for item in first.properties if item.id == "transaction.branch_id")
+    assert branch_id.semantic_role == SemanticRole.ATTRIBUTE
 
 
 def test_mock_object_first_candidates_are_stable(bundle) -> None:
