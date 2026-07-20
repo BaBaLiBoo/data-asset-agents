@@ -408,5 +408,5 @@ python -m data_asset_agents.ontology.manager.cli migrate-legacy --dry-run `
 - 已实现版本激活、回滚和可复现评测；尚未实现细粒度权限、多人审批、版本签名和分布式评测队列。
 - 本轮已实现 schema/rag/ontology 四组严格隔离对照；尚不实现多事实表 SQL、历史 SQL 自由 AST 合成、复杂 LLM SQL 修复、OWL/RDF/SPARQL/Neo4j 或其他 Agent。
 - Ontology Manager 当前只连接应用已经配置的 PostgreSQL Engine；`connection_ref` 仅保存环境变量名，不支持 API 任意新增主机。
-- `account.status` 与 `card.status` 已作为对象属性骨架保留为 DRAFT，但当前虚构物理表没有对应字段，因此不会伪造绑定或进入正式物理投影。
+- `account.status` 与 `card.status` 已作为对象属性保留，但当前虚构物理表没有对应字段，因此不会伪造物理绑定或进入兼容物理投影。
 - 本轮未实现 ActionType、写回 Function、SharedProperty、Interface、行列权限、Automate、多数据库动态接入或完整 Ontology IndexBuild。

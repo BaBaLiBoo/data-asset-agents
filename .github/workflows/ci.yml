@@ -48,10 +48,17 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - run: ruff check .
       - run: pytest
-      - name: Validate benchmark Gold SQL and result hashes
-        run: |
-          python -m data_asset_agents.evaluation.cli validate-benchmark
-          python scripts/materialize_benchmark_hashes.py --check
+      - name: Validate benchmark Gold SQL
+        run: python -m data_asset_agents.evaluation.cli validate-benchmark 2>&1 | tee benchmark.log
+      - name: Validate benchmark result hashes
+        run: python scripts/materialize_benchmark_hashes.py --check 2>&1 | tee -a benchmark.log
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics
+          path: benchmark.log
+          if-no-files-found: ignore
 
   compose-acceptance:
     runs-on: ubuntu-latest
@@ -59,4 +66,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run Docker Compose acceptance
         shell: pwsh
-        run: ./scripts/acceptance.ps1 -TimeoutSeconds 180
+        run: |
+          & ./scripts/acceptance.ps1 -TimeoutSeconds 180 *>&1 |
+            Tee-Object -FilePath acceptance.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload Compose diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-diagnostics
+          path: acceptance.log
+          if-no-files-found: ignore

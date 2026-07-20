@@ -173,7 +173,7 @@ class LegacyOntologyObjectMigrator:
                         description="Business property awaiting a reviewed physical binding",
                         data_type=PropertyDataType.STRING,
                         semantic_role=SemanticRole.STATUS,
-                        lifecycle_status=LifecycleStatus.DRAFT,
+                        lifecycle_status=LifecycleStatus.ACTIVE,
                     )
                 )
                 property_ids.append(property_id)
