@@ -205,7 +205,7 @@ try {
         -TimeoutSec 120 | Out-Null
     $incrementalPublishBody = @{
         actor = "acceptance-reviewer"
-        version = "$objectVersion-followup"
+        version = "acceptance-followup-$([Guid]::NewGuid().ToString('N').Substring(0, 12))"
         description = "Acceptance non-breaking follow-up"
     } | ConvertTo-Json
     Invoke-RestMethod `
