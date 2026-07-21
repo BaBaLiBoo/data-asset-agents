@@ -90,15 +90,33 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         assert complex_result["validation_report"]["explain_passed"]
         assert complex_result["execution_result"]["row_count"] > 0
 
-        migrated_draft = client.post(
-            "/api/v1/ontology/drafts/migrate-legacy",
+        evidence_build = client.post("/api/v1/ontology/build", json={})
+        assert evidence_build.status_code == 200, evidence_build.text
+        build_payload = evidence_build.json()
+        snapshot_id = build_payload["snapshot"]["id"]
+        review_candidate = next(
+            item
+            for item in build_payload["concepts"]
+            if item["table_name"] == "dwd_card_transaction"
+            and item["column_name"] == "posted_amount"
+        )
+        verified = client.post(
+            f"/api/v1/ontology/candidates/{review_candidate['id']}/verify",
+            json={"reviewer": "api-reviewer", "note": "reviewed fixture evidence"},
+        )
+        assert verified.status_code == 200, verified.text
+        assert verified.json()["status"] == "VERIFIED"
+        seeded_draft = client.post(
+            "/api/v1/ontology/drafts/from-seed",
             json={
-                "draft_name": "API object manager migration",
+                "draft_name": "API direct object seed",
                 "created_by": "api-test",
+                "seed_name": "retail_banking",
+                "source_snapshot_id": snapshot_id,
             },
         )
-        assert migrated_draft.status_code == 200, migrated_draft.text
-        draft = migrated_draft.json()
+        assert seeded_draft.status_code == 200, seeded_draft.text
+        draft = seeded_draft.json()
         draft_id = draft["draft"]["id"]
         transaction = next(
             item for item in draft["resources"]["object_types"] if item["id"] == "transaction"
@@ -115,6 +133,40 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
             item["id"] == "transaction_belongs_to_branch"
             for item in draft["resources"]["link_types"]
         )
+        candidates_response = client.post(
+            f"/api/v1/ontology/drafts/{draft_id}/candidates/generate"
+        )
+        assert candidates_response.status_code == 200, candidates_response.text
+        candidates = candidates_response.json()
+        assert candidates["excluded_tables"]["legacy_card_transaction"] == "DEPRECATED"
+        assert candidates["excluded_tables"]["tmp_transaction_result"] == "TECHNICAL"
+        transaction_properties = [
+            item
+            for item in candidates["properties"]
+            if item["property"]["object_type_id"] == "transaction"
+            and item["property"]["id"] != "transaction.posted_amount"
+        ]
+        transaction_binding = next(
+            item
+            for item in candidates["bindings"]
+            if item["binding"]["object_type_id"] == "transaction"
+        )
+        assert transaction_properties
+        assert transaction_properties[0]["evidence"]
+        imported = client.post(
+            f"/api/v1/ontology/drafts/{draft_id}/import-candidates",
+            json={
+                "candidate_ids": [
+                    verified.json()["id"],
+                    *[item["candidate_id"] for item in transaction_properties],
+                    transaction_binding["candidate_id"],
+                ],
+                "actor": "api-reviewer",
+            },
+        )
+        assert imported.status_code == 200, imported.text
+        draft = imported.json()
+        assert draft["draft"]["status"] == "DRAFT"
         draft_diff = client.get(f"/api/v1/ontology/drafts/{draft_id}/diff")
         assert draft_diff.status_code == 200, draft_diff.text
         assert draft_diff.json()["added_objects"]

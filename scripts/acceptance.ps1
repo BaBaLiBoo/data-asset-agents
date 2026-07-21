@@ -68,14 +68,49 @@ try {
         throw "Streamlit did not become healthy within $TimeoutSeconds seconds"
     }
 
-    Write-Host "[5/15] Migrating and validating the object model Draft..."
+    Write-Host "[5/15] Building evidence and validating a direct object-seed Draft..."
+    $build = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/ontology/build" `
+        -ContentType "application/json; charset=utf-8" `
+        -Body "{}" `
+        -TimeoutSec 120
+    if ([string]::IsNullOrWhiteSpace($build.snapshot.id) -or
+        $build.snapshot.tables.Count -le 0) {
+        throw "Metadata evidence build did not return a usable snapshot"
+    }
+    $reviewCandidate = $build.concepts |
+        Where-Object {
+            $_.table_name -eq "dwd_card_transaction" -and
+            $_.column_name -eq "posted_amount"
+        } |
+        Select-Object -First 1
+    if ($null -eq $reviewCandidate) {
+        throw "Metadata build did not produce the expected fictional review candidate"
+    }
+    $reviewBody = @{
+        reviewer = "acceptance-reviewer"
+        note = "Reviewed masked metadata and historical SQL evidence"
+    } | ConvertTo-Json
+    $verifiedCandidate = Invoke-RestMethod `
+        -Method Post `
+        -Uri ("http://localhost:8000/api/v1/ontology/candidates/" +
+              $reviewCandidate.id + "/verify") `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $reviewBody `
+        -TimeoutSec 30
+    if ($verifiedCandidate.status -ne "VERIFIED") {
+        throw "Human review did not transition the candidate to VERIFIED"
+    }
     $draftBody = @{
-        draft_name = "Acceptance object migration"
+        draft_name = "Acceptance direct object seed"
         created_by = "acceptance"
+        seed_name = "retail_banking"
+        source_snapshot_id = $build.snapshot.id
     } | ConvertTo-Json
     $draft = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/migrate-legacy" `
+        -Uri "http://localhost:8000/api/v1/ontology/drafts/from-seed" `
         -ContentType "application/json; charset=utf-8" `
         -Body $draftBody `
         -TimeoutSec 30
@@ -93,7 +128,56 @@ try {
         $binding.table_name -ne "dwd_card_transaction" -or
         $binding.property_bindings."transaction.amount" -ne "txn_amount_cny" -or
         $null -eq $branchLink) {
-        throw "Legacy object migration did not produce the governed Transaction model"
+        throw "Direct object seed did not produce the governed Transaction model"
+    }
+
+    $candidates = Invoke-RestMethod `
+        -Method Post `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $draft.draft.id + "/candidates/generate") `
+        -TimeoutSec 120
+    $requiredExclusions = @(
+        "dws_branch_transaction_day",
+        "legacy_card_transaction",
+        "tmp_transaction_result",
+        "test_transaction_copy"
+    )
+    foreach ($excludedTable in $requiredExclusions) {
+        if ($null -eq $candidates.excluded_tables.$excludedTable) {
+            throw "Object candidate generation did not exclude $excludedTable"
+        }
+    }
+    $transactionProperties = @(
+        $candidates.properties |
+            Where-Object {
+                $_.property.object_type_id -eq "transaction" -and
+                $_.property.id -ne "transaction.posted_amount"
+            }
+    )
+    $transactionBinding = $candidates.bindings |
+        Where-Object { $_.binding.object_type_id -eq "transaction" } |
+        Select-Object -First 1
+    if ($transactionProperties.Count -le 0 -or
+        $null -eq $transactionBinding -or
+        $transactionProperties[0].evidence.Count -le 0) {
+        throw "Metadata/profile/SQL evidence did not produce reviewable candidates"
+    }
+    $candidateIds = @($verifiedCandidate.id) +
+        @($transactionProperties.candidate_id) +
+        @($transactionBinding.candidate_id)
+    $importBody = @{
+        candidate_ids = $candidateIds
+        actor = "acceptance-reviewer"
+    } | ConvertTo-Json -Depth 10
+    $draft = Invoke-RestMethod `
+        -Method Post `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $draft.draft.id + "/import-candidates") `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $importBody `
+        -TimeoutSec 120
+    if ($draft.draft.status -ne "DRAFT") {
+        throw "Candidate review unexpectedly changed Draft publication state"
     }
     $draftDiff = Invoke-RestMethod `
         -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/diff" `
@@ -103,7 +187,7 @@ try {
         -TimeoutSec 30
     if ($draftDiff.added_objects.Count -le 0 -or
         -not $draftImpact.rebuild_concept_index) {
-        throw "Draft Diff and impact analysis did not identify the migrated resources"
+        throw "Draft Diff and impact analysis did not identify the direct resources"
     }
     $validated = Invoke-RestMethod `
         -Method Post `

@@ -589,22 +589,65 @@ def ontology_manager_page() -> None:
         with st.form("manager_create_draft"):
             name = st.text_input("Draft 名称", "MiniBank object model")
             author = st.text_input("创建人", "ontology-manager")
+            snapshot_id = st.text_input(
+                "Metadata Snapshot ID（候选生成需要）",
+                placeholder="先在本体构建页执行一次元数据抽取",
+            )
             if st.form_submit_button("创建空 Draft", use_container_width=True):
                 created = api_request(
                     "POST",
                     "/api/v1/ontology/drafts",
-                    json={"name": name, "created_by": author},
+                    json={
+                        "name": name,
+                        "created_by": author,
+                        "source_snapshot_id": snapshot_id or None,
+                    },
                 )
                 st.session_state["manager_draft"] = created["draft"]["id"]
                 st.rerun()
-        if st.button("从审核 YAML 迁移", use_container_width=True):
-            migrated = api_request(
+        if st.button("从对象种子创建 Draft", type="primary", use_container_width=True):
+            seeded = api_request(
                 "POST",
-                "/api/v1/ontology/drafts/migrate-legacy",
-                json={"draft_name": name, "created_by": author},
+                "/api/v1/ontology/drafts/from-seed",
+                json={
+                    "draft_name": name,
+                    "created_by": author,
+                    "seed_name": "retail_banking",
+                    "source_snapshot_id": snapshot_id or None,
+                },
             )
-            st.session_state["manager_draft"] = migrated["draft"]["id"]
+            st.session_state["manager_draft"] = seeded["draft"]["id"]
             st.rerun()
+        published_version_id = graph.get("version_id")
+        if published_version_id and st.button(
+            "复制当前发布版本", use_container_width=True
+        ):
+            copied = api_request(
+                "POST",
+                "/api/v1/ontology/drafts",
+                json={
+                    "name": name,
+                    "created_by": author,
+                    "base_version_id": published_version_id,
+                    "source_snapshot_id": snapshot_id or None,
+                },
+            )
+            st.session_state["manager_draft"] = copied["draft"]["id"]
+            st.rerun()
+        with st.expander("兼容工具：迁移旧 YAML"):
+            st.caption("仅用于旧版本迁移和回归，不是新 Draft 的默认入口。")
+            if st.button("运行 Legacy YAML 迁移", use_container_width=True):
+                migrated = api_request(
+                    "POST",
+                    "/api/v1/ontology/drafts/migrate-legacy",
+                    json={
+                        "draft_name": f"{name} legacy migration",
+                        "created_by": author,
+                        "source_snapshot_id": snapshot_id or None,
+                    },
+                )
+                st.session_state["manager_draft"] = migrated["draft"]["id"]
+                st.rerun()
 
     objects = api_request("GET", "/api/v1/ontology/object-types")
     links = api_request("GET", "/api/v1/ontology/link-types")
@@ -630,7 +673,7 @@ def ontology_manager_page() -> None:
         ]
         st.graphviz_chart("\n".join([*dot, "}"]), use_container_width=True)
     else:
-        st.info("尚未发布对象模型，可先迁移审核 YAML 创建首个 Draft。")
+        st.info("尚未发布对象模型。请从对象种子创建 Draft，或从空白 Draft 开始建模。")
 
     if sources:
         source_col, inspect_col = st.columns([4, 1])
@@ -658,18 +701,37 @@ def ontology_manager_page() -> None:
     detail = api_request("GET", f"/api/v1/ontology/drafts/{draft_id}")
     draft, resources = detail["draft"], detail["resources"]
     st.info(
-        f"状态 {draft['status']} · 基线 {draft.get('base_version_id') or 'YAML'} · "
-        f"Snapshot {draft.get('source_snapshot_id') or 'legacy seed'}"
+        f"状态 {draft['status']} · 基线 {draft.get('base_version_id') or 'direct seed'} · "
+        f"Snapshot {draft.get('source_snapshot_id') or 'not attached'}"
     )
+    bound_property_ids = {
+        property_id
+        for binding in resources["bindings"]
+        for property_id in binding["property_bindings"]
+    }
+    total_properties = len(resources["properties"])
+    coverage = len(bound_property_ids) / total_properties if total_properties else 0.0
+    primary_properties = {
+        item["primary_key_property_id"]
+        for item in resources["object_types"]
+        if item.get("primary_key_property_id")
+    }
+    primary_binding_ok = bool(primary_properties) and primary_properties <= bound_property_ids
+    coverage_columns = st.columns(4)
+    coverage_columns[0].metric("属性", total_properties)
+    coverage_columns[1].metric("已绑定属性", len(bound_property_ids))
+    coverage_columns[2].metric("绑定覆盖率", f"{coverage:.0%}")
+    coverage_columns[3].metric("主键绑定", "完整" if primary_binding_ok else "待补充")
     tabs = st.tabs(
         [
             "对象类型",
             "属性",
-            "业务关系",
             "数据源映射",
+            "业务关系",
+            "Physical Join",
+            "元数据候选",
             "校验与发布",
             "Draft Diff",
-            "Physical Join",
             "Drift / Index",
             "Object Explorer",
         ]
@@ -743,7 +805,7 @@ def ontology_manager_page() -> None:
                         },
                     )
                     st.rerun()
-    with tabs[2]:
+    with tabs[3]:
         joins = {item["id"]: item for item in resources["physical_joins"]}
         st.dataframe(
             [
@@ -800,7 +862,7 @@ def ontology_manager_page() -> None:
                         },
                     )
                     st.rerun()
-    with tabs[3]:
+    with tabs[2]:
         for binding in resources["bindings"]:
             st.markdown(
                 f"**{binding['object_type_id']} → "
@@ -848,7 +910,84 @@ def ontology_manager_page() -> None:
                         },
                     )
                     st.rerun()
-    with tabs[4]:
+    with tabs[5]:
+        st.caption(
+            "候选来自 Draft 固定的 Metadata Snapshot、字段画像与历史 SQL 证据；"
+            "生成和导入都不会自动发布。"
+        )
+        candidate_key = f"object_candidates_{draft_id}"
+        if st.button("生成候选", use_container_width=True):
+            try:
+                st.session_state[candidate_key] = api_request(
+                    "POST",
+                    f"/api/v1/ontology/drafts/{draft_id}/candidates/generate",
+                    timeout=120,
+                )
+            except RuntimeError as exc:
+                st.error(str(exc))
+        candidates = st.session_state.get(candidate_key)
+        if not draft.get("source_snapshot_id"):
+            st.warning("该 Draft 未绑定 Metadata Snapshot，无法生成元数据候选。")
+        if candidates:
+            st.markdown(f"#### Snapshot `{candidates['snapshot_id']}`")
+            excluded = [
+                {"table": table, "reason": reason}
+                for table, reason in candidates["excluded_tables"].items()
+            ]
+            if excluded:
+                st.markdown("##### 被治理策略排除的表")
+                st.dataframe(excluded, use_container_width=True, hide_index=True)
+
+            candidate_rows = []
+            candidate_labels = {}
+            candidate_groups = (
+                ("ObjectType", "object_types", "object_type"),
+                ("Property", "properties", "property"),
+                ("Binding", "bindings", "binding"),
+                ("LinkType", "link_types", "link_type"),
+                ("PhysicalJoin", "physical_joins", "physical_join"),
+            )
+            for kind, group_name, payload_name in candidate_groups:
+                for item in candidates[group_name]:
+                    payload = item[payload_name]
+                    resource_id = payload["id"]
+                    evidence = "; ".join(
+                        f"{entry['source']}: {entry['detail']}"
+                        for entry in item["evidence"]
+                    )
+                    candidate_rows.append(
+                        {
+                            "candidate_id": item["candidate_id"],
+                            "type": kind,
+                            "resource_id": resource_id,
+                            "confidence": item["confidence"],
+                            "evidence": evidence,
+                        }
+                    )
+                    candidate_labels[
+                        f"{kind} · {resource_id} · {item['confidence']:.2f}"
+                    ] = item["candidate_id"]
+            st.dataframe(candidate_rows, use_container_width=True, hide_index=True)
+            selected_candidates = st.multiselect(
+                "选择要导入 Draft 的候选",
+                options=list(candidate_labels),
+                key=f"selected_candidates_{draft_id}",
+            )
+            if st.button("导入所选候选", disabled=not selected_candidates):
+                api_request(
+                    "POST",
+                    f"/api/v1/ontology/drafts/{draft_id}/import-candidates",
+                    json={
+                        "candidate_ids": [
+                            candidate_labels[label] for label in selected_candidates
+                        ],
+                        "actor": author,
+                    },
+                    timeout=120,
+                )
+                st.session_state.pop(candidate_key, None)
+                st.rerun()
+    with tabs[6]:
         actions = st.columns(4)
         action_specs = [
             ("运行校验", "validate", None),
@@ -885,7 +1024,7 @@ def ontology_manager_page() -> None:
                 )
                 st.success(f"已发布 {result['version']}")
                 st.rerun()
-    with tabs[5]:
+    with tabs[7]:
         diff = api_request("GET", f"/api/v1/ontology/drafts/{draft_id}/diff")
         impact = api_request("GET", f"/api/v1/ontology/drafts/{draft_id}/impact")
         st.markdown("#### 变更集合")
@@ -900,7 +1039,7 @@ def ontology_manager_page() -> None:
             st.error("存在 Breaking Change，发布时必须确认并填写变更工单。")
         st.markdown("#### 影响分析")
         st.json(impact)
-    with tabs[6]:
+    with tabs[4]:
         st.dataframe(
             resources["physical_joins"], use_container_width=True, hide_index=True
         )
@@ -932,7 +1071,7 @@ def ontology_manager_page() -> None:
                     },
                 )
                 st.rerun()
-    with tabs[7]:
+    with tabs[8]:
         sync_col, index_col = st.columns(2)
         if sync_col.button("运行 Metadata Sync", use_container_width=True):
             sync_col.json(
@@ -951,7 +1090,7 @@ def ontology_manager_page() -> None:
         st.dataframe(drift_reports, use_container_width=True, hide_index=True)
         st.markdown("#### 版本化索引构建")
         st.dataframe(index_builds, use_container_width=True, hide_index=True)
-    with tabs[8]:
+    with tabs[9]:
         published_object_ids = [item["id"] for item in objects]
         if not published_object_ids:
             st.info("发布对象模型后可使用只读 Object Explorer。")

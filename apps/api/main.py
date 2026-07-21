@@ -32,6 +32,9 @@ from data_asset_agents.execution.executor import QueryExecutor
 from data_asset_agents.llm.factory import ModelFactory
 from data_asset_agents.metadata import MetadataInspector
 from data_asset_agents.ontology.builder import CandidateGenerator, OntologyBuildService
+from data_asset_agents.ontology.manager.candidate_generator import (
+    ObjectFirstCandidateGenerator,
+)
 from data_asset_agents.ontology.manager.compiler import ObjectSemanticCompiler
 from data_asset_agents.ontology.manager.drift import MetadataDriftService
 from data_asset_agents.ontology.manager.governance_models import (
@@ -48,11 +51,14 @@ from data_asset_agents.ontology.manager.governance_models import (
 from data_asset_agents.ontology.manager.indexing import OntologyIndexService
 from data_asset_agents.ontology.manager.models import (
     ActorRequest,
+    CreateDraftFromSeedRequest,
     CreateDraftRequest,
     DataSourceDefinition,
     DataSourceInspection,
+    ImportObjectCandidatesRequest,
     LinkType,
     MigrateLegacyRequest,
+    ObjectCandidateSet,
     ObjectDataSourceBinding,
     ObjectGraph,
     ObjectType,
@@ -66,6 +72,9 @@ from data_asset_agents.ontology.manager.models import (
 from data_asset_agents.ontology.manager.object_query import ObjectQueryService
 from data_asset_agents.ontology.manager.repository import (
     PostgresOntologyManagerRepository,
+)
+from data_asset_agents.ontology.manager.seed_repository import (
+    ObjectOntologySeedRepository,
 )
 from data_asset_agents.ontology.manager.service import OntologyManagerService
 from data_asset_agents.ontology.manager.validator import OntologyDraftValidator
@@ -125,12 +134,20 @@ async def lifespan(app: FastAPI):
     )
     executor = QueryExecutor(settings, ontology.bundle, engine=engine)
     ontology_manager_repository = PostgresOntologyManagerRepository(engine)
+    object_seed_repository = ObjectOntologySeedRepository(
+        {"retail_banking": settings.ontology_path / "object_model"}
+    )
+    object_candidate_generator = ObjectFirstCandidateGenerator(
+        settings, ontology.bundle.tables, model_factory
+    )
     ontology_manager = OntologyManagerService(
         ontology_manager_repository,
         ontology.bundle,
         OntologyDraftValidator(ontology.bundle, engine=engine, executor=executor),
         engine=engine,
         candidate_repository=runtime_repository,
+        seed_repository=object_seed_repository,
+        candidate_generator=object_candidate_generator,
     )
     _, published_object_resources = ontology_manager_repository.published_resources(
         ontology.ontology_version_id
@@ -357,6 +374,16 @@ def create_ontology_draft(payload: CreateDraftRequest, request: Request) -> Onto
     return request.app.state.ontology_manager.create_draft(payload)
 
 
+@app.post(
+    "/api/v1/ontology/drafts/from-seed",
+    response_model=OntologyDraftAggregate,
+)
+def create_ontology_draft_from_seed(
+    payload: CreateDraftFromSeedRequest, request: Request
+) -> OntologyDraftAggregate:
+    return request.app.state.ontology_manager.create_draft_from_seed(payload)
+
+
 @app.get("/api/v1/ontology/drafts", response_model=list[OntologyDraft])
 def list_ontology_drafts(request: Request) -> list[OntologyDraft]:
     return request.app.state.ontology_manager.list_drafts()
@@ -556,11 +583,25 @@ def update_object_binding(
 
 
 @app.post(
+    "/api/v1/ontology/drafts/{draft_id}/candidates/generate",
+    response_model=ObjectCandidateSet,
+)
+def generate_object_candidates(
+    draft_id: str, request: Request
+) -> ObjectCandidateSet:
+    return request.app.state.ontology_manager.generate_candidates(draft_id)
+
+
+@app.post(
     "/api/v1/ontology/drafts/{draft_id}/import-candidates",
     response_model=OntologyDraftAggregate,
 )
-def import_object_candidates(draft_id: str, request: Request) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.import_candidates(draft_id)
+def import_object_candidates(
+    draft_id: str,
+    payload: ImportObjectCandidatesRequest,
+    request: Request,
+) -> OntologyDraftAggregate:
+    return request.app.state.ontology_manager.import_candidates(draft_id, payload)
 
 
 @app.post(
