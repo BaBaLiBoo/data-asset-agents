@@ -55,7 +55,6 @@ class OntologyManagerRepository(Protocol):
     ) -> OntologyDraftAggregate: ...
     def list_drafts(self) -> list[OntologyDraft]: ...
     def get_draft(self, draft_id: str) -> OntologyDraftAggregate | None: ...
-    def save_draft(self, draft: OntologyDraft) -> None: ...
     def delete_draft(self, draft_id: str, expected_revision: int | None = None) -> None: ...
     def published_resources(
         self, version_id: str | None = None
@@ -231,9 +230,6 @@ class MemoryOntologyManagerRepository:
     def get_draft(self, draft_id: str) -> OntologyDraftAggregate | None:
         item = self.drafts.get(draft_id)
         return deepcopy(item) if item else None
-
-    def save_draft(self, draft: OntologyDraft) -> None:
-        self.drafts[draft.id].draft = deepcopy(draft)
 
     def delete_draft(self, draft_id: str, expected_revision: int | None = None) -> None:
         with self._lock:
@@ -687,27 +683,6 @@ class PostgresOntologyManagerRepository:
             validation_state=row.get("validation_state", "NEVER_VALIDATED"),
         )
 
-    def save_draft(self, draft: OntologyDraft) -> None:
-        values = draft.model_dump(mode="python")
-        values["validation_report"] = (
-            _json(draft.validation_report) if draft.validation_report else None
-        )
-        with self.engine.begin() as connection:
-            connection.execute(
-                text("""
-                UPDATE ontology_draft SET name=:name,description=:description,status=:status,
-                  submitted_by=:submitted_by,reviewed_by=:reviewed_by,updated_at=:updated_at,
-                  submitted_at=:submitted_at,reviewed_at=:reviewed_at,
-                  validation_report=CAST(:validation_report AS jsonb),
-                  rejection_reason=:rejection_reason,resource_revision=:resource_revision,
-                  resource_hash=:resource_hash,validated_revision=:validated_revision,
-                  validated_hash=:validated_hash,submitted_revision=:submitted_revision,
-                  submitted_hash=:submitted_hash,validation_state=:validation_state
-                WHERE draft_id=:id
-            """),
-                values,
-            )
-
     def delete_draft(self, draft_id: str, expected_revision: int | None = None) -> None:
         with self.engine.begin() as connection:
             row = connection.execute(
@@ -716,7 +691,7 @@ class PostgresOntologyManagerRepository:
             ).mappings().first()
             if row is None:
                 return
-            current = self._draft_from_row(row)
+            current = self._draft(row)
             if (
                 expected_revision is not None
                 and current.resource_revision != expected_revision
@@ -1084,6 +1059,8 @@ class PostgresOntologyManagerRepository:
                     ),
                 )
         except DataAssetAgentsError:
+            raise
+        except (OntologyConflictError, OntologyGovernanceError):
             raise
         except Exception as exc:
             raise OntologyError(f"Atomic object ontology publication failed: {exc}") from exc

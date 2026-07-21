@@ -7,6 +7,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $exitCode = 0
 
+function Get-TextSha256([string]$Text) {
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($Text)
+    $hash = [System.Security.Cryptography.SHA256]::HashData($bytes)
+    return [System.Convert]::ToHexString($hash).ToLowerInvariant()
+}
+
 # Use an ephemeral local-only database password when the caller did not provide one.
 $env:POSTGRES_DB = if ($env:POSTGRES_DB) { $env:POSTGRES_DB } else { "minibank" }
 $env:POSTGRES_USER = if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "minibank" }
@@ -342,6 +348,24 @@ try {
         $baseArtifact.source_resource_hash -ne $draft.draft.resource_hash) {
         throw "Published version did not persist the reviewed compiled artifact"
     }
+    $resourceCountSql = (
+        "SELECT concat_ws('|'," +
+        "(SELECT count(*) FROM published_metric_definition " +
+        "WHERE ontology_version_id='$($publishedBase.id)')," +
+        "(SELECT count(*) FROM published_dimension_definition " +
+        "WHERE ontology_version_id='$($publishedBase.id)')," +
+        "(SELECT count(*) FROM ontology_compiled_artifact " +
+        "WHERE ontology_version_id='$($publishedBase.id)' AND status='READY'))"
+    )
+    $publishedResourceCounts = docker compose -p $ComposeProject exec -T postgres `
+        psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB -tAc $resourceCountSql
+    $publishedCounts = $publishedResourceCounts.Trim().Split('|')
+    if ($publishedCounts.Count -ne 3 -or
+        [int]$publishedCounts[0] -le 0 -or
+        [int]$publishedCounts[1] -le 0 -or
+        [int]$publishedCounts[2] -ne 1) {
+        throw "Metric, Dimension, and artifact were not atomically published together"
+    }
     Write-Host (
         "Published version=$($publishedBase.version) " +
         "resource_hash=$($baseArtifact.source_resource_hash) " +
@@ -475,6 +499,7 @@ try {
         -TimeoutSec 30
     $beforeRestartRows = $beforeRestartQuery.execution_result.rows |
         ConvertTo-Json -Depth 20 -Compress
+    $beforeRestartResultHash = Get-TextSha256 $beforeRestartRows
     docker compose -p $ComposeProject restart api | Out-Null
     $apiRestarted = $false
     for ($attempt = 0; $attempt -lt 30; $attempt++) {
@@ -516,7 +541,7 @@ try {
     $afterRestartRows = $afterRestartQuery.execution_result.rows |
         ConvertTo-Json -Depth 20 -Compress
     if ($afterRestartQuery.generated_sql -ne $beforeRestartQuery.generated_sql -or
-        $afterRestartRows -ne $beforeRestartRows) {
+        (Get-TextSha256 $afterRestartRows) -ne $beforeRestartResultHash) {
         throw "Restart changed the governed SQL or query result snapshot"
     }
     $rolledBack = Invoke-RestMethod `

@@ -2,9 +2,12 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 
 from apps.api.main import app
 
@@ -558,3 +561,102 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         )
         assert query_after_publish.status_code == 200, query_after_publish.text
         assert query_after_publish.json()["execution_result"]["row_count"] > 0
+
+
+def test_compiled_artifact_insert_failure_rolls_back_postgres_publication() -> None:
+    with TestClient(app) as client:
+        seeded = client.post(
+            "/api/v1/ontology/drafts/from-seed",
+            json={
+                "draft_name": "Artifact rollback integration",
+                "created_by": "api-test",
+                "seed_name": "retail_banking",
+            },
+        )
+        assert seeded.status_code == 200, seeded.text
+        draft_id = seeded.json()["draft"]["id"]
+        revision = seeded.json()["draft"]["resource_revision"]
+        headers = {"If-Match": f'"{revision}"'}
+        engine = client.app.state.ontology_manager.repository.engine
+        with engine.connect() as connection:
+            audit_row = connection.execute(
+                text(
+                    "SELECT event_id,actor FROM ontology_audit_event "
+                    "WHERE draft_id=:draft_id ORDER BY created_at LIMIT 1"
+                ),
+                {"draft_id": draft_id},
+            ).mappings().one()
+        with pytest.raises(DBAPIError), engine.begin() as connection:
+            connection.execute(
+                text("UPDATE ontology_audit_event SET actor='tampered' WHERE event_id=:id"),
+                {"id": audit_row["event_id"]},
+            )
+        with engine.connect() as connection:
+            unchanged_actor = connection.execute(
+                text("SELECT actor FROM ontology_audit_event WHERE event_id=:id"),
+                {"id": audit_row["event_id"]},
+            ).scalar_one()
+        assert unchanged_actor == audit_row["actor"]
+        validated = client.post(
+            f"/api/v1/ontology/drafts/{draft_id}/validate", headers=headers
+        )
+        assert validated.status_code == 200, validated.text
+        submitted = client.post(
+            f"/api/v1/ontology/drafts/{draft_id}/submit",
+            json={"actor": "api-author"},
+            headers=headers,
+        )
+        assert submitted.status_code == 200, submitted.text
+        approved = client.post(
+            f"/api/v1/ontology/drafts/{draft_id}/approve",
+            json={"actor": "api-reviewer"},
+            headers=headers,
+        )
+        assert approved.status_code == 200, approved.text
+
+        versions_before = client.get("/api/v1/ontology/versions").json()
+        current_before = next(item["id"] for item in versions_before if item["is_current"])
+        version_name = f"artifact-rollback-{uuid4().hex[:12]}"
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    text("""
+                    CREATE OR REPLACE FUNCTION test_reject_compiled_artifact()
+                    RETURNS trigger AS $$
+                    BEGIN
+                      RAISE EXCEPTION 'injected compiled artifact failure';
+                    END;
+                    $$ LANGUAGE plpgsql
+                    """)
+                )
+                connection.execute(
+                    text("""
+                    CREATE TRIGGER trg_test_reject_compiled_artifact
+                    BEFORE INSERT ON ontology_compiled_artifact
+                    FOR EACH ROW EXECUTE FUNCTION test_reject_compiled_artifact()
+                    """)
+                )
+            failed = client.post(
+                f"/api/v1/ontology/drafts/{draft_id}/publish",
+                json={"actor": "api-reviewer", "version": version_name},
+                headers=headers,
+            )
+            assert failed.status_code == 422, failed.text
+        finally:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        "DROP TRIGGER IF EXISTS trg_test_reject_compiled_artifact "
+                        "ON ontology_compiled_artifact"
+                    )
+                )
+                connection.execute(
+                    text("DROP FUNCTION IF EXISTS test_reject_compiled_artifact()")
+                )
+
+        stored = client.get(f"/api/v1/ontology/drafts/{draft_id}")
+        assert stored.status_code == 200
+        assert stored.json()["draft"]["status"] == "VALIDATED"
+        versions_after = client.get("/api/v1/ontology/versions").json()
+        assert all(item["version"] != version_name for item in versions_after)
+        assert next(item["id"] for item in versions_after if item["is_current"]) == current_before

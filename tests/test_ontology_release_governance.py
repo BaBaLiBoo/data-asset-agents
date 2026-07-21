@@ -166,6 +166,25 @@ def test_failed_validation_cannot_submit(service) -> None:
     assert error.value.code == "DRAFT_VALIDATION_FAILED"
 
 
+def test_validation_execution_failure_is_saved_as_a_failed_report(
+    service, monkeypatch
+) -> None:
+    draft = _seed(service)
+
+    def fail(*_args, **_kwargs):
+        raise RuntimeError("postgresql://must-not-be-persisted")
+
+    monkeypatch.setattr(service.validator, "validate", fail)
+    failed = service.validate(
+        draft.draft.id, expected_revision=draft.draft.resource_revision
+    )
+    assert failed.draft.validation_state == ValidationState.FAILED
+    assert failed.draft.validation_report is not None
+    issue = failed.draft.validation_report.issues[0]
+    assert issue.code == "VALIDATION_EXECUTION_FAILED"
+    assert "postgresql://" not in issue.message
+
+
 def test_stale_expected_revision_and_two_concurrent_updates_allow_only_one(service) -> None:
     draft = _seed(service)
     revision = draft.draft.resource_revision
@@ -352,6 +371,9 @@ def test_publish_persists_stable_ready_artifact_and_compilation_evidence(service
     repeated = ObjectSemanticCompiler(service.base_bundle).compile(draft.resources)
     repeated.bundle.domain["version"] = version.version
     assert calculate_bundle_hash(repeated.bundle) == artifact.bundle_hash
+    tampered_bundle = deepcopy(artifact.bundle_json)
+    tampered_bundle["domain"]["updated_at"] = "tampered"  # type: ignore[index]
+    assert calculate_bundle_hash(tampered_bundle) != artifact.bundle_hash
 
 
 def test_artifact_failure_leaves_version_and_draft_unpublished(bundle) -> None:

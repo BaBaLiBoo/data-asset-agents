@@ -80,7 +80,13 @@ def calculate_draft_resource_hash(resources: DraftResources) -> str:
 
 def calculate_bundle_hash(bundle: OntologyBundle | dict[str, Any]) -> str:
     payload = bundle.model_dump(mode="json") if isinstance(bundle, BaseModel) else bundle
-    return hashlib.sha256(canonical_json(payload).encode()).hexdigest()
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def has_semantic_change(before: DraftResources, after: DraftResources) -> bool:

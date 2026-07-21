@@ -1500,6 +1500,16 @@ def ontology_compiled_artifact(
     request: Request,
     include_bundle: bool = Query(default=False),
 ) -> CompiledArtifactSummary:
+    if include_bundle and request.headers.get("x-local-demo-admin") != "true":
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error_code": "COMPILED_ARTIFACT_BUNDLE_FORBIDDEN",
+                "detail": "Full bundle output is restricted to local demo administrators",
+                "current_revision": None,
+                "current_hash": None,
+            },
+        )
     return request.app.state.ontology_manager.compiled_artifact(
         version_id, include_bundle=include_bundle
     )

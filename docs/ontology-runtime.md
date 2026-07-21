@@ -130,6 +130,8 @@ Draft Resource Mutation
 
 `CompiledOntologyArtifact` 保存完整 `bundle_json`、`bundle_hash`、源码 Draft revision/hash、compiler name/version/source hash，以及 Property、Metric、Dimension 和 Link/Physical Join 的编译证据。READY artifact 由数据库触发器保护，禁止更新和删除；同一 OntologyVersion 只能有一个 READY artifact。
 
+`GET /api/v1/ontology/versions/{version_id}/compiled-artifact` 默认只返回安全元数据、Hash 与编译证据，不返回完整 Bundle。仅本地演示管理员显式携带 `X-Local-Demo-Admin: true` 并设置 `include_bundle=true` 时可查看 `bundle_json`。
+
 ## 14. Runtime Activation and Rollback
 
 启动、激活和回滚优先读取目标版本自己的 READY artifact，并核对 version ID、正式资源 Hash 和 Bundle Hash。验证通过后直接刷新 OntologyService、Executor、Validator 与 LangGraph，不重新运行 `ObjectSemanticCompiler`。因此编译器未来升级不会改变已经发布版本的运行结果。只有旧版本没有 artifact 时才走兼容编译路径，并标记 `legacy_fallback=true`；artifact 损坏会拒绝激活并回退到上一个健康版本。

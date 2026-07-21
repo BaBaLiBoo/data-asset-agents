@@ -30,16 +30,24 @@ SET resource_hash = encode(digest('legacy-draft:' || draft_id, 'sha256'), 'hex')
 WHERE resource_hash = '';
 
 CREATE TABLE IF NOT EXISTS ontology_compiled_artifact (
-    artifact_id VARCHAR(200) PRIMARY KEY,
+    artifact_id VARCHAR(200) NOT NULL
+        CONSTRAINT ontology_compiled_artifact_pk PRIMARY KEY,
     ontology_version_id VARCHAR(160) NOT NULL
+        CONSTRAINT ontology_compiled_artifact_version_fk
         REFERENCES ontology_version(version_id) ON DELETE RESTRICT,
-    source_draft_id VARCHAR(160) NOT NULL,
-    source_revision BIGINT NOT NULL CHECK (source_revision >= 0),
+    source_draft_id VARCHAR(160) NOT NULL
+        CONSTRAINT ontology_compiled_artifact_source_draft_fk
+        REFERENCES ontology_draft(draft_id) ON DELETE RESTRICT,
+    source_revision BIGINT NOT NULL
+        CONSTRAINT ontology_compiled_artifact_source_revision_check
+        CHECK (source_revision >= 0),
     source_resource_hash VARCHAR(64) NOT NULL,
     compiler_name VARCHAR(100) NOT NULL,
     compiler_version VARCHAR(40) NOT NULL,
     compiler_source_hash VARCHAR(64) NOT NULL,
-    status VARCHAR(20) NOT NULL CHECK (status IN ('BUILDING', 'READY', 'FAILED')),
+    status VARCHAR(20) NOT NULL
+        CONSTRAINT ontology_compiled_artifact_status_check
+        CHECK (status IN ('BUILDING', 'READY', 'FAILED')),
     bundle_hash VARCHAR(64) NOT NULL,
     bundle_json JSONB NOT NULL,
     property_bindings JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -56,11 +64,12 @@ CREATE INDEX IF NOT EXISTS idx_ontology_compiled_artifact_version
     ON ontology_compiled_artifact(ontology_version_id, status);
 
 CREATE TABLE IF NOT EXISTS ontology_audit_event (
-    event_id VARCHAR(200) PRIMARY KEY,
+    event_id VARCHAR(200) NOT NULL CONSTRAINT ontology_audit_event_pk PRIMARY KEY,
     draft_id VARCHAR(160),
     ontology_version_id VARCHAR(160),
     actor VARCHAR(100) NOT NULL,
-    action VARCHAR(40) NOT NULL CHECK (action IN (
+    action VARCHAR(40) NOT NULL
+        CONSTRAINT ontology_audit_event_action_check CHECK (action IN (
         'DRAFT_CREATED', 'RESOURCE_CREATED', 'RESOURCE_UPDATED', 'RESOURCE_DELETED',
         'CANDIDATES_IMPORTED', 'VALIDATION_STARTED', 'VALIDATION_PASSED',
         'VALIDATION_FAILED', 'SUBMITTED', 'APPROVED', 'REJECTED', 'PUBLISHED',

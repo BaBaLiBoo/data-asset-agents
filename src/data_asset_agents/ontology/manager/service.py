@@ -20,6 +20,7 @@ from data_asset_agents.ontology.models import (
     OntologyVersion,
     ReviewStatus,
 )
+from data_asset_agents.ontology.validation import OntologyContractValidator
 
 from .candidate_generator import ObjectFirstCandidateGenerator
 from .change_analysis import OntologyChangeAnalyzer
@@ -45,6 +46,7 @@ from .models import (
     DimensionDefinition,
     DraftResources,
     DraftStatus,
+    DraftValidationReport,
     ImportObjectCandidatesRequest,
     LinkType,
     MetricDefinition,
@@ -63,6 +65,7 @@ from .models import (
     PublishDraftRequest,
     RejectDraftRequest,
     SemanticRole,
+    ValidationIssue,
     ValidationState,
 )
 from .projection import CompatibilityProjectionService
@@ -637,6 +640,14 @@ class OntologyManagerService:
             raise OntologyConflictError(f"Cannot validate a {aggregate.draft.status} Draft")
         starting_revision = aggregate.draft.resource_revision
         starting_hash = aggregate.draft.resource_hash
+        if calculate_draft_resource_hash(aggregate.resources) != starting_hash:
+            current = self.get_draft(draft_id).draft
+            raise OntologyGovernanceError(
+                "Draft changed while its validation snapshot was being read",
+                "DRAFT_CHANGED_DURING_VALIDATION",
+                current_revision=current.resource_revision,
+                current_hash=current.resource_hash,
+            )
         started_at = datetime.now(UTC)
         validation_run_id = f"validation-{uuid4().hex}"
         self.repository.append_audit_event(
@@ -653,7 +664,23 @@ class OntologyManagerService:
                 metadata={"validation_run_id": validation_run_id},
             )
         )
-        report = self.validator.validate(aggregate.resources, aggregate.draft.source_snapshot_id)
+        try:
+            report = self.validator.validate(
+                aggregate.resources, aggregate.draft.source_snapshot_id
+            )
+        except Exception as exc:
+            report = DraftValidationReport(
+                valid=False,
+                issues=[
+                    ValidationIssue(
+                        code="VALIDATION_EXECUTION_FAILED",
+                        resource_type="draft",
+                        resource_id=draft_id,
+                        message=f"Validation execution failed ({type(exc).__name__})",
+                        suggested_fix="Restore validator/database health and run validation again",
+                    )
+                ],
+            )
         report = report.model_copy(
             update={
                 "resource_revision": starting_revision,
@@ -700,14 +727,22 @@ class OntologyManagerService:
             raise OntologyGovernanceError(
                 "Validation report is stale for the current Draft",
                 "DRAFT_VALIDATION_STALE",
+                current_revision=draft.resource_revision,
+                current_hash=draft.resource_hash,
             )
         if draft.validation_report is None:
             raise OntologyGovernanceError(
-                "Draft must be validated before submission", "DRAFT_NOT_VALIDATED"
+                "Draft must be validated before submission",
+                "DRAFT_NOT_VALIDATED",
+                current_revision=draft.resource_revision,
+                current_hash=draft.resource_hash,
             )
         if not draft.validation_report.valid or draft.validation_state == ValidationState.FAILED:
             raise OntologyGovernanceError(
-                "Failed validation cannot be submitted", "DRAFT_VALIDATION_FAILED"
+                "Failed validation cannot be submitted",
+                "DRAFT_VALIDATION_FAILED",
+                current_revision=draft.resource_revision,
+                current_hash=draft.resource_hash,
             )
         if (
             draft.validation_state != ValidationState.VALID
@@ -715,7 +750,10 @@ class OntologyManagerService:
             or draft.validated_hash != draft.resource_hash
         ):
             raise OntologyGovernanceError(
-                "Validation report is stale for the current Draft", "DRAFT_VALIDATION_STALE"
+                "Validation report is stale for the current Draft",
+                "DRAFT_VALIDATION_STALE",
+                current_revision=draft.resource_revision,
+                current_hash=draft.resource_hash,
             )
         aggregate.draft.status = DraftStatus.IN_REVIEW
         aggregate.draft.submitted_by = request.actor
@@ -745,21 +783,41 @@ class OntologyManagerService:
         if aggregate.draft.status != DraftStatus.IN_REVIEW:
             raise OntologyConflictError("Only IN_REVIEW Drafts can be approved")
         if (
-            aggregate.draft.resource_revision != aggregate.draft.submitted_revision
+            calculate_draft_resource_hash(aggregate.resources) != aggregate.draft.resource_hash
+            or aggregate.draft.resource_revision != aggregate.draft.submitted_revision
             or aggregate.draft.resource_hash != aggregate.draft.submitted_hash
         ):
             raise OntologyGovernanceError(
                 "Review snapshot no longer matches submitted content",
                 "REVIEW_SNAPSHOT_CHANGED",
+                current_revision=aggregate.draft.resource_revision,
+                current_hash=aggregate.draft.resource_hash,
             )
-        report = self.validator.validate(aggregate.resources, aggregate.draft.source_snapshot_id)
+        review_validation_started = datetime.now(UTC)
+        try:
+            report = self.validator.validate(
+                aggregate.resources, aggregate.draft.source_snapshot_id
+            )
+        except Exception as exc:
+            report = DraftValidationReport(
+                valid=False,
+                issues=[
+                    ValidationIssue(
+                        code="VALIDATION_EXECUTION_FAILED",
+                        resource_type="draft",
+                        resource_id=draft_id,
+                        message=f"Review validation failed ({type(exc).__name__})",
+                        suggested_fix="Restore validator/database health and review a new Draft",
+                    )
+                ],
+            )
         report = report.model_copy(
             update={
                 "resource_revision": aggregate.draft.resource_revision,
                 "resource_hash": aggregate.draft.resource_hash,
                 "compiler_version": COMPILER_VERSION,
                 "validation_run_id": f"review-validation-{uuid4().hex}",
-                "started_at": datetime.now(UTC),
+                "started_at": review_validation_started,
                 "completed_at": datetime.now(UTC),
             }
         )
@@ -831,12 +889,15 @@ class OntologyManagerService:
         if aggregate.draft.status != DraftStatus.VALIDATED:
             raise OntologyConflictError("Only a VALIDATED Draft can be published")
         if (
-            aggregate.draft.resource_revision != aggregate.draft.submitted_revision
+            calculate_draft_resource_hash(aggregate.resources) != aggregate.draft.resource_hash
+            or aggregate.draft.resource_revision != aggregate.draft.submitted_revision
             or aggregate.draft.resource_hash != aggregate.draft.submitted_hash
         ):
             raise OntologyGovernanceError(
                 "Publish content differs from the reviewed snapshot",
                 "REVIEW_SNAPSHOT_CHANGED",
+                current_revision=aggregate.draft.resource_revision,
+                current_hash=aggregate.draft.resource_hash,
             )
         report = aggregate.draft.validation_report
         if (
@@ -849,6 +910,8 @@ class OntologyManagerService:
             raise OntologyGovernanceError(
                 "Publish requires validation of the exact reviewed snapshot",
                 "DRAFT_VALIDATION_STALE",
+                current_revision=aggregate.draft.resource_revision,
+                current_hash=aggregate.draft.resource_hash,
             )
         impact = self.impact(draft_id)
         if impact.breaking_changes and not request.acknowledge_breaking_changes:
@@ -1018,7 +1081,17 @@ class OntologyManagerService:
             compilation = ObjectSemanticCompiler(legacy_bundle).compile(resources)
             if compilation.conflicts:
                 raise OntologyError("; ".join(compilation.conflicts))
-            return compilation.bundle, True, None
+            legacy_bundle = compilation.bundle
+        contract = OntologyContractValidator(self.engine).validate(
+            legacy_bundle,
+            snapshot_id="legacy-runtime-fallback",
+            source_candidates=[],
+        )
+        if not contract.valid:
+            raise OntologyGovernanceError(
+                "Legacy ontology fallback failed runtime contract validation",
+                "LEGACY_ONTOLOGY_VALIDATION_FAILED",
+            )
         return legacy_bundle, True, None
 
     def audit_events(
