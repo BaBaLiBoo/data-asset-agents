@@ -124,6 +124,25 @@ def test_build_indexes_mock_vectors_and_hard_excludes_invalid_assets(
     assert results[0].evidence
 
 
+def test_sql_asset_build_never_crosses_compiled_bundle_hash(
+    ontology: OntologyService,
+) -> None:
+    ontology.compiled_bundle_hash = "a" * 64
+    ontology.compiler_version = "1"
+    repository = MemorySQLAssetRepository()
+    service = SQLAssetService(
+        repository,
+        ontology,
+        ExplainExecutor(),
+        Settings(llm_mode="mock", embedding_dimensions=32),
+    )
+    build = service.build().build
+    assert build.bundle_hash == "a" * 64
+    assert build.compiler_version == "1"
+    ontology.compiled_bundle_hash = "b" * 64
+    assert service.search(SQLAssetSearchRequest(question="查询交易金额")) == []
+
+
 def test_deterministic_embedding_and_semantic_structure_reranking(
     ontology: OntologyService,
 ) -> None:

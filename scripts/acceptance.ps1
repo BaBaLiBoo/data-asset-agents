@@ -114,6 +114,11 @@ try {
         -ContentType "application/json; charset=utf-8" `
         -Body $draftBody `
         -TimeoutSec 30
+    $draftHeaders = @{ "If-Match" = '"' + $draft.draft.resource_revision + '"' }
+    if ($draft.draft.resource_revision -lt 0 -or
+        [string]::IsNullOrWhiteSpace($draft.draft.resource_hash)) {
+        throw "Direct object seed Draft has no deterministic revision/hash identity"
+    }
     $transaction = $draft.resources.object_types |
         Where-Object { $_.id -eq "transaction" } |
         Select-Object -First 1
@@ -184,8 +189,10 @@ try {
         -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
               $draft.draft.id + "/import-candidates") `
         -ContentType "application/json; charset=utf-8" `
+        -Headers $draftHeaders `
         -Body $importBody `
         -TimeoutSec 120
+    $draftHeaders = @{ "If-Match" = '"' + $draft.draft.resource_revision + '"' }
     if ($draft.draft.status -ne "DRAFT") {
         throw "Candidate review unexpectedly changed Draft publication state"
     }
@@ -202,9 +209,19 @@ try {
     $validated = Invoke-RestMethod `
         -Method Post `
         -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/validate" `
+        -Headers $draftHeaders `
         -TimeoutSec 30
     if (-not $validated.draft.validation_report.valid) {
         throw "Object model Draft validation failed"
+    }
+    if ($validated.draft.validation_report.resource_revision -ne
+            $validated.draft.resource_revision -or
+        $validated.draft.validation_report.resource_hash -ne
+            $validated.draft.resource_hash -or
+        [string]::IsNullOrWhiteSpace(
+            $validated.draft.validation_report.validation_run_id
+        )) {
+        throw "Validation report is not bound to the exact Draft snapshot"
     }
     $failedDryRuns = @(
         $validated.draft.validation_report.dry_run_cases |
@@ -214,6 +231,78 @@ try {
         $failedDryRuns.Count -ne 0) {
         throw "Dynamic semantic Dry Run did not pass all four core questions"
     }
+    $validatedRevision = $validated.draft.resource_revision
+    $validatedHash = $validated.draft.resource_hash
+    $validatedMetric = $validated.resources.metrics |
+        Where-Object { $_.id -eq "credit_card_transaction_amount" } |
+        Select-Object -First 1
+    $validatedMetric.description = "Acceptance governance freshness update"
+    $staleDraft = Invoke-RestMethod `
+        -Method Put `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $draft.draft.id + "/metrics/credit_card_transaction_amount") `
+        -ContentType "application/json; charset=utf-8" `
+        -Headers $draftHeaders `
+        -Body ($validatedMetric | ConvertTo-Json -Depth 20) `
+        -TimeoutSec 30
+    if ($staleDraft.draft.resource_revision -ne ($validatedRevision + 1) -or
+        $staleDraft.draft.resource_hash -eq $validatedHash -or
+        $staleDraft.draft.validation_state -ne "STALE" -or
+        $null -ne $staleDraft.draft.validation_report) {
+        throw "Draft mutation did not invalidate the exact validation snapshot"
+    }
+    $staleHeaders = @{
+        "If-Match" = '"' + $staleDraft.draft.resource_revision + '"'
+    }
+    $staleSubmitFailed = $false
+    try {
+        Invoke-RestMethod `
+            -Method Post `
+            -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/submit" `
+            -ContentType "application/json; charset=utf-8" `
+            -Headers $staleHeaders `
+            -Body (@{ actor = "acceptance-reviewer" } | ConvertTo-Json) `
+            -TimeoutSec 30 | Out-Null
+    } catch {
+        $staleSubmitFailed = $true
+    }
+    if (-not $staleSubmitFailed) {
+        throw "Stale Draft unexpectedly passed Submit"
+    }
+    $revisionConflict = $false
+    try {
+        Invoke-RestMethod `
+            -Method Put `
+            -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+                  $draft.draft.id + "/metrics/credit_card_transaction_amount") `
+            -ContentType "application/json; charset=utf-8" `
+            -Headers $draftHeaders `
+            -Body ($validatedMetric | ConvertTo-Json -Depth 20) `
+            -TimeoutSec 30 | Out-Null
+    } catch {
+        $revisionConflict = ($_.Exception.Response.StatusCode.value__ -eq 409)
+    }
+    if (-not $revisionConflict) {
+        throw "Outdated Draft revision unexpectedly overwrote current content"
+    }
+    $validatedMetric.description = "Acceptance governance current revision update"
+    $draft = Invoke-RestMethod `
+        -Method Put `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $draft.draft.id + "/metrics/credit_card_transaction_amount") `
+        -ContentType "application/json; charset=utf-8" `
+        -Headers $staleHeaders `
+        -Body ($validatedMetric | ConvertTo-Json -Depth 20) `
+        -TimeoutSec 30
+    $draftHeaders = @{ "If-Match" = '"' + $draft.draft.resource_revision + '"' }
+    $validated = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/validate" `
+        -Headers $draftHeaders `
+        -TimeoutSec 120
+    if (-not $validated.draft.validation_report.valid) {
+        throw "Revalidation after governed mutation failed"
+    }
 
     Write-Host "[6/15] Reviewing and atomically publishing the object model..."
     $actorBody = @{ actor = "acceptance-reviewer" } | ConvertTo-Json
@@ -221,12 +310,14 @@ try {
         -Method Post `
         -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/submit" `
         -ContentType "application/json; charset=utf-8" `
+        -Headers $draftHeaders `
         -Body $actorBody `
         -TimeoutSec 30 | Out-Null
     Invoke-RestMethod `
         -Method Post `
         -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/approve" `
         -ContentType "application/json; charset=utf-8" `
+        -Headers $draftHeaders `
         -Body $actorBody `
         -TimeoutSec 30 | Out-Null
     $objectVersion = "acceptance-object-$([Guid]::NewGuid().ToString('N'))"
@@ -239,8 +330,36 @@ try {
         -Method Post `
         -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/publish" `
         -ContentType "application/json; charset=utf-8" `
+        -Headers $draftHeaders `
         -Body $publishBody `
         -TimeoutSec 120
+    $baseArtifact = Invoke-RestMethod `
+        -Uri ("http://localhost:8000/api/v1/ontology/versions/" +
+              $publishedBase.id + "/compiled-artifact") `
+        -TimeoutSec 30
+    if ($baseArtifact.status -ne "READY" -or
+        [string]::IsNullOrWhiteSpace($baseArtifact.bundle_hash) -or
+        $baseArtifact.source_resource_hash -ne $draft.draft.resource_hash) {
+        throw "Published version did not persist the reviewed compiled artifact"
+    }
+    Write-Host (
+        "Published version=$($publishedBase.version) " +
+        "resource_hash=$($baseArtifact.source_resource_hash) " +
+        "bundle_hash=$($baseArtifact.bundle_hash) " +
+        "compiler_version=$($baseArtifact.compiler_version)"
+    )
+    $baseAudit = Invoke-RestMethod `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $draft.draft.id + "/audit-events?limit=500") `
+        -TimeoutSec 30
+    $baseActions = @($baseAudit.action)
+    foreach ($requiredAction in @(
+        "VALIDATION_PASSED", "SUBMITTED", "APPROVED", "PUBLISHED"
+    )) {
+        if ($baseActions -notcontains $requiredAction) {
+            throw "Ontology audit trail is missing $requiredAction"
+        }
+    }
 
     Write-Host "[6a/15] Proving a non-breaking incremental Draft..."
     $incrementalBody = @{
@@ -254,28 +373,39 @@ try {
         -ContentType "application/json; charset=utf-8" `
         -Body $incrementalBody `
         -TimeoutSec 30
+    $incrementalHeaders = @{
+        "If-Match" = '"' + $incremental.draft.resource_revision + '"'
+    }
     $statusProperty = $incremental.resources.properties |
         Where-Object { $_.id -eq "transaction.status" } |
         Select-Object -First 1
     $statusProperty.description = "Acceptance-only clarified fictional status description"
-    Invoke-RestMethod `
+    $incremental = Invoke-RestMethod `
         -Method Put `
         -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/properties/transaction.status") `
         -ContentType "application/json; charset=utf-8" `
+        -Headers $incrementalHeaders `
         -Body ($statusProperty | ConvertTo-Json -Depth 20) `
-        -TimeoutSec 30 | Out-Null
+        -TimeoutSec 30
+    $incrementalHeaders = @{
+        "If-Match" = '"' + $incremental.draft.resource_revision + '"'
+    }
     $metricDefinition = $incremental.resources.metrics |
         Where-Object { $_.id -eq "credit_card_transaction_amount" } |
         Select-Object -First 1
     $metricDefinition.description = "Acceptance-only clarified fictional metric definition"
-    Invoke-RestMethod `
+    $incremental = Invoke-RestMethod `
         -Method Put `
         -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/metrics/credit_card_transaction_amount") `
         -ContentType "application/json; charset=utf-8" `
+        -Headers $incrementalHeaders `
         -Body ($metricDefinition | ConvertTo-Json -Depth 20) `
-        -TimeoutSec 30 | Out-Null
+        -TimeoutSec 30
+    $incrementalHeaders = @{
+        "If-Match" = '"' + $incremental.draft.resource_revision + '"'
+    }
     $incrementalDiff = Invoke-RestMethod `
         -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/diff") `
@@ -295,12 +425,14 @@ try {
         -Method Post `
         -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/validate") `
+        -Headers $incrementalHeaders `
         -TimeoutSec 120 | Out-Null
     Invoke-RestMethod `
         -Method Post `
         -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/submit") `
         -ContentType "application/json; charset=utf-8" `
+        -Headers $incrementalHeaders `
         -Body $actorBody `
         -TimeoutSec 30 | Out-Null
     Invoke-RestMethod `
@@ -308,6 +440,7 @@ try {
         -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/approve") `
         -ContentType "application/json; charset=utf-8" `
+        -Headers $incrementalHeaders `
         -Body $actorBody `
         -TimeoutSec 120 | Out-Null
     $incrementalPublishBody = @{
@@ -315,13 +448,102 @@ try {
         version = "acceptance-followup-$([Guid]::NewGuid().ToString('N').Substring(0, 12))"
         description = "Acceptance non-breaking follow-up"
     } | ConvertTo-Json
-    Invoke-RestMethod `
+    $publishedFollowup = Invoke-RestMethod `
         -Method Post `
         -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/publish") `
         -ContentType "application/json; charset=utf-8" `
+        -Headers $incrementalHeaders `
         -Body $incrementalPublishBody `
-        -TimeoutSec 120 | Out-Null
+        -TimeoutSec 120
+    $followupArtifact = Invoke-RestMethod `
+        -Uri ("http://localhost:8000/api/v1/ontology/versions/" +
+              $publishedFollowup.id + "/compiled-artifact") `
+        -TimeoutSec 30
+    if ($followupArtifact.status -ne "READY") {
+        throw "Follow-up ontology artifact is not READY"
+    }
+    $reproBody = @{
+        question = "查询近30天各分行信用卡交易金额和交易笔数。"
+        query_mode = "ontology"
+    } | ConvertTo-Json
+    $beforeRestartQuery = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/query" `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $reproBody `
+        -TimeoutSec 30
+    $beforeRestartRows = $beforeRestartQuery.execution_result.rows |
+        ConvertTo-Json -Depth 20 -Compress
+    docker compose -p $ComposeProject restart api | Out-Null
+    $apiRestarted = $false
+    for ($attempt = 0; $attempt -lt 30; $attempt++) {
+        try {
+            $healthAfterRestart = Invoke-RestMethod `
+                -Uri "http://localhost:8000/health" `
+                -TimeoutSec 5
+            if ($healthAfterRestart.status -eq "ok") {
+                $apiRestarted = $true
+                break
+            }
+        } catch {
+            Start-Sleep -Seconds 2
+        }
+    }
+    if (-not $apiRestarted) {
+        throw "API did not recover after artifact reproducibility restart"
+    }
+    $versionsAfterRestart = Invoke-RestMethod `
+        -Uri "http://localhost:8000/api/v1/ontology/versions" `
+        -TimeoutSec 30
+    $currentAfterRestart = $versionsAfterRestart |
+        Where-Object { $_.is_current } |
+        Select-Object -First 1
+    $artifactAfterRestart = Invoke-RestMethod `
+        -Uri ("http://localhost:8000/api/v1/ontology/versions/" +
+              $currentAfterRestart.id + "/compiled-artifact") `
+        -TimeoutSec 30
+    if ($currentAfterRestart.id -ne $publishedFollowup.id -or
+        $artifactAfterRestart.bundle_hash -ne $followupArtifact.bundle_hash) {
+        throw "Restart did not reproduce the current ontology artifact"
+    }
+    $afterRestartQuery = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/query" `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $reproBody `
+        -TimeoutSec 30
+    $afterRestartRows = $afterRestartQuery.execution_result.rows |
+        ConvertTo-Json -Depth 20 -Compress
+    if ($afterRestartQuery.generated_sql -ne $beforeRestartQuery.generated_sql -or
+        $afterRestartRows -ne $beforeRestartRows) {
+        throw "Restart changed the governed SQL or query result snapshot"
+    }
+    $rolledBack = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://localhost:8000/api/v1/ontology/versions/$objectVersion/activate" `
+        -TimeoutSec 120
+    $rollbackArtifact = Invoke-RestMethod `
+        -Uri ("http://localhost:8000/api/v1/ontology/versions/" +
+              $rolledBack.id + "/compiled-artifact") `
+        -TimeoutSec 30
+    if ($rolledBack.id -ne $publishedBase.id -or
+        $rollbackArtifact.bundle_hash -ne $baseArtifact.bundle_hash) {
+        throw "Rollback did not load the target version artifact"
+    }
+    $rollbackAudit = Invoke-RestMethod `
+        -Uri ("http://localhost:8000/api/v1/ontology/versions/" +
+              $publishedBase.id + "/audit-events?limit=500") `
+        -TimeoutSec 30
+    $releaseActions = @($baseActions) + @($rollbackAudit.action)
+    foreach ($requiredAction in @(
+        "VALIDATION_PASSED", "SUBMITTED", "APPROVED", "PUBLISHED",
+        "ACTIVATED", "ROLLED_BACK"
+    )) {
+        if ($releaseActions -notcontains $requiredAction) {
+            throw "Ontology release audit trail is missing $requiredAction"
+        }
+    }
 
     Write-Host "[7/15] Verifying the published object graph..."
     $objectGraph = Invoke-RestMethod `

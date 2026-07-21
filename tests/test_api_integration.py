@@ -1,5 +1,7 @@
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 
 import pytest
 from fastapi.testclient import TestClient
@@ -118,6 +120,7 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         assert seeded_draft.status_code == 200, seeded_draft.text
         draft = seeded_draft.json()
         draft_id = draft["draft"]["id"]
+        revision = draft["draft"]["resource_revision"]
         transaction = next(
             item for item in draft["resources"]["object_types"] if item["id"] == "transaction"
         )
@@ -138,12 +141,37 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
             for item in draft["resources"]["metrics"]
             if item["id"] == "credit_card_transaction_amount"
         )
+        concurrent_payloads = [deepcopy(metric), deepcopy(metric)]
+        concurrent_payloads[0]["description"] = "concurrent editor A"
+        concurrent_payloads[1]["description"] = "concurrent editor B"
+
+        def concurrent_update(payload):
+            return client.put(
+                f"/api/v1/ontology/drafts/{draft_id}/metrics/{metric['id']}",
+                json=payload,
+                headers={"If-Match": f'"{revision}"'},
+            )
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            concurrent_results = list(executor.map(concurrent_update, concurrent_payloads))
+        assert sorted(item.status_code for item in concurrent_results) == [200, 409]
+        successful_concurrent = next(
+            item for item in concurrent_results if item.status_code == 200
+        )
+        revision = successful_concurrent.json()["draft"]["resource_revision"]
+        metric = next(
+            item
+            for item in successful_concurrent.json()["resources"]["metrics"]
+            if item["id"] == metric["id"]
+        )
         metric["description"] = "API-reviewed fictional credit-card amount definition"
         updated_metric = client.put(
             f"/api/v1/ontology/drafts/{draft_id}/metrics/{metric['id']}",
             json=metric,
+            headers={"If-Match": f'"{revision}"'},
         )
         assert updated_metric.status_code == 200, updated_metric.text
+        revision = updated_metric.json()["draft"]["resource_revision"]
         assert any(
             item["description"] == metric["description"]
             for item in updated_metric.json()["resources"]["metrics"]
@@ -159,12 +187,16 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
                 "supported_dimension_ids": ["branch"],
                 "lifecycle_status": "ACTIVE",
             },
+            headers={"If-Match": f'"{revision}"'},
         )
         assert temporary_metric.status_code == 200, temporary_metric.text
+        revision = temporary_metric.json()["draft"]["resource_revision"]
         deleted_metric = client.delete(
-            f"/api/v1/ontology/drafts/{draft_id}/metrics/temporary_amount_metric"
+            f"/api/v1/ontology/drafts/{draft_id}/metrics/temporary_amount_metric",
+            headers={"If-Match": f'"{revision}"'},
         )
         assert deleted_metric.status_code == 200, deleted_metric.text
+        revision = deleted_metric.json()["draft"]["resource_revision"]
         assert all(
             item["id"] != "temporary_amount_metric"
             for item in deleted_metric.json()["resources"]["metrics"]
@@ -199,9 +231,11 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
                 ],
                 "actor": "api-reviewer",
             },
+            headers={"If-Match": f'"{revision}"'},
         )
         assert imported.status_code == 200, imported.text
         draft = imported.json()
+        revision = draft["draft"]["resource_revision"]
         assert draft["draft"]["status"] == "DRAFT"
         draft_diff = client.get(f"/api/v1/ontology/drafts/{draft_id}/diff")
         assert draft_diff.status_code == 200, draft_diff.text
@@ -209,7 +243,10 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         draft_impact = client.get(f"/api/v1/ontology/drafts/{draft_id}/impact")
         assert draft_impact.status_code == 200, draft_impact.text
         assert draft_impact.json()["rebuild_concept_index"]
-        validated_draft = client.post(f"/api/v1/ontology/drafts/{draft_id}/validate")
+        validated_draft = client.post(
+            f"/api/v1/ontology/drafts/{draft_id}/validate",
+            headers={"If-Match": f'"{revision}"'},
+        )
         assert validated_draft.status_code == 200, validated_draft.text
         assert validated_draft.json()["draft"]["validation_report"]["valid"]
         dry_run_cases = validated_draft.json()["draft"]["validation_report"][
@@ -220,23 +257,44 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         submitted_draft = client.post(
             f"/api/v1/ontology/drafts/{draft_id}/submit",
             json={"actor": "api-author"},
+            headers={"If-Match": f'"{revision}"'},
         )
         assert submitted_draft.status_code == 200
         forbidden_edit = client.put(
             f"/api/v1/ontology/drafts/{draft_id}/object-types/transaction",
             json=transaction,
+            headers={"If-Match": f'"{revision}"'},
         )
         assert forbidden_edit.status_code == 409
         approved_draft = client.post(
             f"/api/v1/ontology/drafts/{draft_id}/approve",
             json={"actor": "api-reviewer"},
+            headers={"If-Match": f'"{revision}"'},
         )
         assert approved_draft.status_code == 200, approved_draft.text
         published_objects = client.post(
             f"/api/v1/ontology/drafts/{draft_id}/publish",
             json={"actor": "api-reviewer", "version": "api-object-0.1"},
+            headers={"If-Match": f'"{revision}"'},
         )
         assert published_objects.status_code == 200, published_objects.text
+        artifact = client.get(
+            "/api/v1/ontology/versions/"
+            f"{published_objects.json()['id']}/compiled-artifact"
+        )
+        assert artifact.status_code == 200, artifact.text
+        assert artifact.json()["status"] == "READY"
+        assert artifact.json()["source_resource_hash"] == approved_draft.json()["draft"][
+            "resource_hash"
+        ]
+        assert artifact.json()["bundle_hash"]
+        assert artifact.json()["compilation_evidence"]["metrics"]
+        audit = client.get(
+            f"/api/v1/ontology/drafts/{draft_id}/audit-events", params={"limit": 500}
+        )
+        assert audit.status_code == 200, audit.text
+        actions = {item["action"] for item in audit.json()}
+        assert {"VALIDATION_PASSED", "SUBMITTED", "APPROVED", "PUBLISHED"} <= actions
         object_graph = client.get("/api/v1/ontology/object-graph")
         assert object_graph.status_code == 200
         assert len(object_graph.json()["nodes"]) == 6
@@ -255,6 +313,7 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
         assert index_build.json()["status"] == "READY"
         assert index_build.json()["document_count"] > 0
         assert index_build.json()["is_current"]
+        assert index_build.json()["bundle_hash"] == artifact.json()["bundle_hash"]
         sync_run = client.post("/api/v1/ontology/sync-runs")
         assert sync_run.status_code == 200, sync_run.text
         assert sync_run.json()["status"] == "READY"

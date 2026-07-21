@@ -160,6 +160,7 @@ def test_breaking_publish_requires_acknowledgement_and_ticket(bundle) -> None:
         repository, bundle, OntologyDraftValidator(bundle)
     )
     first = service.migrate_legacy(MigrateLegacyRequest())
+    service.validate(first.draft.id)
     service.submit(first.draft.id, ActorRequest())
     service.approve(first.draft.id, ActorRequest())
     version = service.publish(
@@ -207,6 +208,8 @@ def test_versioned_mock_index_build_is_stable_and_atomically_current(bundle) -> 
     assert not first.is_current
     assert second.is_current
     assert second.document_count > 0
+    bundle.domain["description"] = "changed compiled bundle identity"
+    assert service.current("version-a", second.index_type) is None
 
 
 def test_metadata_drift_classifies_additive_and_breaking(monkeypatch, bundle) -> None:

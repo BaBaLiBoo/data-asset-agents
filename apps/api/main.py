@@ -7,12 +7,14 @@ from typing import Annotated, Any
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from sqlalchemy import create_engine
 
 from data_asset_agents.core.config import get_settings
 from data_asset_agents.core.errors import (
     DataAssetAgentsError,
     OntologyConflictError,
+    OntologyGovernanceError,
     UnsupportedQueryError,
 )
 from data_asset_agents.evaluation import (
@@ -35,7 +37,6 @@ from data_asset_agents.ontology.builder import CandidateGenerator, OntologyBuild
 from data_asset_agents.ontology.manager.candidate_generator import (
     ObjectFirstCandidateGenerator,
 )
-from data_asset_agents.ontology.manager.compiler import ObjectSemanticCompiler
 from data_asset_agents.ontology.manager.drift import MetadataDriftService
 from data_asset_agents.ontology.manager.governance_models import (
     ObjectFilter,
@@ -51,6 +52,7 @@ from data_asset_agents.ontology.manager.governance_models import (
 from data_asset_agents.ontology.manager.indexing import OntologyIndexService
 from data_asset_agents.ontology.manager.models import (
     ActorRequest,
+    CompiledArtifactSummary,
     CreateDraftFromSeedRequest,
     CreateDraftRequest,
     DataSourceDefinition,
@@ -64,6 +66,8 @@ from data_asset_agents.ontology.manager.models import (
     ObjectDataSourceBinding,
     ObjectGraph,
     ObjectType,
+    OntologyAuditAction,
+    OntologyAuditEvent,
     OntologyDraft,
     OntologyDraftAggregate,
     PhysicalJoinDefinition,
@@ -151,18 +155,67 @@ async def lifespan(app: FastAPI):
         seed_repository=object_seed_repository,
         candidate_generator=object_candidate_generator,
     )
-    _, published_object_resources = ontology_manager_repository.published_resources(
-        ontology.ontology_version_id
-    )
-    if published_object_resources.object_types:
-        compilation = ObjectSemanticCompiler(ontology.bundle).compile(
-            published_object_resources
-        )
-        if compilation.conflicts:
-            raise RuntimeError(
-                "Published object semantics conflict with analytical compatibility fields"
+    current_version = runtime_repository.get_current_version()
+    runtime_artifact = None
+    legacy_fallback = True
+    if current_version is not None:
+        try:
+            governed_bundle, legacy_fallback, runtime_artifact = (
+                ontology_manager.load_runtime_bundle(current_version.id, ontology.bundle)
             )
-        ontology.bundle = compilation.bundle
+        except DataAssetAgentsError as exc:
+            ontology_manager.record_runtime_event(
+                OntologyAuditAction.ACTIVATION_FAILED,
+                current_version.id,
+                "api-startup",
+                metadata={"error_type": type(exc).__name__},
+            )
+            healthy = None
+            for candidate in runtime_repository.list_versions():
+                if candidate.id == current_version.id:
+                    continue
+                candidate_bundle = runtime_repository.load_published_bundle(candidate.version)
+                if candidate_bundle is None:
+                    continue
+                try:
+                    bundle, legacy, artifact = ontology_manager.load_runtime_bundle(
+                        candidate.id, candidate_bundle
+                    )
+                except DataAssetAgentsError:
+                    continue
+                healthy = (candidate, bundle, legacy, artifact)
+                break
+            if healthy is None:
+                raise
+            current_version, governed_bundle, legacy_fallback, runtime_artifact = healthy
+            runtime_repository.activate_version(current_version.version)
+            ontology.ontology_version_id = current_version.id
+            ontology_manager.record_runtime_event(
+                OntologyAuditAction.ROLLED_BACK,
+                current_version.id,
+                "api-startup",
+                metadata={
+                    "legacy_fallback": legacy_fallback,
+                    "bundle_hash": runtime_artifact.bundle_hash if runtime_artifact else None,
+                },
+            )
+        else:
+            ontology_manager.record_runtime_event(
+                OntologyAuditAction.ACTIVATED,
+                current_version.id,
+                "api-startup",
+                metadata={
+                    "legacy_fallback": legacy_fallback,
+                    "bundle_hash": runtime_artifact.bundle_hash if runtime_artifact else None,
+                },
+            )
+        ontology.bundle = governed_bundle
+        ontology.compiled_bundle_hash = (
+            runtime_artifact.bundle_hash if runtime_artifact else ""
+        )
+        ontology.compiler_version = (
+            runtime_artifact.compiler_version if runtime_artifact else "legacy"
+        )
         ontology._refresh_indexes()
         executor.set_ontology(ontology.bundle)
     drift_service = MetadataDriftService(
@@ -254,6 +307,11 @@ async def lifespan(app: FastAPI):
         sql_asset_build_id=(sql_asset_build.build_id if sql_asset_build else None),
     )
     app.state.graph = ontology_full
+    app.state.ontology_runtime = {
+        "legacy_fallback": legacy_fallback,
+        "bundle_hash": runtime_artifact.bundle_hash if runtime_artifact else None,
+        "compiler_version": runtime_artifact.compiler_version if runtime_artifact else None,
+    }
     yield
     executor.engine.dispose()
 
@@ -272,18 +330,155 @@ app.add_middleware(
 )
 
 
+def _governed_openapi() -> dict[str, Any]:
+    if app.openapi_schema is not None:
+        return app.openapi_schema
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    mutation_parts = {
+        "object-types",
+        "properties",
+        "dimensions",
+        "metrics",
+        "link-types",
+        "physical-joins",
+        "bindings",
+        "import-candidates",
+        "validate",
+        "submit",
+        "approve",
+        "reject",
+        "publish",
+    }
+    for path, operations in schema.get("paths", {}).items():
+        is_draft_delete = path.endswith("/ontology/drafts/{draft_id}")
+        if "/ontology/drafts/{draft_id}/" not in path and not is_draft_delete:
+            continue
+        if not is_draft_delete and not any(f"/{part}" in path for part in mutation_parts):
+            continue
+        for method, operation in operations.items():
+            if method.lower() not in {"post", "put", "delete"}:
+                continue
+            parameters = operation.setdefault("parameters", [])
+            parameters.append(
+                {
+                    "name": "If-Match",
+                    "in": "header",
+                    "required": True,
+                    "description": "Quoted resource_revision read from the Draft",
+                    "schema": {"type": "string", "example": '"3"'},
+                }
+            )
+    app.openapi_schema = schema
+    return schema
+
+
+app.openapi = _governed_openapi  # type: ignore[method-assign]
+
+
 @app.exception_handler(DataAssetAgentsError)
 async def domain_error_handler(_: Request, exc: DataAssetAgentsError):
     from fastapi.responses import JSONResponse
 
-    return JSONResponse(status_code=422, content={"detail": str(exc)})
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error_code": getattr(exc, "code", "ONTOLOGY_ERROR"),
+            "detail": str(exc),
+            "current_revision": getattr(exc, "current_revision", None),
+            "current_hash": getattr(exc, "current_hash", None),
+        },
+    )
 
 
 @app.exception_handler(OntologyConflictError)
 async def ontology_conflict_handler(_: Request, exc: OntologyConflictError):
     from fastapi.responses import JSONResponse
 
-    return JSONResponse(status_code=409, content={"detail": str(exc)})
+    return JSONResponse(
+        status_code=409,
+        content={
+            "error_code": exc.code,
+            "detail": str(exc),
+            "current_revision": exc.current_revision,
+            "current_hash": exc.current_hash,
+        },
+    )
+
+
+@app.exception_handler(OntologyGovernanceError)
+async def ontology_governance_handler(_: Request, exc: OntologyGovernanceError):
+    from fastapi.responses import JSONResponse
+
+    conflict_codes = {
+        "DRAFT_REVISION_CONFLICT",
+        "DRAFT_CHANGED_DURING_VALIDATION",
+        "REVIEW_SNAPSHOT_CHANGED",
+    }
+    return JSONResponse(
+        status_code=409 if exc.code in conflict_codes else 422,
+        content={
+            "error_code": exc.code,
+            "detail": str(exc),
+            "current_revision": exc.current_revision,
+            "current_hash": exc.current_hash,
+        },
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_error_handler(_: Request, exc: HTTPException):
+    from fastapi.responses import JSONResponse
+
+    if isinstance(exc.detail, dict) and "error_code" in exc.detail:
+        content = exc.detail
+    else:
+        content = {
+            "error_code": "HTTP_ERROR",
+            "detail": exc.detail,
+            "current_revision": None,
+            "current_hash": None,
+        }
+    return JSONResponse(status_code=exc.status_code, content=content)
+
+
+def _draft_revision(request: Request) -> int:
+    raw = request.headers.get("if-match") or request.headers.get("x-draft-revision")
+    if raw is None:
+        raise HTTPException(
+            status_code=428,
+            detail={
+                "error_code": "DRAFT_REVISION_REQUIRED",
+                "detail": "If-Match or X-Draft-Revision is required",
+                "current_revision": None,
+                "current_hash": None,
+            },
+        )
+    value = raw.strip().removeprefix("W/").strip('"')
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error_code": "DRAFT_REVISION_INVALID",
+                "detail": "Invalid Draft revision header",
+                "current_revision": None,
+                "current_hash": None,
+            },
+        ) from exc
+
+
+def _request_id(request: Request) -> str | None:
+    return request.headers.get("x-request-id")
+
+
+def _actor(request: Request) -> str:
+    return request.headers.get("x-actor", "ontology-manager-api")
 
 
 @app.exception_handler(UnsupportedQueryError)
@@ -396,9 +591,23 @@ def get_ontology_draft(draft_id: str, request: Request) -> OntologyDraftAggregat
     return request.app.state.ontology_manager.get_draft(draft_id)
 
 
+@app.get(
+    "/api/v1/ontology/drafts/{draft_id}/audit-events",
+    response_model=list[OntologyAuditEvent],
+)
+def draft_audit_events(
+    draft_id: str, request: Request, limit: int = Query(default=100, ge=1, le=500)
+) -> list[OntologyAuditEvent]:
+    return request.app.state.ontology_manager.audit_events(
+        draft_id=draft_id, limit=limit
+    )
+
+
 @app.delete("/api/v1/ontology/drafts/{draft_id}", status_code=204)
 def delete_ontology_draft(draft_id: str, request: Request) -> Response:
-    request.app.state.ontology_manager.delete_draft(draft_id)
+    request.app.state.ontology_manager.delete_draft(
+        draft_id, expected_revision=_draft_revision(request)
+    )
     return Response(status_code=204)
 
 
@@ -409,7 +618,13 @@ def delete_ontology_draft(draft_id: str, request: Request) -> Response:
 def create_object_type(
     draft_id: str, payload: ObjectType, request: Request
 ) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id,
+        payload,
+        expected_revision=_draft_revision(request),
+        actor=_actor(request),
+        request_id=_request_id(request),
+    )
 
 
 @app.put(
@@ -421,7 +636,9 @@ def update_object_type(
 ) -> OntologyDraftAggregate:
     if payload.id != object_id:
         raise HTTPException(status_code=422, detail="object_id must match payload.id")
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
 
 
 @app.delete(
@@ -429,7 +646,13 @@ def update_object_type(
     response_model=OntologyDraftAggregate,
 )
 def delete_object_type(draft_id: str, object_id: str, request: Request) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.delete_resource(draft_id, "object_type", object_id)
+    return request.app.state.ontology_manager.delete_resource(
+        draft_id,
+        "object_type",
+        object_id,
+        expected_revision=_draft_revision(request),
+        actor=_actor(request),
+    )
 
 
 @app.post(
@@ -439,7 +662,9 @@ def delete_object_type(draft_id: str, object_id: str, request: Request) -> Ontol
 def create_property(
     draft_id: str, payload: PropertyDefinition, request: Request
 ) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
 
 
 @app.put(
@@ -454,7 +679,9 @@ def update_property(
 ) -> OntologyDraftAggregate:
     if payload.id != property_id:
         raise HTTPException(status_code=422, detail="property_id must match payload.id")
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
 
 
 @app.delete(
@@ -462,7 +689,13 @@ def update_property(
     response_model=OntologyDraftAggregate,
 )
 def delete_property(draft_id: str, property_id: str, request: Request) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.delete_resource(draft_id, "property", property_id)
+    return request.app.state.ontology_manager.delete_resource(
+        draft_id,
+        "property",
+        property_id,
+        expected_revision=_draft_revision(request),
+        actor=_actor(request),
+    )
 
 
 @app.post(
@@ -472,7 +705,9 @@ def delete_property(draft_id: str, property_id: str, request: Request) -> Ontolo
 def create_dimension(
     draft_id: str, payload: DimensionDefinition, request: Request
 ) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
 
 
 @app.put(
@@ -487,7 +722,9 @@ def update_dimension(
 ) -> OntologyDraftAggregate:
     if payload.id != dimension_id:
         raise HTTPException(status_code=422, detail="dimension_id must match payload.id")
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
 
 
 @app.delete(
@@ -498,7 +735,11 @@ def delete_dimension(
     draft_id: str, dimension_id: str, request: Request
 ) -> OntologyDraftAggregate:
     return request.app.state.ontology_manager.delete_resource(
-        draft_id, "dimension", dimension_id
+        draft_id,
+        "dimension",
+        dimension_id,
+        expected_revision=_draft_revision(request),
+        actor=_actor(request),
     )
 
 
@@ -509,7 +750,9 @@ def delete_dimension(
 def create_metric(
     draft_id: str, payload: MetricDefinition, request: Request
 ) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
 
 
 @app.put(
@@ -524,7 +767,9 @@ def update_metric(
 ) -> OntologyDraftAggregate:
     if payload.id != metric_id:
         raise HTTPException(status_code=422, detail="metric_id must match payload.id")
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
 
 
 @app.delete(
@@ -532,7 +777,13 @@ def update_metric(
     response_model=OntologyDraftAggregate,
 )
 def delete_metric(draft_id: str, metric_id: str, request: Request) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.delete_resource(draft_id, "metric", metric_id)
+    return request.app.state.ontology_manager.delete_resource(
+        draft_id,
+        "metric",
+        metric_id,
+        expected_revision=_draft_revision(request),
+        actor=_actor(request),
+    )
 
 
 @app.post(
@@ -540,7 +791,9 @@ def delete_metric(draft_id: str, metric_id: str, request: Request) -> OntologyDr
     response_model=OntologyDraftAggregate,
 )
 def create_link_type(draft_id: str, payload: LinkType, request: Request) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
 
 
 @app.put(
@@ -552,7 +805,9 @@ def update_link_type(
 ) -> OntologyDraftAggregate:
     if payload.id != link_id:
         raise HTTPException(status_code=422, detail="link_id must match payload.id")
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
 
 
 @app.delete(
@@ -560,7 +815,13 @@ def update_link_type(
     response_model=OntologyDraftAggregate,
 )
 def delete_link_type(draft_id: str, link_id: str, request: Request) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.delete_resource(draft_id, "link_type", link_id)
+    return request.app.state.ontology_manager.delete_resource(
+        draft_id,
+        "link_type",
+        link_id,
+        expected_revision=_draft_revision(request),
+        actor=_actor(request),
+    )
 
 
 @app.post(
@@ -570,7 +831,9 @@ def delete_link_type(draft_id: str, link_id: str, request: Request) -> OntologyD
 def create_physical_join(
     draft_id: str, payload: PhysicalJoinDefinition, request: Request
 ) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
 
 
 @app.put(
@@ -585,7 +848,9 @@ def update_physical_join(
 ) -> OntologyDraftAggregate:
     if payload.id != join_id:
         raise HTTPException(status_code=422, detail="join_id must match payload.id")
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
 
 
 @app.delete(
@@ -596,7 +861,11 @@ def delete_physical_join(
     draft_id: str, join_id: str, request: Request
 ) -> OntologyDraftAggregate:
     return request.app.state.ontology_manager.delete_resource(
-        draft_id, "physical_join", join_id
+        draft_id,
+        "physical_join",
+        join_id,
+        expected_revision=_draft_revision(request),
+        actor=_actor(request),
     )
 
 
@@ -636,7 +905,9 @@ def inspect_ontology_data_source(data_source_id: str, request: Request) -> DataS
 def create_object_binding(
     draft_id: str, payload: ObjectDataSourceBinding, request: Request
 ) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
 
 
 @app.put(
@@ -651,7 +922,25 @@ def update_object_binding(
 ) -> OntologyDraftAggregate:
     if payload.id != binding_id:
         raise HTTPException(status_code=422, detail="binding_id must match payload.id")
-    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+    return request.app.state.ontology_manager.save_resource(
+        draft_id, payload, expected_revision=_draft_revision(request), actor=_actor(request)
+    )
+
+
+@app.delete(
+    "/api/v1/ontology/drafts/{draft_id}/bindings/{binding_id}",
+    response_model=OntologyDraftAggregate,
+)
+def delete_object_binding(
+    draft_id: str, binding_id: str, request: Request
+) -> OntologyDraftAggregate:
+    return request.app.state.ontology_manager.delete_resource(
+        draft_id,
+        "binding",
+        binding_id,
+        expected_revision=_draft_revision(request),
+        actor=_actor(request),
+    )
 
 
 @app.post(
@@ -673,7 +962,12 @@ def import_object_candidates(
     payload: ImportObjectCandidatesRequest,
     request: Request,
 ) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.import_candidates(draft_id, payload)
+    return request.app.state.ontology_manager.import_candidates(
+        draft_id,
+        payload,
+        expected_revision=_draft_revision(request),
+        request_id=_request_id(request),
+    )
 
 
 @app.post(
@@ -691,7 +985,12 @@ def migrate_legacy_ontology(
     response_model=OntologyDraftAggregate,
 )
 def validate_object_draft(draft_id: str, request: Request) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.validate(draft_id)
+    return request.app.state.ontology_manager.validate(
+        draft_id,
+        expected_revision=_draft_revision(request),
+        actor=_actor(request),
+        request_id=_request_id(request),
+    )
 
 
 @app.post(
@@ -701,7 +1000,12 @@ def validate_object_draft(draft_id: str, request: Request) -> OntologyDraftAggre
 def submit_object_draft(
     draft_id: str, payload: ActorRequest, request: Request
 ) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.submit(draft_id, payload)
+    return request.app.state.ontology_manager.submit(
+        draft_id,
+        payload,
+        expected_revision=_draft_revision(request),
+        request_id=_request_id(request),
+    )
 
 
 @app.post(
@@ -711,7 +1015,12 @@ def submit_object_draft(
 def approve_object_draft(
     draft_id: str, payload: ActorRequest, request: Request
 ) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.approve(draft_id, payload)
+    return request.app.state.ontology_manager.approve(
+        draft_id,
+        payload,
+        expected_revision=_draft_revision(request),
+        request_id=_request_id(request),
+    )
 
 
 @app.post(
@@ -721,7 +1030,12 @@ def approve_object_draft(
 def reject_object_draft(
     draft_id: str, payload: RejectDraftRequest, request: Request
 ) -> OntologyDraftAggregate:
-    return request.app.state.ontology_manager.reject(draft_id, payload)
+    return request.app.state.ontology_manager.reject(
+        draft_id,
+        payload,
+        expected_revision=_draft_revision(request),
+        request_id=_request_id(request),
+    )
 
 
 @app.post(
@@ -732,13 +1046,30 @@ def publish_object_draft(
     draft_id: str, payload: PublishDraftRequest, request: Request
 ) -> OntologyVersion:
     previous = request.app.state.ontology_repository.get_current_version()
-    version = request.app.state.ontology_manager.publish(draft_id, payload)
+    version = request.app.state.ontology_manager.publish(
+        draft_id, payload, expected_revision=_draft_revision(request)
+    )
     try:
         _activate_runtime(request.app, version)
+        request.app.state.ontology_manager.record_runtime_event(
+            OntologyAuditAction.ACTIVATED, version.id, payload.actor
+        )
     except Exception as exc:
+        request.app.state.ontology_manager.record_runtime_event(
+            OntologyAuditAction.ACTIVATION_FAILED,
+            version.id,
+            payload.actor,
+            metadata={"error_type": type(exc).__name__},
+        )
         if previous is not None:
             request.app.state.ontology_repository.activate_version(previous.version)
             _activate_runtime(request.app, previous)
+            request.app.state.ontology_manager.record_runtime_event(
+                OntologyAuditAction.ROLLED_BACK,
+                previous.id,
+                payload.actor,
+                metadata={"failed_version_id": version.id},
+            )
         raise HTTPException(
             status_code=500,
             detail=f"Object ontology activation failed and was rolled back: {exc}",
@@ -1107,12 +1438,36 @@ def reject_ontology_candidate(
 def publish_ontology(payload: OntologyPublishRequest, request: Request) -> OntologyVersion:
     previous = request.app.state.ontology_repository.get_current_version()
     version = request.app.state.ontology_builder.publish(payload)
+    request.app.state.ontology_manager.record_runtime_event(
+        OntologyAuditAction.PUBLISHED,
+        version.id,
+        payload.published_by,
+        metadata={"legacy_fallback": True},
+    )
     try:
         _activate_runtime(request.app, version)
+        request.app.state.ontology_manager.record_runtime_event(
+            OntologyAuditAction.ACTIVATED,
+            version.id,
+            payload.published_by,
+            metadata=request.app.state.ontology_runtime,
+        )
     except Exception as exc:
+        request.app.state.ontology_manager.record_runtime_event(
+            OntologyAuditAction.ACTIVATION_FAILED,
+            version.id,
+            payload.published_by,
+            metadata={"error_type": type(exc).__name__},
+        )
         if previous is not None:
             request.app.state.ontology_repository.activate_version(previous.version)
             _activate_runtime(request.app, previous)
+            request.app.state.ontology_manager.record_runtime_event(
+                OntologyAuditAction.ROLLED_BACK,
+                previous.id,
+                payload.published_by,
+                metadata={"failed_version_id": version.id},
+            )
         raise HTTPException(
             status_code=500,
             detail=f"Published version failed runtime activation and was rolled back: {exc}",
@@ -1136,19 +1491,102 @@ def ontology_versions(request: Request) -> list[OntologyVersion]:
     return request.app.state.ontology_builder.versions()
 
 
+@app.get(
+    "/api/v1/ontology/versions/{version_id}/compiled-artifact",
+    response_model=CompiledArtifactSummary,
+)
+def ontology_compiled_artifact(
+    version_id: str,
+    request: Request,
+    include_bundle: bool = Query(default=False),
+) -> CompiledArtifactSummary:
+    return request.app.state.ontology_manager.compiled_artifact(
+        version_id, include_bundle=include_bundle
+    )
+
+
+@app.get(
+    "/api/v1/ontology/versions/{version_id}/audit-events",
+    response_model=list[OntologyAuditEvent],
+)
+def version_audit_events(
+    version_id: str, request: Request, limit: int = Query(default=100, ge=1, le=500)
+) -> list[OntologyAuditEvent]:
+    return request.app.state.ontology_manager.audit_events(
+        version_id=version_id, limit=limit
+    )
+
+
 @app.post(
     "/api/v1/ontology/versions/{version}/activate",
     response_model=OntologyVersion,
 )
 def activate_ontology_version(version: str, request: Request) -> OntologyVersion:
     previous = request.app.state.ontology_repository.get_current_version()
+    target = next(
+        (
+            item
+            for item in request.app.state.ontology_repository.list_versions()
+            if item.version == version
+        ),
+        None,
+    )
+    if target is None:
+        raise OntologyGovernanceError(
+            f"Published ontology version not found: {version}",
+            "ONTOLOGY_VERSION_NOT_FOUND",
+        )
+    candidate_bundle = request.app.state.ontology_repository.load_published_bundle(version)
+    if candidate_bundle is None:
+        request.app.state.ontology_manager.record_runtime_event(
+            OntologyAuditAction.ACTIVATION_FAILED,
+            target.id,
+            _actor(request),
+            metadata={"error_code": "ONTOLOGY_BUNDLE_NOT_FOUND"},
+        )
+        raise OntologyGovernanceError(
+            f"Ontology bundle not found: {version}", "ONTOLOGY_BUNDLE_NOT_FOUND"
+        )
+    try:
+        request.app.state.ontology_manager.load_runtime_bundle(target.id, candidate_bundle)
+    except Exception as exc:
+        request.app.state.ontology_manager.record_runtime_event(
+            OntologyAuditAction.ACTIVATION_FAILED,
+            target.id,
+            _actor(request),
+            metadata={"error_type": type(exc).__name__},
+        )
+        raise
     activated = request.app.state.ontology_builder.activate(version)
     try:
         _activate_runtime(request.app, activated)
+        activation_action = (
+            OntologyAuditAction.ROLLED_BACK
+            if previous is not None and activated.published_at < previous.published_at
+            else OntologyAuditAction.ACTIVATED
+        )
+        request.app.state.ontology_manager.record_runtime_event(
+            activation_action,
+            activated.id,
+            _actor(request),
+            metadata=request.app.state.ontology_runtime,
+        )
     except Exception as exc:
+        request.app.state.ontology_manager.record_runtime_event(
+            OntologyAuditAction.ACTIVATION_FAILED,
+            activated.id,
+            _actor(request),
+            metadata={"error_type": type(exc).__name__},
+        )
         if previous is not None:
             request.app.state.ontology_repository.activate_version(previous.version)
             _activate_runtime(request.app, previous)
+            request.app.state.ontology_manager.record_runtime_event(
+                OntologyAuditAction.ROLLED_BACK,
+                previous.id,
+                _actor(request),
+                metadata={"failed_version_id": activated.id},
+            )
         raise HTTPException(
             status_code=500,
             detail=f"Ontology activation failed health checks and was rolled back: {exc}",
@@ -1161,6 +1599,23 @@ def _activate_runtime(app_instance: FastAPI, version: OntologyVersion) -> None:
 
     if not app_instance.state.ontology.reload_version(version.version):
         raise RuntimeError(f"Ontology version could not be loaded: {version.version}")
+    governed_bundle, legacy_fallback, artifact = (
+        app_instance.state.ontology_manager.load_runtime_bundle(
+            version.id, app_instance.state.ontology.bundle
+        )
+    )
+    app_instance.state.ontology.bundle = governed_bundle
+    app_instance.state.ontology.ontology_version_id = version.id
+    app_instance.state.ontology.compiled_bundle_hash = artifact.bundle_hash if artifact else ""
+    app_instance.state.ontology.compiler_version = (
+        artifact.compiler_version if artifact else "legacy"
+    )
+    app_instance.state.ontology._refresh_indexes()
+    app_instance.state.ontology_runtime = {
+        "legacy_fallback": legacy_fallback,
+        "bundle_hash": artifact.bundle_hash if artifact else None,
+        "compiler_version": artifact.compiler_version if artifact else None,
+    }
     app_instance.state.executor.set_ontology(app_instance.state.ontology.bundle)
     manager = app_instance.state.ontology_manager
     manager.base_bundle = app_instance.state.ontology.bundle

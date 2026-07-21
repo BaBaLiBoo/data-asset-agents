@@ -9,6 +9,36 @@ class OntologyError(DataAssetAgentsError):
 class OntologyConflictError(OntologyError):
     """Raised when an ontology Draft state transition is not allowed."""
 
+    def __init__(
+        self,
+        message: str,
+        code: str = "ONTOLOGY_CONFLICT",
+        *,
+        current_revision: int | None = None,
+        current_hash: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.current_revision = current_revision
+        self.current_hash = current_hash
+
+
+class OntologyGovernanceError(OntologyError):
+    """Structured release-governance failure safe for API clients."""
+
+    def __init__(
+        self,
+        message: str,
+        code: str,
+        *,
+        current_revision: int | None = None,
+        current_hash: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.current_revision = current_revision
+        self.current_hash = current_hash
+
 
 class UnsafeSQLError(DataAssetAgentsError):
     """Raised when SQL violates the read-only execution policy."""

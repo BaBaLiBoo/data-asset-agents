@@ -652,6 +652,7 @@ def test_rejected_and_unvalidated_drafts_cannot_publish(bundle) -> None:
             draft.draft.id,
             PublishDraftRequest(actor="test", version="invalid-1"),
         )
+    service.validate(draft.draft.id)
     service.submit(draft.draft.id, ActorRequest(actor="author"))
     rejected = service.reject(
         draft.draft.id,
@@ -691,6 +692,7 @@ def test_publish_failure_does_not_expose_half_version(bundle, migrated) -> None:
     repository = FailingRepository()
     service = OntologyManagerService(repository, bundle, OntologyDraftValidator(bundle))
     draft = service.migrate_legacy(MigrateLegacyRequest())
+    service.validate(draft.draft.id)
     service.submit(draft.draft.id, ActorRequest())
     service.approve(draft.draft.id, ActorRequest())
     with pytest.raises(OntologyError):

@@ -6,9 +6,14 @@ import hashlib
 from datetime import UTC, datetime
 from uuid import uuid4
 
+from pydantic import ValidationError
 from sqlalchemy import Engine, inspect
 
-from data_asset_agents.core.errors import OntologyConflictError, OntologyError
+from data_asset_agents.core.errors import (
+    OntologyConflictError,
+    OntologyError,
+    OntologyGovernanceError,
+)
 from data_asset_agents.ontology.models import (
     CandidateConcept,
     OntologyBundle,
@@ -18,11 +23,21 @@ from data_asset_agents.ontology.models import (
 
 from .candidate_generator import ObjectFirstCandidateGenerator
 from .change_analysis import OntologyChangeAnalyzer
+from .compiler import (
+    COMPILER_NAME,
+    COMPILER_VERSION,
+    ObjectSemanticCompiler,
+    compiler_source_hash,
+)
 from .governance_models import OntologyChangeSet, OntologyImpactReport
+from .hashing import calculate_bundle_hash, calculate_draft_resource_hash
 from .migration import LegacyOntologyObjectMigrator
 from .models import (
     ActorRequest,
     BindingSyncStatus,
+    CompiledArtifactStatus,
+    CompiledArtifactSummary,
+    CompiledOntologyArtifact,
     CreateDraftFromSeedRequest,
     CreateDraftRequest,
     DataSourceDefinition,
@@ -38,6 +53,8 @@ from .models import (
     ObjectDataSourceBinding,
     ObjectGraph,
     ObjectType,
+    OntologyAuditAction,
+    OntologyAuditEvent,
     OntologyDraft,
     OntologyDraftAggregate,
     PhysicalJoinDefinition,
@@ -46,6 +63,7 @@ from .models import (
     PublishDraftRequest,
     RejectDraftRequest,
     SemanticRole,
+    ValidationState,
 )
 from .projection import CompatibilityProjectionService
 from .repository import OntologyManagerRepository
@@ -193,11 +211,13 @@ class OntologyManagerService:
             raise OntologyError(f"Ontology Draft not found: {draft_id}")
         return self._with_joins(aggregate)
 
-    def delete_draft(self, draft_id: str) -> None:
+    def delete_draft(
+        self, draft_id: str, *, expected_revision: int | None = None
+    ) -> None:
         aggregate = self.get_draft(draft_id)
         if aggregate.draft.status == DraftStatus.PUBLISHED:
             raise OntologyConflictError("Published Drafts are immutable and cannot be deleted")
-        self.repository.delete_draft(draft_id)
+        self.repository.delete_draft(draft_id, expected_revision)
 
     def _editable(self, draft_id: str) -> OntologyDraftAggregate:
         aggregate = self.get_draft(draft_id)
@@ -207,9 +227,21 @@ class OntologyManagerService:
             )
         return aggregate
 
-    def save_resource(self, draft_id: str, resource: object) -> OntologyDraftAggregate:
-        aggregate = self._editable(draft_id)
-        resources = aggregate.resources
+    @staticmethod
+    def _resource_collection(resources: DraftResources, resource: object) -> list[object]:
+        return {
+            ObjectType: resources.object_types,
+            PropertyDefinition: resources.properties,
+            LinkType: resources.link_types,
+            ObjectDataSourceBinding: resources.bindings,
+            PhysicalJoinDefinition: resources.physical_joins,
+            MetricDefinition: resources.metrics,
+            DimensionDefinition: resources.dimensions,
+        }[type(resource)]
+
+    def _save_resource_to_snapshot(
+        self, resources: DraftResources, resource: object
+    ) -> None:
         if isinstance(resource, PropertyDefinition):
             obj = next(
                 (item for item in resources.object_types if item.id == resource.object_type_id),
@@ -218,15 +250,17 @@ class OntologyManagerService:
             if obj is None:
                 raise OntologyError(f"Property object does not exist: {resource.object_type_id}")
             if resource.id not in obj.property_ids:
-                self.repository.save_resource(
-                    draft_id,
-                    obj.model_copy(
+                resources.object_types[:] = [
+                    item
+                    if item.id != obj.id
+                    else obj.model_copy(
                         update={
                             "property_ids": [*obj.property_ids, resource.id],
                             "updated_at": datetime.now(UTC),
                         }
-                    ),
-                )
+                    )
+                    for item in resources.object_types
+                ]
         if isinstance(resource, DimensionDefinition) and not any(
             item.id == resource.property_id for item in resources.properties
         ):
@@ -284,11 +318,69 @@ class OntologyManagerService:
                 )
             if self.engine is not None:
                 resource = self._refresh_binding_schema(resource)
-        self.repository.save_resource(draft_id, resource)
-        return self.get_draft(draft_id)
+        collection = self._resource_collection(resources, resource)
+        collection[:] = [item for item in collection if item.id != resource.id]
+        collection.append(resource)
 
-    def delete_resource(self, draft_id: str, kind: str, resource_id: str) -> OntologyDraftAggregate:
+    def save_resource(
+        self,
+        draft_id: str,
+        resource: object,
+        *,
+        expected_revision: int | None = None,
+        actor: str = "ontology-manager",
+        request_id: str | None = None,
+    ) -> OntologyDraftAggregate:
         aggregate = self._editable(draft_id)
+        collection = self._resource_collection(aggregate.resources, resource)
+        action = (
+            OntologyAuditAction.RESOURCE_UPDATED
+            if any(item.id == resource.id for item in collection)
+            else OntologyAuditAction.RESOURCE_CREATED
+        )
+        return self.repository.apply_mutation(
+            draft_id,
+            expected_revision,
+            actor,
+            action,
+            type(resource).__name__,
+            resource.id,
+            lambda resources: self._save_resource_to_snapshot(resources, resource),
+            request_id=request_id,
+        )
+
+    def delete_resource(
+        self,
+        draft_id: str,
+        kind: str,
+        resource_id: str,
+        *,
+        expected_revision: int | None = None,
+        actor: str = "ontology-manager",
+        request_id: str | None = None,
+    ) -> OntologyDraftAggregate:
+        editable = self._editable(draft_id)
+
+        def delete_from_snapshot(resources: DraftResources) -> None:
+            aggregate = OntologyDraftAggregate(
+                draft=editable.draft, resources=resources
+            )
+            self._delete_resource_from_snapshot(aggregate, kind, resource_id)
+
+        return self.repository.apply_mutation(
+            draft_id,
+            expected_revision,
+            actor,
+            OntologyAuditAction.RESOURCE_DELETED,
+            kind,
+            resource_id,
+            delete_from_snapshot,
+            request_id=request_id,
+        )
+
+    def _delete_resource_from_snapshot(
+        self, aggregate: OntologyDraftAggregate, kind: str, resource_id: str
+    ) -> None:
         if kind == "object_type":
             property_ids = {
                 prop.id
@@ -300,31 +392,38 @@ class OntologyManagerService:
                 for dimension in aggregate.resources.dimensions
                 if dimension.property_id in property_ids
             }
-            for metric in aggregate.resources.metrics:
-                referenced = {
-                    metric.measure_property_id,
-                    metric.time_property_id,
-                    *(item.property_id for item in metric.filter_predicates),
-                }
-                if (
-                    referenced & property_ids
+            aggregate.resources.metrics[:] = [
+                metric
+                for metric in aggregate.resources.metrics
+                if not (
+                    {
+                        metric.measure_property_id,
+                        metric.time_property_id,
+                        *(item.property_id for item in metric.filter_predicates),
+                    }
+                    & property_ids
                     or set(metric.supported_dimension_ids) & deleted_dimensions
-                ):
-                    self.repository.delete_resource(draft_id, "metric", metric.id)
-            for dimension_id in deleted_dimensions:
-                self.repository.delete_resource(draft_id, "dimension", dimension_id)
-            for prop in aggregate.resources.properties:
-                if prop.object_type_id == resource_id:
-                    self.repository.delete_resource(draft_id, "property", prop.id)
-            for binding in aggregate.resources.bindings:
-                if binding.object_type_id == resource_id:
-                    self.repository.delete_resource(draft_id, "binding", binding.id)
-            for link in aggregate.resources.link_types:
-                if resource_id in {
-                    link.source_object_type_id,
-                    link.target_object_type_id,
-                }:
-                    self.repository.delete_resource(draft_id, "link_type", link.id)
+                )
+            ]
+            aggregate.resources.dimensions[:] = [
+                item for item in aggregate.resources.dimensions if item.id not in deleted_dimensions
+            ]
+            aggregate.resources.properties[:] = [
+                item
+                for item in aggregate.resources.properties
+                if item.object_type_id != resource_id
+            ]
+            aggregate.resources.bindings[:] = [
+                item
+                for item in aggregate.resources.bindings
+                if item.object_type_id != resource_id
+            ]
+            aggregate.resources.link_types[:] = [
+                item
+                for item in aggregate.resources.link_types
+                if resource_id
+                not in {item.source_object_type_id, item.target_object_type_id}
+            ]
         if kind == "property":
             referencing_metrics = [
                 metric.id
@@ -352,14 +451,18 @@ class OntologyManagerService:
                         raise OntologyConflictError(
                             "Primary/title properties must be reassigned before deletion"
                         )
-                    self.repository.save_resource(
-                        draft_id,
-                        obj.model_copy(
+                    aggregate.resources.object_types[:] = [
+                        item
+                        if item.id != obj.id
+                        else obj.model_copy(
                             update={
-                                "property_ids": [x for x in obj.property_ids if x != resource_id]
+                                "property_ids": [
+                                    x for x in obj.property_ids if x != resource_id
+                                ]
                             }
-                        ),
-                    )
+                        )
+                        for item in aggregate.resources.object_types
+                    ]
         if kind == "dimension":
             referencing_metrics = [
                 metric.id
@@ -371,8 +474,16 @@ class OntologyManagerService:
                     "Dimension is referenced by Metric(s): "
                     + ", ".join(sorted(referencing_metrics))
                 )
-        self.repository.delete_resource(draft_id, kind, resource_id)
-        return self.get_draft(draft_id)
+        collection = {
+            "object_type": aggregate.resources.object_types,
+            "property": aggregate.resources.properties,
+            "link_type": aggregate.resources.link_types,
+            "binding": aggregate.resources.bindings,
+            "physical_join": aggregate.resources.physical_joins,
+            "metric": aggregate.resources.metrics,
+            "dimension": aggregate.resources.dimensions,
+        }[kind]
+        collection[:] = [item for item in collection if item.id != resource_id]
 
     def generate_candidates(self, draft_id: str) -> ObjectCandidateSet:
         """Generate evidence-backed candidates for one Draft's immutable snapshot."""
@@ -391,7 +502,12 @@ class OntologyManagerService:
         )
 
     def import_candidates(
-        self, draft_id: str, request: ImportObjectCandidatesRequest
+        self,
+        draft_id: str,
+        request: ImportObjectCandidatesRequest,
+        *,
+        expected_revision: int | None = None,
+        request_id: str | None = None,
     ) -> OntologyDraftAggregate:
         """Import only explicitly selected metadata or VERIFIED field candidates."""
 
@@ -435,25 +551,30 @@ class OntologyManagerService:
                 "Selected candidates are unavailable or not VERIFIED: "
                 + ", ".join(sorted(missing))
             )
-        for candidate_id in request.candidate_ids:
-            resource = available[candidate_id]
-            current = self.get_draft(draft_id).resources
-            collection = {
-                ObjectType: current.object_types,
-                PropertyDefinition: current.properties,
-                LinkType: current.link_types,
-                ObjectDataSourceBinding: current.bindings,
-                PhysicalJoinDefinition: current.physical_joins,
-            }[type(resource)]
-            previous = next((item for item in collection if item.id == resource.id), None)
-            if previous is not None and not isinstance(resource, ObjectDataSourceBinding):
-                continue
-            self.save_resource(draft_id, resource)
-        refreshed = self.get_draft(draft_id)
-        refreshed.draft.validation_report = None
-        refreshed.draft.updated_at = datetime.now(UTC)
-        self.repository.save_draft(refreshed.draft)
-        return self.get_draft(draft_id)
+        selected = [
+            (candidate_id, available[candidate_id])
+            for candidate_id in request.candidate_ids
+        ]
+
+        def import_all(resources: DraftResources) -> None:
+            for _, resource in selected:
+                collection = self._resource_collection(resources, resource)
+                previous = next((item for item in collection if item.id == resource.id), None)
+                if previous is not None and not isinstance(resource, ObjectDataSourceBinding):
+                    continue
+                self._save_resource_to_snapshot(resources, resource)
+
+        return self.repository.apply_mutation(
+            draft_id,
+            expected_revision,
+            request.actor,
+            OntologyAuditAction.CANDIDATES_IMPORTED,
+            "candidate_batch",
+            None,
+            import_all,
+            request_id=request_id,
+            metadata={"candidate_ids": request.candidate_ids},
+        )
 
     @staticmethod
     def _property_from_verified_candidate(
@@ -487,44 +608,200 @@ class OntologyManagerService:
             synonyms=candidate.synonyms,
         )
 
-    def validate(self, draft_id: str) -> OntologyDraftAggregate:
+    @staticmethod
+    def _check_expected_revision(
+        aggregate: OntologyDraftAggregate, expected_revision: int | None
+    ) -> None:
+        if (
+            expected_revision is not None
+            and aggregate.draft.resource_revision != expected_revision
+        ):
+            raise OntologyConflictError(
+                "Draft 已被其他操作更新，请刷新后重新编辑。",
+                "DRAFT_REVISION_CONFLICT",
+                current_revision=aggregate.draft.resource_revision,
+                current_hash=aggregate.draft.resource_hash,
+            )
+
+    def validate(
+        self,
+        draft_id: str,
+        *,
+        expected_revision: int | None = None,
+        actor: str = "ontology-validator",
+        request_id: str | None = None,
+    ) -> OntologyDraftAggregate:
         aggregate = self.get_draft(draft_id)
+        self._check_expected_revision(aggregate, expected_revision)
         if aggregate.draft.status in {DraftStatus.PUBLISHED, DraftStatus.REJECTED}:
             raise OntologyConflictError(f"Cannot validate a {aggregate.draft.status} Draft")
+        starting_revision = aggregate.draft.resource_revision
+        starting_hash = aggregate.draft.resource_hash
+        started_at = datetime.now(UTC)
+        validation_run_id = f"validation-{uuid4().hex}"
+        self.repository.append_audit_event(
+            OntologyAuditEvent(
+                event_id=f"audit-{uuid4().hex}",
+                draft_id=draft_id,
+                actor=actor,
+                action=OntologyAuditAction.VALIDATION_STARTED,
+                before_revision=starting_revision,
+                after_revision=starting_revision,
+                before_hash=starting_hash,
+                after_hash=starting_hash,
+                request_id=request_id,
+                metadata={"validation_run_id": validation_run_id},
+            )
+        )
         report = self.validator.validate(aggregate.resources, aggregate.draft.source_snapshot_id)
+        report = report.model_copy(
+            update={
+                "resource_revision": starting_revision,
+                "resource_hash": starting_hash,
+                "compiler_version": COMPILER_VERSION,
+                "validation_run_id": validation_run_id,
+                "started_at": started_at,
+                "completed_at": datetime.now(UTC),
+            }
+        )
         aggregate.draft.validation_report = report
+        aggregate.draft.validated_revision = starting_revision
+        aggregate.draft.validated_hash = starting_hash
+        aggregate.draft.validation_state = (
+            ValidationState.VALID if report.valid else ValidationState.FAILED
+        )
         aggregate.draft.updated_at = datetime.now(UTC)
-        self.repository.save_draft(aggregate.draft)
-        return self.get_draft(draft_id)
+        return self.repository.update_draft_state(
+            aggregate.draft,
+            starting_revision,
+            starting_hash,
+            actor,
+            (
+                OntologyAuditAction.VALIDATION_PASSED
+                if report.valid
+                else OntologyAuditAction.VALIDATION_FAILED
+            ),
+            request_id=request_id,
+            metadata={"validation_run_id": validation_run_id},
+        )
 
-    def submit(self, draft_id: str, request: ActorRequest) -> OntologyDraftAggregate:
+    def submit(
+        self,
+        draft_id: str,
+        request: ActorRequest,
+        *,
+        expected_revision: int | None = None,
+        request_id: str | None = None,
+    ) -> OntologyDraftAggregate:
         aggregate = self._editable(draft_id)
+        self._check_expected_revision(aggregate, expected_revision)
+        draft = aggregate.draft
+        if draft.validation_state == ValidationState.STALE:
+            raise OntologyGovernanceError(
+                "Validation report is stale for the current Draft",
+                "DRAFT_VALIDATION_STALE",
+            )
+        if draft.validation_report is None:
+            raise OntologyGovernanceError(
+                "Draft must be validated before submission", "DRAFT_NOT_VALIDATED"
+            )
+        if not draft.validation_report.valid or draft.validation_state == ValidationState.FAILED:
+            raise OntologyGovernanceError(
+                "Failed validation cannot be submitted", "DRAFT_VALIDATION_FAILED"
+            )
+        if (
+            draft.validation_state != ValidationState.VALID
+            or draft.validated_revision != draft.resource_revision
+            or draft.validated_hash != draft.resource_hash
+        ):
+            raise OntologyGovernanceError(
+                "Validation report is stale for the current Draft", "DRAFT_VALIDATION_STALE"
+            )
         aggregate.draft.status = DraftStatus.IN_REVIEW
         aggregate.draft.submitted_by = request.actor
         aggregate.draft.submitted_at = datetime.now(UTC)
+        aggregate.draft.submitted_revision = aggregate.draft.resource_revision
+        aggregate.draft.submitted_hash = aggregate.draft.resource_hash
         aggregate.draft.updated_at = aggregate.draft.submitted_at
-        self.repository.save_draft(aggregate.draft)
-        return self.get_draft(draft_id)
+        return self.repository.update_draft_state(
+            aggregate.draft,
+            aggregate.draft.resource_revision,
+            aggregate.draft.resource_hash,
+            request.actor,
+            OntologyAuditAction.SUBMITTED,
+            request_id=request_id,
+        )
 
-    def approve(self, draft_id: str, request: ActorRequest) -> OntologyDraftAggregate:
+    def approve(
+        self,
+        draft_id: str,
+        request: ActorRequest,
+        *,
+        expected_revision: int | None = None,
+        request_id: str | None = None,
+    ) -> OntologyDraftAggregate:
         aggregate = self.get_draft(draft_id)
+        self._check_expected_revision(aggregate, expected_revision)
         if aggregate.draft.status != DraftStatus.IN_REVIEW:
             raise OntologyConflictError("Only IN_REVIEW Drafts can be approved")
+        if (
+            aggregate.draft.resource_revision != aggregate.draft.submitted_revision
+            or aggregate.draft.resource_hash != aggregate.draft.submitted_hash
+        ):
+            raise OntologyGovernanceError(
+                "Review snapshot no longer matches submitted content",
+                "REVIEW_SNAPSHOT_CHANGED",
+            )
         report = self.validator.validate(aggregate.resources, aggregate.draft.source_snapshot_id)
+        report = report.model_copy(
+            update={
+                "resource_revision": aggregate.draft.resource_revision,
+                "resource_hash": aggregate.draft.resource_hash,
+                "compiler_version": COMPILER_VERSION,
+                "validation_run_id": f"review-validation-{uuid4().hex}",
+                "started_at": datetime.now(UTC),
+                "completed_at": datetime.now(UTC),
+            }
+        )
         if not report.valid:
             aggregate.draft.validation_report = report
-            self.repository.save_draft(aggregate.draft)
+            aggregate.draft.validation_state = ValidationState.FAILED
+            self.repository.update_draft_state(
+                aggregate.draft,
+                aggregate.draft.resource_revision,
+                aggregate.draft.resource_hash,
+                request.actor,
+                OntologyAuditAction.VALIDATION_FAILED,
+                request_id=request_id,
+            )
             raise OntologyError("Draft approval failed validation")
         aggregate.draft.status = DraftStatus.VALIDATED
         aggregate.draft.validation_report = report
+        aggregate.draft.validation_state = ValidationState.VALID
+        aggregate.draft.validated_revision = aggregate.draft.resource_revision
+        aggregate.draft.validated_hash = aggregate.draft.resource_hash
         aggregate.draft.reviewed_by = request.actor
         aggregate.draft.reviewed_at = datetime.now(UTC)
         aggregate.draft.updated_at = aggregate.draft.reviewed_at
-        self.repository.save_draft(aggregate.draft)
-        return self.get_draft(draft_id)
+        return self.repository.update_draft_state(
+            aggregate.draft,
+            aggregate.draft.resource_revision,
+            aggregate.draft.resource_hash,
+            request.actor,
+            OntologyAuditAction.APPROVED,
+            request_id=request_id,
+        )
 
-    def reject(self, draft_id: str, request: RejectDraftRequest) -> OntologyDraftAggregate:
+    def reject(
+        self,
+        draft_id: str,
+        request: RejectDraftRequest,
+        *,
+        expected_revision: int | None = None,
+        request_id: str | None = None,
+    ) -> OntologyDraftAggregate:
         aggregate = self.get_draft(draft_id)
+        self._check_expected_revision(aggregate, expected_revision)
         if aggregate.draft.status != DraftStatus.IN_REVIEW:
             raise OntologyConflictError("Only IN_REVIEW Drafts can be rejected")
         aggregate.draft.status = DraftStatus.REJECTED
@@ -532,13 +809,47 @@ class OntologyManagerService:
         aggregate.draft.rejection_reason = request.reason
         aggregate.draft.reviewed_at = datetime.now(UTC)
         aggregate.draft.updated_at = aggregate.draft.reviewed_at
-        self.repository.save_draft(aggregate.draft)
-        return self.get_draft(draft_id)
+        return self.repository.update_draft_state(
+            aggregate.draft,
+            aggregate.draft.resource_revision,
+            aggregate.draft.resource_hash,
+            request.actor,
+            OntologyAuditAction.REJECTED,
+            request_id=request_id,
+            metadata={"reason_present": True},
+        )
 
-    def publish(self, draft_id: str, request: PublishDraftRequest) -> OntologyVersion:
+    def publish(
+        self,
+        draft_id: str,
+        request: PublishDraftRequest,
+        *,
+        expected_revision: int | None = None,
+    ) -> OntologyVersion:
         aggregate = self.get_draft(draft_id)
+        self._check_expected_revision(aggregate, expected_revision)
         if aggregate.draft.status != DraftStatus.VALIDATED:
             raise OntologyConflictError("Only a VALIDATED Draft can be published")
+        if (
+            aggregate.draft.resource_revision != aggregate.draft.submitted_revision
+            or aggregate.draft.resource_hash != aggregate.draft.submitted_hash
+        ):
+            raise OntologyGovernanceError(
+                "Publish content differs from the reviewed snapshot",
+                "REVIEW_SNAPSHOT_CHANGED",
+            )
+        report = aggregate.draft.validation_report
+        if (
+            report is None
+            or not report.valid
+            or report.resource_hash != aggregate.draft.resource_hash
+            or report.resource_revision != aggregate.draft.resource_revision
+            or aggregate.draft.validation_state != ValidationState.VALID
+        ):
+            raise OntologyGovernanceError(
+                "Publish requires validation of the exact reviewed snapshot",
+                "DRAFT_VALIDATION_STALE",
+            )
         impact = self.impact(draft_id)
         if impact.breaking_changes and not request.acknowledge_breaking_changes:
             raise OntologyConflictError(
@@ -552,10 +863,10 @@ class OntologyManagerService:
             and self.drift_service.has_breaking_drift(aggregate.draft.base_version_id)
         ):
             raise OntologyError("Breaking metadata drift blocks publication")
-        report = self.validator.validate(aggregate.resources, aggregate.draft.source_snapshot_id)
-        if not report.valid:
-            raise OntologyError("Draft Dry Run failed; publication is blocked")
-        bundle = self.projection.project(self.base_bundle, aggregate.resources)
+        compilation = ObjectSemanticCompiler(self.base_bundle).compile(aggregate.resources)
+        if compilation.conflicts:
+            raise OntologyError("; ".join(compilation.conflicts))
+        bundle = compilation.bundle
         bundle.domain["version"] = request.version
         version = OntologyVersion(
             version=request.version,
@@ -570,8 +881,27 @@ class OntologyManagerService:
         aggregate.draft.reviewed_by = request.actor
         aggregate.draft.reviewed_at = datetime.now(UTC)
         aggregate.draft.updated_at = aggregate.draft.reviewed_at
-        aggregate.draft.validation_report = report
-        self.repository.publish(aggregate.draft, aggregate.resources, version, bundle)
+        bundle_hash = calculate_bundle_hash(bundle)
+        artifact = CompiledOntologyArtifact(
+            artifact_id=f"artifact-{version.id}",
+            ontology_version_id=version.id,
+            source_draft_id=aggregate.draft.id,
+            source_revision=aggregate.draft.resource_revision,
+            source_resource_hash=aggregate.draft.resource_hash,
+            compiler_name=COMPILER_NAME,
+            compiler_version=COMPILER_VERSION,
+            compiler_source_hash=compiler_source_hash(),
+            status=CompiledArtifactStatus.READY,
+            bundle_hash=bundle_hash,
+            bundle_json=bundle.model_dump(mode="json"),
+            property_bindings=compilation.property_bindings,
+            metric_compilation_evidence=compilation.metric_evidence,
+            dimension_compilation_evidence=compilation.dimension_evidence,
+            join_compilation_evidence=compilation.join_evidence,
+        )
+        self.repository.publish(
+            aggregate.draft, aggregate.resources, version, bundle, artifact
+        )
         return version
 
     def diff(self, draft_id: str) -> OntologyChangeSet:
@@ -617,6 +947,108 @@ class OntologyManagerService:
 
     def published(self) -> tuple[str | None, DraftResources]:
         return self.repository.published_resources()
+
+    def compiled_artifact(
+        self, version_id: str, *, include_bundle: bool = False
+    ) -> CompiledArtifactSummary:
+        artifact = self.repository.get_compiled_artifact(version_id)
+        if artifact is None:
+            raise OntologyError(f"Compiled ontology artifact not found: {version_id}")
+        return CompiledArtifactSummary(
+            artifact_id=artifact.artifact_id,
+            ontology_version_id=artifact.ontology_version_id,
+            source_revision=artifact.source_revision,
+            source_resource_hash=artifact.source_resource_hash,
+            compiler_version=artifact.compiler_version,
+            bundle_hash=artifact.bundle_hash,
+            status=artifact.status,
+            created_at=artifact.created_at,
+            evidence_summary={
+                "property_bindings": len(artifact.property_bindings),
+                "metrics": len(artifact.metric_compilation_evidence),
+                "dimensions": len(artifact.dimension_compilation_evidence),
+                "joins": len(artifact.join_compilation_evidence),
+            },
+            compilation_evidence={
+                "property_bindings": artifact.property_bindings,
+                "metrics": artifact.metric_compilation_evidence,
+                "dimensions": artifact.dimension_compilation_evidence,
+                "links": artifact.join_compilation_evidence,
+            },
+            bundle_json=artifact.bundle_json if include_bundle else None,
+        )
+
+    def load_runtime_bundle(
+        self, version_id: str, legacy_bundle: OntologyBundle
+    ) -> tuple[OntologyBundle, bool, CompiledOntologyArtifact | None]:
+        """Load immutable output; compile only versions predating artifacts."""
+
+        artifact = self.repository.get_compiled_artifact(version_id)
+        if artifact is not None:
+            if artifact.status != CompiledArtifactStatus.READY:
+                raise OntologyGovernanceError(
+                    "Compiled artifact is not READY", "ONTOLOGY_ARTIFACT_NOT_READY"
+                )
+            if artifact.ontology_version_id != version_id:
+                raise OntologyGovernanceError(
+                    "Compiled artifact version mismatch", "ONTOLOGY_ARTIFACT_VERSION_MISMATCH"
+                )
+            _, resources = self.repository.published_resources(version_id)
+            published_hash = calculate_draft_resource_hash(resources)
+            if published_hash != artifact.source_resource_hash:
+                raise OntologyGovernanceError(
+                    "Compiled artifact resource hash mismatch",
+                    "ONTOLOGY_ARTIFACT_RESOURCE_HASH_MISMATCH",
+                )
+            try:
+                bundle = OntologyBundle.model_validate(artifact.bundle_json)
+            except ValidationError as exc:
+                raise OntologyGovernanceError(
+                    "Compiled artifact bundle is invalid",
+                    "ONTOLOGY_ARTIFACT_BUNDLE_INVALID",
+                ) from exc
+            if calculate_bundle_hash(bundle) != artifact.bundle_hash:
+                raise OntologyGovernanceError(
+                    "Compiled artifact bundle hash mismatch",
+                    "ONTOLOGY_ARTIFACT_BUNDLE_HASH_MISMATCH",
+                )
+            return bundle, False, artifact
+        _, resources = self.repository.published_resources(version_id)
+        if resources.object_types:
+            compilation = ObjectSemanticCompiler(legacy_bundle).compile(resources)
+            if compilation.conflicts:
+                raise OntologyError("; ".join(compilation.conflicts))
+            return compilation.bundle, True, None
+        return legacy_bundle, True, None
+
+    def audit_events(
+        self,
+        *,
+        draft_id: str | None = None,
+        version_id: str | None = None,
+        limit: int = 100,
+    ) -> list[OntologyAuditEvent]:
+        return self.repository.list_audit_events(
+            draft_id=draft_id, version_id=version_id, limit=min(limit, 500)
+        )
+
+    def record_runtime_event(
+        self,
+        action: OntologyAuditAction,
+        version_id: str,
+        actor: str,
+        *,
+        metadata: dict[str, object] | None = None,
+    ) -> None:
+        self.repository.append_audit_event(
+            OntologyAuditEvent(
+                event_id=f"audit-{uuid4().hex}",
+                ontology_version_id=version_id,
+                actor=actor,
+                action=action,
+                metadata=metadata or {},
+            )
+        )
 
     def object_graph(self) -> ObjectGraph:
         version_id, resources = self.published()

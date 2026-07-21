@@ -22,6 +22,7 @@ from .governance_models import (
     OntologyIndexStatus,
     OntologyIndexType,
 )
+from .hashing import calculate_bundle_hash
 from .repository import OntologyManagerRepository
 
 
@@ -99,19 +100,32 @@ class OntologyIndexService:
         bundle = self.bundle_provider()
         version_id = self.version_provider()
         documents = self._source_documents(request.index_type, bundle)
-        source = json.dumps(documents, ensure_ascii=False, sort_keys=True)
+        bundle_hash = calculate_bundle_hash(bundle)
+        embedding_model = (
+            self.settings.embedding_model
+            if self.settings.llm_mode == "live"
+            else "deterministic-cpu-v1"
+        )
+        source = json.dumps(
+            {
+                "ontology_version_id": version_id,
+                "bundle_hash": bundle_hash,
+                "embedding_model": embedding_model,
+                "embedding_dimensions": 1024,
+                "documents": documents,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
         build = OntologyIndexBuild(
             build_id=f"ontology-index-{uuid4().hex}",
             ontology_version_id=version_id,
             index_type=request.index_type,
             status=OntologyIndexStatus.BUILDING,
             source_hash=hashlib.sha256(source.encode()).hexdigest(),
-            embedding_model=(
-                self.settings.embedding_model
-                if self.settings.llm_mode == "live"
-                else "deterministic-cpu-v1"
-            ),
+            embedding_model=embedding_model,
             embedding_dimensions=1024,
+            bundle_hash=bundle_hash,
         )
         self._builds[build.build_id] = build
         self._persist_build(build)
@@ -208,11 +222,11 @@ class OntologyIndexService:
                 INSERT INTO ontology_index_build(
                   build_id,ontology_version_id,index_type,status,source_hash,
                   embedding_model,embedding_dimensions,document_count,started_at,
-                  completed_at,error_message,is_current
+                  completed_at,error_message,is_current,bundle_hash
                 ) VALUES (
                   :build_id,:version_id,:index_type,:status,:source_hash,
                   :embedding_model,:dimensions,:count,:started_at,
-                  :completed_at,:error_message,:is_current
+                  :completed_at,:error_message,:is_current,:bundle_hash
                 ) ON CONFLICT(build_id) DO UPDATE SET
                   status=EXCLUDED.status,document_count=EXCLUDED.document_count,
                   completed_at=EXCLUDED.completed_at,error_message=EXCLUDED.error_message,
@@ -231,6 +245,7 @@ class OntologyIndexService:
                     "completed_at": build.completed_at,
                     "error_message": build.error_message,
                     "is_current": build.is_current,
+                    "bundle_hash": build.bundle_hash,
                 },
             )
 
@@ -247,6 +262,7 @@ class OntologyIndexService:
         return next((item for item in self.list() if item.build_id == build_id), None)
 
     def current(self, version_id: str, index_type: OntologyIndexType) -> OntologyIndexBuild | None:
+        expected_bundle_hash = calculate_bundle_hash(self.bundle_provider())
         return next(
             (
                 item
@@ -255,6 +271,7 @@ class OntologyIndexService:
                 and item.index_type == index_type
                 and item.status == OntologyIndexStatus.READY
                 and item.is_current
+                and item.bundle_hash == expected_bundle_hash
             ),
             None,
         )
@@ -341,4 +358,5 @@ class OntologyIndexService:
             completed_at=row["completed_at"],
             error_message=row["error_message"],
             is_current=row["is_current"],
+            bundle_hash=row.get("bundle_hash", ""),
         )

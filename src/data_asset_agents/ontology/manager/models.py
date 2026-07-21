@@ -58,6 +58,37 @@ class DraftStatus(StrEnum):
     REJECTED = "REJECTED"
 
 
+class ValidationState(StrEnum):
+    NEVER_VALIDATED = "NEVER_VALIDATED"
+    VALID = "VALID"
+    STALE = "STALE"
+    FAILED = "FAILED"
+
+
+class CompiledArtifactStatus(StrEnum):
+    BUILDING = "BUILDING"
+    READY = "READY"
+    FAILED = "FAILED"
+
+
+class OntologyAuditAction(StrEnum):
+    DRAFT_CREATED = "DRAFT_CREATED"
+    RESOURCE_CREATED = "RESOURCE_CREATED"
+    RESOURCE_UPDATED = "RESOURCE_UPDATED"
+    RESOURCE_DELETED = "RESOURCE_DELETED"
+    CANDIDATES_IMPORTED = "CANDIDATES_IMPORTED"
+    VALIDATION_STARTED = "VALIDATION_STARTED"
+    VALIDATION_PASSED = "VALIDATION_PASSED"
+    VALIDATION_FAILED = "VALIDATION_FAILED"
+    SUBMITTED = "SUBMITTED"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    PUBLISHED = "PUBLISHED"
+    ACTIVATED = "ACTIVATED"
+    ACTIVATION_FAILED = "ACTIVATION_FAILED"
+    ROLLED_BACK = "ROLLED_BACK"
+
+
 class BindingSyncStatus(StrEnum):
     UNCHECKED = "UNCHECKED"
     HEALTHY = "HEALTHY"
@@ -241,6 +272,12 @@ class DraftValidationReport(BaseModel):
     benchmark_sql: str | None = None
     explain_passed: bool | None = None
     dry_run_cases: list[dict[str, object]] = Field(default_factory=list)
+    resource_revision: int = 0
+    resource_hash: str = ""
+    compiler_version: str = "1"
+    validation_run_id: str = ""
+    started_at: datetime = Field(default_factory=utc_now)
+    completed_at: datetime = Field(default_factory=utc_now)
 
 
 class OntologyDraft(BaseModel):
@@ -259,6 +296,13 @@ class OntologyDraft(BaseModel):
     reviewed_at: datetime | None = None
     validation_report: DraftValidationReport | None = None
     rejection_reason: str | None = None
+    resource_revision: int = Field(default=0, ge=0)
+    resource_hash: str = ""
+    validated_revision: int | None = None
+    validated_hash: str | None = None
+    submitted_revision: int | None = None
+    submitted_hash: str | None = None
+    validation_state: ValidationState = ValidationState.NEVER_VALIDATED
 
 
 class DraftResources(BaseModel):
@@ -274,6 +318,57 @@ class DraftResources(BaseModel):
 class OntologyDraftAggregate(BaseModel):
     draft: OntologyDraft
     resources: DraftResources = Field(default_factory=DraftResources)
+
+
+class CompiledOntologyArtifact(BaseModel):
+    artifact_id: str
+    ontology_version_id: str
+    source_draft_id: str
+    source_revision: int
+    source_resource_hash: str
+    compiler_name: str
+    compiler_version: str
+    compiler_source_hash: str
+    status: CompiledArtifactStatus
+    bundle_hash: str
+    bundle_json: dict[str, object]
+    property_bindings: dict[str, str] = Field(default_factory=dict)
+    metric_compilation_evidence: list[dict[str, object]] = Field(default_factory=list)
+    dimension_compilation_evidence: list[dict[str, object]] = Field(default_factory=list)
+    join_compilation_evidence: list[dict[str, object]] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=utc_now)
+    error_message: str | None = None
+
+
+class CompiledArtifactSummary(BaseModel):
+    artifact_id: str
+    ontology_version_id: str
+    source_revision: int
+    source_resource_hash: str
+    compiler_version: str
+    bundle_hash: str
+    status: CompiledArtifactStatus
+    created_at: datetime
+    evidence_summary: dict[str, int] = Field(default_factory=dict)
+    compilation_evidence: dict[str, object] = Field(default_factory=dict)
+    bundle_json: dict[str, object] | None = None
+
+
+class OntologyAuditEvent(BaseModel):
+    event_id: str
+    draft_id: str | None = None
+    ontology_version_id: str | None = None
+    actor: str
+    action: OntologyAuditAction
+    resource_type: str | None = None
+    resource_id: str | None = None
+    before_revision: int | None = None
+    after_revision: int | None = None
+    before_hash: str | None = None
+    after_hash: str | None = None
+    request_id: str | None = None
+    created_at: datetime = Field(default_factory=utc_now)
+    metadata: dict[str, object] = Field(default_factory=dict)
 
 
 class CreateDraftRequest(BaseModel):
@@ -300,7 +395,7 @@ class RejectDraftRequest(ActorRequest):
 
 
 class PublishDraftRequest(ActorRequest):
-    version: str = Field(pattern=r"^[A-Za-z0-9_.-]{1,80}$")
+    version: str = Field(max_length=50, pattern=r"^[A-Za-z0-9_.-]{1,50}$")
     description: str = "Object-first ontology manager publication"
     acknowledge_breaking_changes: bool = False
     change_ticket: str | None = None

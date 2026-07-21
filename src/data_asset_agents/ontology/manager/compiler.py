@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import inspect
 import re
 from copy import deepcopy
 
@@ -19,11 +21,22 @@ from data_asset_agents.ontology.models import (
 
 from .models import DraftResources, LifecycleStatus, SemanticRole
 
+COMPILER_NAME = "object-semantic-compiler"
+COMPILER_VERSION = "1"
+
+
+def compiler_source_hash() -> str:
+    payload = f"{COMPILER_NAME}:{COMPILER_VERSION}\n{inspect.getsource(ObjectSemanticCompiler)}"
+    return hashlib.sha256(payload.encode()).hexdigest()
+
 
 class SemanticCompilation(BaseModel):
     bundle: OntologyBundle
     property_bindings: dict[str, str] = Field(default_factory=dict)
     conflicts: list[str] = Field(default_factory=list)
+    metric_evidence: list[dict[str, object]] = Field(default_factory=list)
+    dimension_evidence: list[dict[str, object]] = Field(default_factory=list)
+    join_evidence: list[dict[str, object]] = Field(default_factory=list)
 
 
 class ObjectSemanticCompiler:
@@ -113,6 +126,7 @@ class ObjectSemanticCompiler:
         dimensions_by_property: dict[str, str] = {}
         dimensions_by_id: dict[str, Dimension] = {}
         compiled_dimensions: list[Dimension] = []
+        dimension_evidence: list[dict[str, object]] = []
         conflicts: list[str] = []
         dimension_sources = (
             [
@@ -156,6 +170,14 @@ class ObjectSemanticCompiler:
                 )
             compiled = dimension.model_copy(update={"table": table, "column": column})
             compiled_dimensions.append(compiled)
+            dimension_evidence.append(
+                {
+                    "dimension_id": dimension.id,
+                    "property_id": dimension.property_id,
+                    "resolved_table": table,
+                    "resolved_column": column,
+                }
+            )
             dimensions_by_id[dimension.id] = compiled
             dimensions_by_property[dimension.property_id] = dimension.id
             self._replace_mapping(
@@ -199,6 +221,7 @@ class ObjectSemanticCompiler:
             else bundle.metrics
         )
         compiled_metrics: list[Metric] = []
+        metric_evidence: list[dict[str, object]] = []
         for metric in metric_sources:
             if not metric.measure_property_id or not metric.aggregation:
                 if draft_owns_analytical_semantics:
@@ -301,6 +324,19 @@ class ObjectSemanticCompiler:
                     f"object property binding for {metric.measure_property_id}"
                 )
             compiled_metrics.append(compiled)
+            metric_evidence.append(
+                {
+                    "metric_id": metric.id,
+                    "measure_property_id": metric.measure_property_id,
+                    "aggregation": metric.aggregation.value,
+                    "resolved_table": table,
+                    "resolved_column": column,
+                    "compiled_expression": expression,
+                    "required_filters": required_filters,
+                    "time_dimension": time_dimension,
+                    "supported_dimensions": supported_dimensions,
+                }
+            )
             self._replace_mapping(
                 bundle.mappings,
                 PhysicalMapping(
@@ -323,6 +359,24 @@ class ObjectSemanticCompiler:
             for join in resources.physical_joins
             if join.enabled and join.lifecycle_status == LifecycleStatus.ACTIVE
         ]
+        physical_joins = {item.id: item for item in resources.physical_joins}
+        join_evidence = [
+            {
+                "link_id": link.id,
+                "physical_join_id": join_id,
+                "left_endpoint": (
+                    f"{physical_joins[join_id].left_table}."
+                    f"{physical_joins[join_id].left_column}"
+                ),
+                "right_endpoint": (
+                    f"{physical_joins[join_id].right_table}."
+                    f"{physical_joins[join_id].right_column}"
+                ),
+            }
+            for link in resources.link_types
+            for join_id in link.physical_join_ids
+            if join_id in physical_joins
+        ]
         return SemanticCompilation(
             bundle=bundle,
             property_bindings={
@@ -330,4 +384,7 @@ class ObjectSemanticCompiler:
                 for property_id, (table, column) in property_locations.items()
             },
             conflicts=conflicts,
+            metric_evidence=metric_evidence,
+            dimension_evidence=dimension_evidence,
+            join_evidence=join_evidence,
         )

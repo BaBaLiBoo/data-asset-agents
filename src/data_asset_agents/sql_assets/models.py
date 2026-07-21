@@ -41,6 +41,8 @@ class SQLAssetBuild(BaseModel):
     error_message: str | None = None
     asset_count: int = 0
     eligible_count: int = 0
+    bundle_hash: str = ""
+    compiler_version: str = "legacy"
 
 
 class SQLAsset(BaseModel):

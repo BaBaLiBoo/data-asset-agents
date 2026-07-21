@@ -39,10 +39,13 @@ class SQLAssetRepositoryProtocol(Protocol):
         query: str,
         limit: int,
         ontology_version_id: str,
+        bundle_hash: str | None = None,
     ) -> list[tuple[SQLAsset, float, float]]: ...
     def create_build(self, build: SQLAssetBuild) -> None: ...
     def finish_build(self, build: SQLAssetBuild) -> None: ...
-    def latest_ready(self, ontology_version_id: str) -> SQLAssetBuild | None: ...
+    def latest_ready(
+        self, ontology_version_id: str, bundle_hash: str | None = None
+    ) -> SQLAssetBuild | None: ...
     def get_build(self, build_id: str) -> SQLAssetBuild | None: ...
 
 
@@ -98,7 +101,10 @@ class SQLAssetService:
     def initialize_if_needed(self) -> SQLAssetBuild | None:
         """Load READY state; mock may seed once while live startup never blocks."""
 
-        ready = self.repository.latest_ready(self.ontology.ontology_version_id)
+        ready = self.repository.latest_ready(
+            self.ontology.ontology_version_id,
+            getattr(self.ontology, "compiled_bundle_hash", ""),
+        )
         if ready is not None or self.settings.llm_mode != "mock":
             return ready
         try:
@@ -122,6 +128,8 @@ class SQLAssetService:
             ontology_version_id=self.ontology.ontology_version_id,
             source_hash=source_hash,
             source_path=path.as_posix(),
+            bundle_hash=getattr(self.ontology, "compiled_bundle_hash", ""),
+            compiler_version=getattr(self.ontology, "compiler_version", "legacy"),
         )
         self.repository.create_build(build)
         assets: list[SQLAsset] = []
@@ -222,6 +230,11 @@ class SQLAssetService:
         return tags
 
     def search(self, request: SQLAssetSearchRequest) -> list[SQLAssetSearchResult]:
+        expected_bundle_hash = getattr(self.ontology, "compiled_bundle_hash", "")
+        if self.repository.latest_ready(
+            self.ontology.ontology_version_id, expected_bundle_hash
+        ) is None:
+            return []
         semantic = request.semantic_query
         metric_ids = set(semantic.metric_ids if semantic else [])
         dimension_ids = set(semantic.dimension_ids if semantic else [])
@@ -238,6 +251,7 @@ class SQLAssetService:
             request.question,
             request.limit * 5,
             self.ontology.ontology_version_id,
+            expected_bundle_hash,
         )
         results: list[SQLAssetSearchResult] = []
         for asset, vector_score, keyword_score in candidates:

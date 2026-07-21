@@ -431,7 +431,9 @@ python -m data_asset_agents.ontology.manager.cli migrate-legacy --dry-run `
   --created-by demo --draft-name "MiniBank object model"
 ```
 
-数据库迁移 `data/ddl/006_ontology_manager_core.sql` 新增 Draft 与 published 资源表以及 `ontology_version_object_resource` 来源关联；`data/ddl/007_ontology_runtime_governance.sql` 新增版本化 Physical Join、ChangeSet/Impact、Sync/Drift 和 Ontology IndexBuild/Search Document 表；`data/ddl/008_ontology_analysis_semantics.sql` 新增 Draft/Published Metric 与 Dimension 资源表。DDL 使用 `IF NOT EXISTS`，新卷由 Compose 自动加载；已有演示卷按上文命令依次执行。删除 Draft 只级联 Draft 资源，不会删除任何正式版本。
+数据库迁移 `data/ddl/006_ontology_manager_core.sql` 新增 Draft 与 published 资源表以及 `ontology_version_object_resource` 来源关联；`data/ddl/007_ontology_runtime_governance.sql` 新增版本化 Physical Join、ChangeSet/Impact、Sync/Drift 和 Ontology IndexBuild/Search Document 表；`data/ddl/008_ontology_analysis_semantics.sql` 新增 Draft/Published Metric 与 Dimension 资源表；`data/ddl/009_ontology_release_governance.sql` 新增 Draft revision/hash、不可变 CompiledArtifact、append-only Audit Event，以及 IndexBuild/SQLAssetBuild 的 bundle hash 绑定。DDL 使用 `IF NOT EXISTS` 和安全 `ALTER`，新卷由 Compose 自动加载；已有演示卷按编号依次执行。删除 Draft 只级联 Draft 资源，不会删除任何正式版本。
+
+Draft 编辑请求必须携带 `If-Match: "<resource_revision>"`（或 `X-Draft-Revision`）。一次用户操作只产生一次 revision；资源修改会统一把旧校验置为 `STALE`。只有最新 revision/hash 已通过 Validator 与四问题 Dynamic Dry Run 才能 Submit，审核由 submitted revision/hash 锁定。新发布版本从 READY CompiledArtifact 启动和回滚，不依赖未来编译器重新计算；旧版本没有 artifact 时才进入只读兼容回退。完整规则见 `docs/ontology-runtime.md`。
 
 ## 当前边界
 

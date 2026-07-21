@@ -64,6 +64,8 @@ class OntologyService:
             if current_version is not None and bundle_override is None
             else self._seed_version_id(self.bundle)
         )
+        self.compiled_bundle_hash = ""
+        self.compiler_version = "legacy"
         self.semantic_parser = SemanticQueryParser(self.settings, self.model_factory)
         self.index_service: object | None = None
         self.retriever = HybridConceptRetriever(self.settings.embedding_dimensions)

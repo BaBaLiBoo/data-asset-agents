@@ -173,6 +173,7 @@ class OntologyIndexBuild(BaseModel):
     completed_at: datetime | None = None
     error_message: str | None = None
     is_current: bool = False
+    bundle_hash: str = ""
 
 
 class DraftSemanticDryRunCase(BaseModel):

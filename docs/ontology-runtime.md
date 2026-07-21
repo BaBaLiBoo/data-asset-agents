@@ -97,3 +97,45 @@ Object Explorer 只查询当前 PUBLISHED 版本：
 当前没有实现 ActionType、Function、Automate、SharedProperty、Interface、对象写回、行列级用户权限、多数据库动态连接或增量 CDC。索引和 Sync 第一版同步运行；复杂分析仍受单事实表、审核 Metric/Dimension 和现有 SQLAsset AST 改写能力约束。
 
 当前编译目标仍是兼容现有 LangGraph、SQLAsset 与 Evaluation 的 `OntologyBundle`。因此运行时 `Metric.expression/base_table/required_filters` 和 `Dimension.table/column` 尚未删除，但它们仅是确定性编译结果和旧版本读取字段，不是新 Draft 的人工编辑事实源。
+
+## 10. Draft Revision 与 Validation Freshness
+
+每个 Draft 保存服务端生成的 `resource_revision` 与 `resource_hash`。Hash 对七类正式资源按“类型、资源 ID、JSON key”排序后使用 UTF-8 SHA-256 计算；名称、描述和同义词参与 Hash，时间戳、校验报告、Binding Sync 状态及检查错误等运行字段不参与。无语义变化的保存不会增加 revision。
+
+所有资源写入统一进入一次 Draft mutation 事务：锁定 Draft、检查 `If-Match`、执行全部级联修改、重新计算 Hash、revision 加一、清除旧报告并追加审计事件。Validator 在固定 revision/hash 的资源副本上运行，写回前再次比较数据库状态。报告只对报告中记录的精确 revision/hash 有效；并发变化会返回 `DRAFT_CHANGED_DURING_VALIDATION`。
+
+## 11. Optimistic Concurrency
+
+正式 Draft 写接口要求 `If-Match: "<resource_revision>"`，也兼容 `X-Draft-Revision`。revision 过期返回 HTTP 409、`DRAFT_REVISION_CONFLICT`、服务器当前 revision/hash，且事务不写入任何资源。候选批量导入只检查一次并只增加一次 revision。
+
+## 12. Immutable Review Snapshot
+
+Submit 只接受 `VALID` 且报告、validated revision/hash 与当前内容完全一致的 Draft。成功后保存 `submitted_revision/submitted_hash` 并进入 `IN_REVIEW`，此后禁止编辑。Approve 对同一提交快照再次执行 Validator；Publish 也必须匹配该快照。因此审核对象不是一个会继续变化的 Draft，而是由 revision + SHA-256 锁定的不可变内容。
+
+## 13. Compiled Ontology Artifact
+
+Approve 后发布只编译一次，并在同一数据库事务中保存：
+
+```text
+Draft Resource Mutation
+→ Revision + Hash
+→ Validate Exact Snapshot
+→ Submit Immutable Review Snapshot
+→ Approve
+→ Compile Once
+→ Atomic Publish
+→ Load Immutable Artifact
+→ Activate Runtime
+```
+
+`CompiledOntologyArtifact` 保存完整 `bundle_json`、`bundle_hash`、源码 Draft revision/hash、compiler name/version/source hash，以及 Property、Metric、Dimension 和 Link/Physical Join 的编译证据。READY artifact 由数据库触发器保护，禁止更新和删除；同一 OntologyVersion 只能有一个 READY artifact。
+
+## 14. Runtime Activation and Rollback
+
+启动、激活和回滚优先读取目标版本自己的 READY artifact，并核对 version ID、正式资源 Hash 和 Bundle Hash。验证通过后直接刷新 OntologyService、Executor、Validator 与 LangGraph，不重新运行 `ObjectSemanticCompiler`。因此编译器未来升级不会改变已经发布版本的运行结果。只有旧版本没有 artifact 时才走兼容编译路径，并标记 `legacy_fallback=true`；artifact 损坏会拒绝激活并回退到上一个健康版本。
+
+Ontology IndexBuild 的 source hash 同时绑定 ontology version、artifact bundle hash、Embedding 模型与维度。SQLAssetBuild 保存 ontology version、bundle hash 与 compiler version；在线检索不允许跨版本或跨 bundle hash 复用模板，不匹配时回退确定性 SQL。
+
+## 15. Ontology Audit Log
+
+`OntologyAuditEvent` 记录 Draft 创建、资源变更、候选导入、校验、提交、审核、发布、激活失败和回滚。日志只追加，数据库禁止 UPDATE/DELETE；默认仅保存 revision、hash、安全摘要与资源 ID，不保存连接串、API Key 或完整敏感 before/after。Draft 与 Version 均可通过只读 API 查询最多 500 条事件。

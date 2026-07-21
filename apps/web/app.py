@@ -24,12 +24,20 @@ def api_request(
     params: dict[str, Any] | None = None,
     timeout: float = 120,
 ) -> Any:
+    headers: dict[str, str] = {}
+    if (
+        method.upper() in {"POST", "PUT", "DELETE"}
+        and "/api/v1/ontology/drafts/" in path
+        and "manager_revision" in st.session_state
+    ):
+        headers["If-Match"] = f'"{st.session_state["manager_revision"]}"'
     try:
         response = httpx.request(
             method,
             f"{API_BASE_URL}{path}",
             json=json,
             params=params,
+            headers=headers,
             timeout=timeout,
         )
         response.raise_for_status()
@@ -39,7 +47,15 @@ def api_request(
             detail = exc.response.json()
         except ValueError:
             detail = {"detail": str(exc)}
-        raise RuntimeError(detail.get("detail", str(exc))) from exc
+        if detail.get("error_code") == "DRAFT_REVISION_CONFLICT":
+            st.session_state["manager_revision"] = detail.get("current_revision")
+            raise RuntimeError(
+                "Draft 已被其他操作更新，请刷新后重新编辑。"
+            ) from exc
+        message = detail.get("detail", str(exc))
+        if isinstance(message, dict):
+            message = message.get("detail", str(message))
+        raise RuntimeError(message) from exc
     except httpx.HTTPError as exc:
         raise RuntimeError(f"无法连接 API：{exc}") from exc
 
@@ -700,10 +716,38 @@ def ontology_manager_page() -> None:
     draft_id = labels[selected]
     detail = api_request("GET", f"/api/v1/ontology/drafts/{draft_id}")
     draft, resources = detail["draft"], detail["resources"]
-    st.info(
-        f"状态 {draft['status']} · 基线 {draft.get('base_version_id') or 'direct seed'} · "
-        f"Snapshot {draft.get('source_snapshot_id') or 'not attached'}"
+    st.session_state["manager_revision"] = draft["resource_revision"]
+    editable = draft["status"] == "DRAFT"
+    validation_fresh = (
+        draft["validation_state"] == "VALID"
+        and draft.get("validated_revision") == draft["resource_revision"]
+        and draft.get("validated_hash") == draft["resource_hash"]
     )
+    current_artifact = None
+    if graph.get("version_id"):
+        try:
+            current_artifact = api_request(
+                "GET",
+                f"/api/v1/ontology/versions/{graph['version_id']}/compiled-artifact",
+            )
+        except RuntimeError:
+            current_artifact = None
+    governance = st.columns(8)
+    governance[0].metric("Draft 状态", draft["status"])
+    governance[1].metric("Resource Revision", draft["resource_revision"])
+    governance[2].metric("Resource Hash", draft["resource_hash"][:12])
+    governance[3].metric("Validation", draft["validation_state"])
+    governance[4].metric("Validated Revision", draft.get("validated_revision") or "—")
+    governance[5].metric("Submitted Revision", draft.get("submitted_revision") or "—")
+    governance[6].metric("未校验修改", "否" if validation_fresh else "是")
+    governance[7].metric(
+        "Current Artifact",
+        current_artifact["status"] if current_artifact else "LEGACY",
+    )
+    if editable and not validation_fresh:
+        st.warning("当前修改尚未重新校验。请先 Validate，之后才能 Submit。")
+    if draft["status"] == "IN_REVIEW":
+        st.info(f"审核快照：revision {draft['submitted_revision']} · {draft['submitted_hash']}")
     bound_property_ids = {
         property_id
         for binding in resources["bindings"]
@@ -759,7 +803,7 @@ def ontology_manager_page() -> None:
             object_name = st.text_input("名称", "客户")
             description = st.text_area("对象边界描述", "虚构 MiniBank 业务对象")
             lifecycle = st.selectbox("生命周期", ["DRAFT", "ACTIVE", "DEPRECATED"])
-            if st.form_submit_button("保存对象"):
+            if st.form_submit_button("保存对象", disabled=not editable):
                 api_request(
                     "POST",
                     f"/api/v1/ontology/drafts/{draft_id}/object-types",
@@ -791,7 +835,7 @@ def ontology_manager_page() -> None:
                 filterable = flag_cols[0].checkbox("可筛选", True)
                 groupable = flag_cols[1].checkbox("可分组")
                 sensitive = flag_cols[2].checkbox("敏感")
-                if st.form_submit_button("保存属性"):
+                if st.form_submit_button("保存属性", disabled=not editable):
                     api_request(
                         "POST",
                         f"/api/v1/ontology/drafts/{draft_id}/properties",
@@ -830,7 +874,7 @@ def ontology_manager_page() -> None:
                 ]
                 time_property = st.selectbox("时间 Property", ["(none)", *time_properties])
                 supported_dimensions = st.multiselect("支持的 Dimension", dimension_ids)
-                if st.form_submit_button("保存 Metric"):
+                if st.form_submit_button("保存 Metric", disabled=not editable):
                     predicates = (
                         [
                             {
@@ -872,7 +916,7 @@ def ontology_manager_page() -> None:
                 dimension_name = st.text_input("维度名称", "新维度")
                 dimension_description = st.text_area("维度含义", "描述可分组的业务口径")
                 dimension_property = st.selectbox("业务 Property", groupable_properties)
-                if st.form_submit_button("保存 Dimension"):
+                if st.form_submit_button("保存 Dimension", disabled=not editable):
                     api_request(
                         "POST",
                         f"/api/v1/ontology/drafts/{draft_id}/dimensions",
@@ -926,7 +970,7 @@ def ontology_manager_page() -> None:
                     ["ONE_TO_ONE", "ONE_TO_MANY", "MANY_TO_ONE", "MANY_TO_MANY"],
                 )
                 physical_join = st.selectbox("审核 Physical Join", join_ids)
-                if st.form_submit_button("保存业务 Link"):
+                if st.form_submit_button("保存业务 Link", disabled=not editable):
                     api_request(
                         "POST",
                         f"/api/v1/ontology/drafts/{draft_id}/link-types",
@@ -974,7 +1018,7 @@ def ontology_manager_page() -> None:
                 ]
                 property_id = st.selectbox("属性", owned_properties or [f"{bound_object}.unmapped"])
                 column_name = st.selectbox("字段", asset["columns"])
-                if st.form_submit_button("保存单属性绑定"):
+                if st.form_submit_button("保存单属性绑定", disabled=not editable):
                     api_request(
                         "POST",
                         f"/api/v1/ontology/drafts/{draft_id}/bindings",
@@ -1053,7 +1097,9 @@ def ontology_manager_page() -> None:
                 options=list(candidate_labels),
                 key=f"selected_candidates_{draft_id}",
             )
-            if st.button("导入所选候选", disabled=not selected_candidates):
+            if st.button(
+                "导入所选候选", disabled=not selected_candidates or not editable
+            ):
                 api_request(
                     "POST",
                     f"/api/v1/ontology/drafts/{draft_id}/import-candidates",
@@ -1070,12 +1116,28 @@ def ontology_manager_page() -> None:
     with tabs[8]:
         actions = st.columns(4)
         action_specs = [
-            ("运行校验", "validate", None),
-            ("提交审核", "submit", {"actor": "ontology-author"}),
-            ("审核通过", "approve", {"actor": "ontology-reviewer"}),
+            ("运行校验", "validate", None, not editable),
+            (
+                "提交审核",
+                "submit",
+                {"actor": "ontology-author"},
+                not editable or not validation_fresh,
+            ),
+            (
+                "审核通过",
+                "approve",
+                {"actor": "ontology-reviewer"},
+                draft["status"] != "IN_REVIEW",
+            ),
         ]
-        for column, (label, operation, payload) in zip(actions, action_specs, strict=False):
-            if column.button(label):
+        for column, (label, operation, payload, disabled) in zip(
+            actions, action_specs, strict=False
+        ):
+            if column.button(
+                label,
+                disabled=disabled,
+                type="primary" if operation == "validate" else "secondary",
+            ):
                 api_request(
                     "POST",
                     f"/api/v1/ontology/drafts/{draft_id}/{operation}",
@@ -1090,7 +1152,11 @@ def ontology_manager_page() -> None:
             version = st.text_input("新版本号", "object-1.0")
             acknowledge_breaking = st.checkbox("确认已审阅 Breaking Change")
             change_ticket = st.text_input("变更工单（Breaking Change 必填）")
-            if st.form_submit_button("原子发布并刷新在线查询", type="primary"):
+            if st.form_submit_button(
+                "原子发布并刷新在线查询",
+                type="primary",
+                disabled=draft["status"] != "VALIDATED",
+            ):
                 result = api_request(
                     "POST",
                     f"/api/v1/ontology/drafts/{draft_id}/publish",
@@ -1104,6 +1170,26 @@ def ontology_manager_page() -> None:
                 )
                 st.success(f"已发布 {result['version']}")
                 st.rerun()
+        st.markdown("#### 审计时间线")
+        audit = api_request(
+            "GET", f"/api/v1/ontology/drafts/{draft_id}/audit-events", params={"limit": 100}
+        )
+        st.dataframe(audit, use_container_width=True, hide_index=True)
+        if draft["status"] == "PUBLISHED" and graph.get("version_id"):
+            try:
+                artifact = api_request(
+                    "GET",
+                    f"/api/v1/ontology/versions/{graph['version_id']}/compiled-artifact",
+                )
+            except RuntimeError:
+                artifact = None
+            if artifact:
+                artifact_cols = st.columns(3)
+                artifact_cols[0].metric("Artifact", artifact["status"])
+                artifact_cols[1].metric("Compiler", artifact["compiler_version"])
+                artifact_cols[2].metric("Bundle Hash", artifact["bundle_hash"][:12])
+                st.markdown("#### 编译证据")
+                st.json(artifact.get("compilation_evidence", artifact["evidence_summary"]))
     with tabs[9]:
         diff = api_request("GET", f"/api/v1/ontology/drafts/{draft_id}/diff")
         impact = api_request("GET", f"/api/v1/ontology/drafts/{draft_id}/impact")

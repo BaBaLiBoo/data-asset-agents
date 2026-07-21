@@ -166,6 +166,7 @@ class PostgresSQLAssetRepository:
         query: str,
         limit: int,
         ontology_version_id: str,
+        bundle_hash: str | None = None,
     ) -> list[tuple[SQLAsset, float, float]]:
         """Return only assets that pass every hard safety gate."""
 
@@ -189,10 +190,12 @@ class PostgresSQLAssetRepository:
                           AND a.execution_status = 'EXPLAIN_PASSED'
                           AND a.ontology_version_id = :ontology_version_id
                           AND b.status = 'READY'
+                          AND (:bundle_hash IS NULL OR b.bundle_hash = :bundle_hash)
                           AND b.build_id = (
                               SELECT latest.build_id FROM sql_asset_build latest
                               WHERE latest.ontology_version_id = :ontology_version_id
                                 AND latest.status = 'READY'
+                                AND (:bundle_hash IS NULL OR latest.bundle_hash = :bundle_hash)
                               ORDER BY latest.completed_at DESC, latest.started_at DESC
                               LIMIT 1
                           )
@@ -208,6 +211,7 @@ class PostgresSQLAssetRepository:
                         "query": query,
                         "limit": limit,
                         "ontology_version_id": ontology_version_id,
+                        "bundle_hash": bundle_hash,
                     },
                 ).mappings()
                 return [
@@ -229,10 +233,11 @@ class PostgresSQLAssetRepository:
                         """
                         INSERT INTO sql_asset_build (
                             build_id, ontology_version_id, source_hash, source_path,
-                            status, started_at, asset_count, eligible_count
+                            status, started_at, asset_count, eligible_count,
+                            bundle_hash, compiler_version
                         ) VALUES (
                             :build_id, :ontology_version_id, :source_hash, :source_path,
-                            :status, :started_at, 0, 0
+                            :status, :started_at, 0, 0, :bundle_hash, :compiler_version
                         )
                         """
                     ),
@@ -269,7 +274,9 @@ class PostgresSQLAssetRepository:
         except SQLAlchemyError as exc:
             raise OntologyError(f"Cannot finish SQL asset build: {exc}") from exc
 
-    def latest_ready(self, ontology_version_id: str) -> SQLAssetBuild | None:
+    def latest_ready(
+        self, ontology_version_id: str, bundle_hash: str | None = None
+    ) -> SQLAssetBuild | None:
         try:
             with self.engine.connect() as connection:
                 row = connection.execute(
@@ -278,10 +285,14 @@ class PostgresSQLAssetRepository:
                         SELECT * FROM sql_asset_build
                         WHERE ontology_version_id = :ontology_version_id
                           AND status = 'READY'
+                          AND (:bundle_hash IS NULL OR bundle_hash = :bundle_hash)
                         ORDER BY completed_at DESC, started_at DESC LIMIT 1
                         """
                     ),
-                    {"ontology_version_id": ontology_version_id},
+                    {
+                        "ontology_version_id": ontology_version_id,
+                        "bundle_hash": bundle_hash,
+                    },
                 ).mappings().first()
         except SQLAlchemyError as exc:
             raise OntologyError(f"Cannot load READY SQL asset build: {exc}") from exc
@@ -331,6 +342,7 @@ class MemorySQLAssetRepository:
         query: str,
         limit: int,
         ontology_version_id: str,
+        bundle_hash: str | None = None,
     ) -> list[tuple[SQLAsset, float, float]]:
         from data_asset_agents.ontology.retrieval import deterministic_embedding
 
@@ -338,7 +350,7 @@ class MemorySQLAssetRepository:
             return max(0.0, sum(a * b for a, b in zip(left, right, strict=False)))
 
         scored: list[tuple[SQLAsset, float, float]] = []
-        ready = self.latest_ready(ontology_version_id)
+        ready = self.latest_ready(ontology_version_id, bundle_hash)
         for asset in self.assets.values():
             if (
                 not asset.hard_eligible
@@ -358,12 +370,15 @@ class MemorySQLAssetRepository:
     def finish_build(self, build: SQLAssetBuild) -> None:
         self.builds[build.build_id] = build.model_copy(deep=True)
 
-    def latest_ready(self, ontology_version_id: str) -> SQLAssetBuild | None:
+    def latest_ready(
+        self, ontology_version_id: str, bundle_hash: str | None = None
+    ) -> SQLAssetBuild | None:
         ready = [
             build
             for build in self.builds.values()
             if build.ontology_version_id == ontology_version_id
             and build.status == SQLAssetBuildStatus.READY
+            and (bundle_hash is None or build.bundle_hash == bundle_hash)
         ]
         return max(
             ready,
