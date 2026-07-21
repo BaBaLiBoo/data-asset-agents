@@ -123,11 +123,21 @@ try {
     $branchLink = $draft.resources.link_types |
         Where-Object { $_.id -eq "transaction_belongs_to_branch" } |
         Select-Object -First 1
+    $amountMetric = $draft.resources.metrics |
+        Where-Object { $_.id -eq "credit_card_transaction_amount" } |
+        Select-Object -First 1
+    $branchDimension = $draft.resources.dimensions |
+        Where-Object { $_.id -eq "branch" } |
+        Select-Object -First 1
     if ($null -eq $transaction -or
         $transaction.property_ids -notcontains "transaction.amount" -or
         $binding.table_name -ne "dwd_card_transaction" -or
         $binding.property_bindings."transaction.amount" -ne "txn_amount_cny" -or
-        $null -eq $branchLink) {
+        $null -eq $branchLink -or
+        $amountMetric.measure_property_id -ne "transaction.amount" -or
+        $amountMetric.PSObject.Properties.Name -contains "expression" -or
+        $branchDimension.property_id -ne "branch.name" -or
+        $branchDimension.PSObject.Properties.Name -contains "table") {
         throw "Direct object seed did not produce the governed Transaction model"
     }
 
@@ -255,6 +265,17 @@ try {
         -ContentType "application/json; charset=utf-8" `
         -Body ($statusProperty | ConvertTo-Json -Depth 20) `
         -TimeoutSec 30 | Out-Null
+    $metricDefinition = $incremental.resources.metrics |
+        Where-Object { $_.id -eq "credit_card_transaction_amount" } |
+        Select-Object -First 1
+    $metricDefinition.description = "Acceptance-only clarified fictional metric definition"
+    Invoke-RestMethod `
+        -Method Put `
+        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+              $incremental.draft.id + "/metrics/credit_card_transaction_amount") `
+        -ContentType "application/json; charset=utf-8" `
+        -Body ($metricDefinition | ConvertTo-Json -Depth 20) `
+        -TimeoutSec 30 | Out-Null
     $incrementalDiff = Invoke-RestMethod `
         -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/diff") `
@@ -264,7 +285,9 @@ try {
               $incremental.draft.id + "/impact") `
         -TimeoutSec 30
     if (@($incrementalDiff.modified_properties).Count -ne 1 -or
+        @($incrementalDiff.modified_metrics).Count -ne 1 -or
         $incrementalDiff.modified_properties[0].breaking_level -ne "NON_BREAKING" -or
+        $incrementalDiff.modified_metrics[0].breaking_level -ne "NON_BREAKING" -or
         -not $incrementalImpact.automatic_publish_allowed) {
         throw "Description-only Draft was not classified as NON_BREAKING"
     }

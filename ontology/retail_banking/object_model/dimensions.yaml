@@ -1,0 +1,36 @@
+- id: branch
+  name: 分行
+  description: 交易归属分行
+  property_id: branch.name
+  synonyms: [机构, 网点]
+  lifecycle_status: ACTIVE
+- id: card_type
+  name: 卡类型
+  description: 借记卡或贷记卡
+  property_id: card.card_type
+  synonyms: [银行卡类型]
+  lifecycle_status: ACTIVE
+- id: transaction_channel
+  name: 交易渠道
+  description: APP、POS、ATM 或 WEB
+  property_id: transaction.channel
+  synonyms: [渠道]
+  lifecycle_status: ACTIVE
+- id: transaction_date
+  name: 交易日期
+  description: 交易发生的自然日
+  property_id: transaction.event_time
+  synonyms: [日期, 交易日]
+  lifecycle_status: ACTIVE
+- id: customer_type
+  name: 客户类型
+  description: 个人客户分层类型
+  property_id: customer.customer_type
+  synonyms: [客户类别]
+  lifecycle_status: ACTIVE
+- id: merchant_category
+  name: 商户类别
+  description: 商户经营类别
+  property_id: merchant.category
+  synonyms: [商户类型]
+  lifecycle_status: ACTIVE

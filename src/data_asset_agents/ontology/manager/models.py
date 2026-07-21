@@ -9,6 +9,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from data_asset_agents.ontology.models import MetricAggregation, PropertyFilterPredicate
+
 IDENTIFIER_PATTERN = r"^[a-z][a-z0-9_.-]{1,127}$"
 PHYSICAL_IDENTIFIER_PATTERN = r"^[A-Za-z_][A-Za-z0-9_]*$"
 
@@ -102,6 +104,36 @@ class PropertyDefinition(BaseModel):
     groupable: bool = False
     sensitive: bool = False
     unit: str | None = None
+    synonyms: list[str] = Field(default_factory=list)
+    lifecycle_status: LifecycleStatus = LifecycleStatus.DRAFT
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class DimensionDefinition(BaseModel):
+    """Draft-time analytical dimension with no editable physical coordinates."""
+
+    id: ResourceId
+    name: str = Field(min_length=1, max_length=160)
+    description: str = ""
+    property_id: ResourceId
+    synonyms: list[str] = Field(default_factory=list)
+    lifecycle_status: LifecycleStatus = LifecycleStatus.DRAFT
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class MetricDefinition(BaseModel):
+    """Draft-time metric expressed only through governed semantic resources."""
+
+    id: ResourceId
+    name: str = Field(min_length=1, max_length=160)
+    description: str = ""
+    measure_property_id: ResourceId
+    aggregation: MetricAggregation
+    filter_predicates: list[PropertyFilterPredicate] = Field(default_factory=list)
+    time_property_id: ResourceId | None = None
+    supported_dimension_ids: list[ResourceId] = Field(default_factory=list)
     synonyms: list[str] = Field(default_factory=list)
     lifecycle_status: LifecycleStatus = LifecycleStatus.DRAFT
     created_at: datetime = Field(default_factory=utc_now)
@@ -235,6 +267,8 @@ class DraftResources(BaseModel):
     link_types: list[LinkType] = Field(default_factory=list)
     bindings: list[ObjectDataSourceBinding] = Field(default_factory=list)
     physical_joins: list[PhysicalJoinDefinition] = Field(default_factory=list)
+    metrics: list[MetricDefinition] = Field(default_factory=list)
+    dimensions: list[DimensionDefinition] = Field(default_factory=list)
 
 
 class OntologyDraftAggregate(BaseModel):
@@ -365,7 +399,13 @@ class ObjectGraph(BaseModel):
 
 class DraftResourceMutation(BaseModel):
     resource_type: Literal[
-        "object_type", "property", "link_type", "binding", "physical_join"
+        "object_type",
+        "property",
+        "link_type",
+        "binding",
+        "physical_join",
+        "metric",
+        "dimension",
     ]
     resource_id: str
 

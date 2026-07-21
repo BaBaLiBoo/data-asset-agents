@@ -13,7 +13,7 @@ MetadataSnapshot + SQL evidence ──┘        ↑
                   review-only candidates ──┘
 ```
 
-直接种子位于 `ontology/retail_banking/object_model/`，分别保存 Object、Property、Binding、Business Link 与 Physical Join。加载器只接受应用配置的 seed 名称，执行强类型及跨资源引用校验，不访问 LLM、不发布、也不回退到 Legacy migrator。元数据候选生成器仅对 `CANONICAL_OBJECT` 和合适的 `EVENT` 表生成建议；汇总、技术、测试和废弃表会以排除原因留在证据报告中。已有 Draft 资源不会被机器候选覆盖，Binding 冲突会显式失败。
+直接种子位于 `ontology/retail_banking/object_model/`，分别保存 Object、Property、Metric、Dimension、Binding、Business Link 与 Physical Join。加载器只接受应用配置的 seed 名称，执行强类型及跨资源引用校验，不访问 LLM、不发布、也不回退到 Legacy migrator。元数据候选生成器仅对 `CANONICAL_OBJECT` 和合适的 `EVENT` 表生成建议；汇总、技术、测试和废弃表会以排除原因留在证据报告中。已有 Draft 资源不会被机器候选覆盖，Binding 冲突会显式失败。
 
 LLM Structured Output 只允许影响候选的业务名称、边界描述、属性/Link 名称、证据摘要和置信度。物理表字段、Physical Join、生命周期、指标口径、安全策略和发布状态均来自确定性元数据、受控配置及人工审核。候选导入后 Draft 仍是 `DRAFT`，且必须重新 Validate。
 
@@ -28,18 +28,18 @@ Metric / Dimension → Property ID → Published Binding → Physical Column
 Business Link → Published Physical Join → JoinDefinition → Join Plan
 ```
 
-`ObjectSemanticCompiler` 读取当前版本的 `ObjectType`、`PropertyDefinition`、`ObjectDataSourceBinding`、`LinkType` 与 `PhysicalJoinDefinition`，生成在线 `OntologyBundle` 所需的 `PhysicalMapping`、Metric 表达式/过滤、Dimension 表字段和 JoinDefinition。在线 LangGraph、SQLValidator 与 QueryExecutor 只消费该编译结果。
+`ObjectSemanticCompiler` 读取同一版本的 `MetricDefinition`、`DimensionDefinition`、`ObjectType`、`PropertyDefinition`、`ObjectDataSourceBinding`、`LinkType` 与 `PhysicalJoinDefinition`，生成在线 `OntologyBundle` 所需的 `PhysicalMapping`、Metric 表达式/过滤、Dimension 表字段和 JoinDefinition。在线 LangGraph、SQLValidator 与 QueryExecutor 只消费该编译结果。
 
 ## 2. Metric 与 Dimension 的 Property 引用
 
-Metric 保留旧 `expression/base_table/required_filters` 字段用于 YAML 回退，同时增加：
+Draft 中的 `MetricDefinition` 只保存：
 
 - `measure_property_id` 与 `aggregation`：确定聚合的业务属性和函数；
 - `filter_predicates`：用 Property ID 表达必要业务过滤；
 - `time_property_id`：确定相对或绝对时间过滤字段；
-- `supported_dimension_property_ids`：约束可组合维度。
+- `supported_dimension_ids`：引用同 Draft 的正式 Dimension，约束可组合维度。
 
-Dimension 通过 `property_id` 指向唯一业务属性。例如：
+Draft 中的 `DimensionDefinition` 只通过 `property_id` 指向唯一业务属性，不允许人工录入 table/column。例如：
 
 ```text
 transaction.amount → dwd_card_transaction.txn_amount_cny
@@ -48,9 +48,9 @@ transaction.event_time → dwd_card_transaction.transaction_date
 branch.name → dim_branch.branch_name
 ```
 
-编译器要求 `SUM/AVG/MIN/MAX` 的 Measure Property 角色为 `MEASURE`，过滤与时间 Property 必须绑定到相同事实表，支持维度必须存在正式 Dimension。对象绑定与旧兼容字段不一致时，Validator 返回 `OBJECT_LEGACY_SEMANTIC_CONFLICT` 并阻断发布；不会静默采用旧值。
+编译器要求 `SUM/AVG/MIN/MAX` 的 Measure Property 角色为 `MEASURE`，过滤与时间 Property 必须绑定到相同事实表，支持维度必须存在于同一 Draft。发布时生成的兼容 `Metric.expression/base_table/required_filters/supported_dimensions/time_dimension` 与 `Dimension.table/column` 全部来自 Property Binding，不再与旧 YAML 合并。
 
-当前版本没有对象资源时，运行时继续读取审核 YAML。这一回退用于首次启动和旧版本兼容，不允许覆盖已发布对象绑定。
+当前版本没有新版分析语义资源时，运行时继续读取已发布 Bundle 或审核 YAML。这一回退只用于首次启动和旧版本兼容；新 Draft 若有对象却没有 Metric/Dimension 会被 Validator 阻断，不能借回退绕过审核。
 
 ## 3. Business Link 与 Physical Join
 
@@ -64,7 +64,7 @@ Business Link 只表达对象关系；Physical Join 是其版本化物理实现�
 
 ## 5. Draft Diff 与 Breaking Change
 
-`OntologyChangeSet` 将 Draft 与 `base_version_id` 对应的不可变正式资源比较。名称、描述、同义词等展示性变更为 `NON_BREAKING`；删除 ACTIVE 资源、修改主键/数据类型/Binding/Physical Join 等为 `BREAKING`；其余语义行为变化为 `POTENTIALLY_BREAKING`。
+`OntologyChangeSet` 将 Draft 与 `base_version_id` 对应的不可变正式资源比较。名称、描述、同义词等展示性变更为 `NON_BREAKING`；删除 ACTIVE 资源、修改主键/数据类型/Binding/Physical Join、Dimension Property 或 Metric 计算口径为 `BREAKING`；其余语义行为变化为 `POTENTIALLY_BREAKING`。
 
 `OntologyImpactReport` 追踪受影响的 Metric、Dimension、Physical Mapping、Link Path、SQLAsset 和 Benchmark，并给出是否需要重建概念索引、SQLAsset 与 Gold Hash。Breaking Change 必须同时提交 `acknowledge_breaking_changes=true` 与非空 `change_ticket`，但确认不能绕过 Validator、Dry Run 或 Drift 门槛。
 
@@ -96,4 +96,4 @@ Object Explorer 只查询当前 PUBLISHED 版本：
 
 当前没有实现 ActionType、Function、Automate、SharedProperty、Interface、对象写回、行列级用户权限、多数据库动态连接或增量 CDC。索引和 Sync 第一版同步运行；复杂分析仍受单事实表、审核 Metric/Dimension 和现有 SQLAsset AST 改写能力约束。
 
-当前编译目标仍是兼容现有 LangGraph、SQLAsset 与 Evaluation 的 `OntologyBundle`。因此 `Metric.expression/base_table/required_filters` 和 `Dimension.table/column` 尚未删除，但一旦存在发布对象资源，Property Binding 是权威物理来源；兼容字段冲突会阻断发布，而不是静默回退。
+当前编译目标仍是兼容现有 LangGraph、SQLAsset 与 Evaluation 的 `OntologyBundle`。因此运行时 `Metric.expression/base_table/required_filters` 和 `Dimension.table/column` 尚未删除，但它们仅是确定性编译结果和旧版本读取字段，不是新 Draft 的人工编辑事实源。

@@ -15,6 +15,7 @@ from data_asset_agents.ontology.manager.models import (
     CandidateObjectBinding,
     CandidateProperty,
     CreateDraftFromSeedRequest,
+    CreateDraftRequest,
     DraftStatus,
     ImportObjectCandidatesRequest,
     LifecycleStatus,
@@ -326,12 +327,16 @@ def test_draft_validator_covers_object_property_link_binding_and_lifecycle(
     )
     invalid.bindings[0].property_bindings["account.account_id"] = "missing_column"
     invalid.link_types[0].physical_join_ids = ["missing_join"]
+    invalid.metrics[0].measure_property_id = "ghost.amount"
+    invalid.dimensions[0].property_id = "ghost.name"
     report = validator.validate(invalid, "snapshot-one")
     codes = {item.code for item in report.issues}
     assert "OBJECT_PRIMARY_KEY_CONTRACT" in codes
     assert "PROPERTY_OBJECT_NOT_FOUND" in codes
     assert "BINDING_COLUMN_NOT_FOUND" in codes
     assert "LINK_PHYSICAL_JOIN_INVALID" in codes
+    assert "METRIC_MEASURE_PROPERTY_INVALID" in codes
+    assert "DIMENSION_PROPERTY_NOT_FOUND" in codes
 
 
 @pytest.mark.parametrize(
@@ -418,6 +423,17 @@ def test_seed_creation_never_calls_legacy_migrator(
     )
     draft = service.create_draft_from_seed(CreateDraftFromSeedRequest())
     assert {item.id for item in draft.resources.object_types} >= {"transaction", "branch"}
+
+
+def test_blank_draft_cannot_publish_legacy_analysis_by_fallback(bundle) -> None:
+    service = OntologyManagerService(
+        MemoryOntologyManagerRepository(), bundle, OntologyDraftValidator(bundle)
+    )
+    draft = service.create_draft(CreateDraftRequest(name="blank", created_by="test"))
+    report = service.validate(draft.draft.id).draft.validation_report
+    assert report is not None
+    assert not report.valid
+    assert {issue.code for issue in report.issues} >= {"OBJECT_TYPE_REQUIRED"}
 
 
 def test_verified_field_candidate_imports_as_object_property(bundle, seed_repository) -> None:

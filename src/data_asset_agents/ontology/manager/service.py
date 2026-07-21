@@ -27,10 +27,12 @@ from .models import (
     CreateDraftRequest,
     DataSourceDefinition,
     DataSourceInspection,
+    DimensionDefinition,
     DraftResources,
     DraftStatus,
     ImportObjectCandidatesRequest,
     LinkType,
+    MetricDefinition,
     MigrateLegacyRequest,
     ObjectCandidateSet,
     ObjectDataSourceBinding,
@@ -225,6 +227,30 @@ class OntologyManagerService:
                         }
                     ),
                 )
+        if isinstance(resource, DimensionDefinition) and not any(
+            item.id == resource.property_id for item in resources.properties
+        ):
+            raise OntologyError(
+                f"Dimension Property does not exist: {resource.property_id}"
+            )
+        if isinstance(resource, MetricDefinition):
+            property_ids = {item.id for item in resources.properties}
+            referenced_properties = {
+                resource.measure_property_id,
+                resource.time_property_id,
+                *(item.property_id for item in resource.filter_predicates),
+            } - {None}
+            missing_properties = referenced_properties - property_ids
+            if missing_properties:
+                raise OntologyError(
+                    f"Metric references missing Properties: {sorted(missing_properties)}"
+                )
+            dimension_ids = {item.id for item in resources.dimensions}
+            missing_dimensions = set(resource.supported_dimension_ids) - dimension_ids
+            if missing_dimensions:
+                raise OntologyError(
+                    f"Metric references missing Dimensions: {sorted(missing_dimensions)}"
+                )
         if isinstance(resource, ObjectDataSourceBinding):
             if resource.data_source_id != "minibank-postgres":
                 raise OntologyError("Only the application-managed data source may be bound")
@@ -264,6 +290,29 @@ class OntologyManagerService:
     def delete_resource(self, draft_id: str, kind: str, resource_id: str) -> OntologyDraftAggregate:
         aggregate = self._editable(draft_id)
         if kind == "object_type":
+            property_ids = {
+                prop.id
+                for prop in aggregate.resources.properties
+                if prop.object_type_id == resource_id
+            }
+            deleted_dimensions = {
+                dimension.id
+                for dimension in aggregate.resources.dimensions
+                if dimension.property_id in property_ids
+            }
+            for metric in aggregate.resources.metrics:
+                referenced = {
+                    metric.measure_property_id,
+                    metric.time_property_id,
+                    *(item.property_id for item in metric.filter_predicates),
+                }
+                if (
+                    referenced & property_ids
+                    or set(metric.supported_dimension_ids) & deleted_dimensions
+                ):
+                    self.repository.delete_resource(draft_id, "metric", metric.id)
+            for dimension_id in deleted_dimensions:
+                self.repository.delete_resource(draft_id, "dimension", dimension_id)
             for prop in aggregate.resources.properties:
                 if prop.object_type_id == resource_id:
                     self.repository.delete_resource(draft_id, "property", prop.id)
@@ -277,6 +326,26 @@ class OntologyManagerService:
                 }:
                     self.repository.delete_resource(draft_id, "link_type", link.id)
         if kind == "property":
+            referencing_metrics = [
+                metric.id
+                for metric in aggregate.resources.metrics
+                if resource_id
+                in {
+                    metric.measure_property_id,
+                    metric.time_property_id,
+                    *(item.property_id for item in metric.filter_predicates),
+                }
+            ]
+            referencing_dimensions = [
+                dimension.id
+                for dimension in aggregate.resources.dimensions
+                if dimension.property_id == resource_id
+            ]
+            if referencing_metrics or referencing_dimensions:
+                raise OntologyConflictError(
+                    "Property is referenced by analysis semantics; reassign or delete first: "
+                    + ", ".join(sorted([*referencing_metrics, *referencing_dimensions]))
+                )
             for obj in aggregate.resources.object_types:
                 if resource_id in obj.property_ids:
                     if resource_id in {obj.primary_key_property_id, obj.title_property_id}:
@@ -291,6 +360,17 @@ class OntologyManagerService:
                             }
                         ),
                     )
+        if kind == "dimension":
+            referencing_metrics = [
+                metric.id
+                for metric in aggregate.resources.metrics
+                if resource_id in metric.supported_dimension_ids
+            ]
+            if referencing_metrics:
+                raise OntologyConflictError(
+                    "Dimension is referenced by Metric(s): "
+                    + ", ".join(sorted(referencing_metrics))
+                )
         self.repository.delete_resource(draft_id, kind, resource_id)
         return self.get_draft(draft_id)
 

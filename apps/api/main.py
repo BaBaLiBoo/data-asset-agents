@@ -55,8 +55,10 @@ from data_asset_agents.ontology.manager.models import (
     CreateDraftRequest,
     DataSourceDefinition,
     DataSourceInspection,
+    DimensionDefinition,
     ImportObjectCandidatesRequest,
     LinkType,
+    MetricDefinition,
     MigrateLegacyRequest,
     ObjectCandidateSet,
     ObjectDataSourceBinding,
@@ -461,6 +463,76 @@ def update_property(
 )
 def delete_property(draft_id: str, property_id: str, request: Request) -> OntologyDraftAggregate:
     return request.app.state.ontology_manager.delete_resource(draft_id, "property", property_id)
+
+
+@app.post(
+    "/api/v1/ontology/drafts/{draft_id}/dimensions",
+    response_model=OntologyDraftAggregate,
+)
+def create_dimension(
+    draft_id: str, payload: DimensionDefinition, request: Request
+) -> OntologyDraftAggregate:
+    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+
+
+@app.put(
+    "/api/v1/ontology/drafts/{draft_id}/dimensions/{dimension_id}",
+    response_model=OntologyDraftAggregate,
+)
+def update_dimension(
+    draft_id: str,
+    dimension_id: str,
+    payload: DimensionDefinition,
+    request: Request,
+) -> OntologyDraftAggregate:
+    if payload.id != dimension_id:
+        raise HTTPException(status_code=422, detail="dimension_id must match payload.id")
+    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+
+
+@app.delete(
+    "/api/v1/ontology/drafts/{draft_id}/dimensions/{dimension_id}",
+    response_model=OntologyDraftAggregate,
+)
+def delete_dimension(
+    draft_id: str, dimension_id: str, request: Request
+) -> OntologyDraftAggregate:
+    return request.app.state.ontology_manager.delete_resource(
+        draft_id, "dimension", dimension_id
+    )
+
+
+@app.post(
+    "/api/v1/ontology/drafts/{draft_id}/metrics",
+    response_model=OntologyDraftAggregate,
+)
+def create_metric(
+    draft_id: str, payload: MetricDefinition, request: Request
+) -> OntologyDraftAggregate:
+    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+
+
+@app.put(
+    "/api/v1/ontology/drafts/{draft_id}/metrics/{metric_id}",
+    response_model=OntologyDraftAggregate,
+)
+def update_metric(
+    draft_id: str,
+    metric_id: str,
+    payload: MetricDefinition,
+    request: Request,
+) -> OntologyDraftAggregate:
+    if payload.id != metric_id:
+        raise HTTPException(status_code=422, detail="metric_id must match payload.id")
+    return request.app.state.ontology_manager.save_resource(draft_id, payload)
+
+
+@app.delete(
+    "/api/v1/ontology/drafts/{draft_id}/metrics/{metric_id}",
+    response_model=OntologyDraftAggregate,
+)
+def delete_metric(draft_id: str, metric_id: str, request: Request) -> OntologyDraftAggregate:
+    return request.app.state.ontology_manager.delete_resource(draft_id, "metric", metric_id)
 
 
 @app.post(

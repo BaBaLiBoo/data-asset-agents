@@ -97,6 +97,21 @@ class OntologyChangeAnalyzer:
                 breaking, reason = True, "Changed property data type"
             elif resource_type in {"binding", "physical_join"}:
                 breaking, reason = True, f"Changed physical {resource_type} contract"
+            elif resource_type == "dimension" and old.property_id != new.property_id:
+                breaking, reason = True, "Changed Dimension Property reference"
+            elif resource_type == "metric":
+                semantic_fields = {
+                    "measure_property_id",
+                    "aggregation",
+                    "filter_predicates",
+                    "time_property_id",
+                    "supported_dimension_ids",
+                }
+                if any(
+                    old_payload.get(field) != new_payload.get(field)
+                    for field in semantic_fields
+                ):
+                    breaking, reason = True, "Changed Metric calculation contract"
             non_breaking_fields = {"name", "description", "synonyms"}
             changed_fields = {
                 key
@@ -133,6 +148,8 @@ class OntologyChangeAnalyzer:
         joins = self._compare(
             "physical_join", base.physical_joins, current.physical_joins
         )
+        metrics = self._compare("metric", base.metrics, current.metrics)
+        dimensions = self._compare("dimension", base.dimensions, current.dimensions)
         result = OntologyChangeSet(
             draft_id=aggregate.draft.id,
             base_version_id=aggregate.draft.base_version_id,
@@ -148,6 +165,14 @@ class OntologyChangeAnalyzer:
             removed_links=[x for x in links if x.change_type == "REMOVED"],
             changed_bindings=bindings,
             changed_physical_joins=joins,
+            added_metrics=[x for x in metrics if x.change_type == "ADDED"],
+            modified_metrics=[x for x in metrics if x.change_type == "MODIFIED"],
+            deprecated_metrics=[x for x in metrics if x.change_type == "DEPRECATED"],
+            removed_metrics=[x for x in metrics if x.change_type == "REMOVED"],
+            added_dimensions=[x for x in dimensions if x.change_type == "ADDED"],
+            modified_dimensions=[x for x in dimensions if x.change_type == "MODIFIED"],
+            deprecated_dimensions=[x for x in dimensions if x.change_type == "DEPRECATED"],
+            removed_dimensions=[x for x in dimensions if x.change_type == "REMOVED"],
         )
         self._persist("ontology_draft_change_set", aggregate.draft.id, result)
         return result
@@ -165,21 +190,41 @@ class OntologyChangeAnalyzer:
             for item in changes.changes
             if item.resource_type in {"link_type", "physical_join"}
         }
+        changed_metric_ids = {
+            item.resource_id
+            for item in changes.changes
+            if item.resource_type == "metric"
+        }
+        changed_dimension_ids = {
+            item.resource_id
+            for item in changes.changes
+            if item.resource_type == "dimension"
+        }
         affected_metrics = sorted(
-            metric.id
-            for metric in self.bundle.metrics
-            if changed_properties
-            & {
-                metric.measure_property_id,
-                metric.time_property_id,
-                *metric.supported_dimension_property_ids,
-                *(item.property_id for item in metric.filter_predicates),
+            {
+                *changed_metric_ids,
+                *(
+                    metric.id
+                    for metric in aggregate.resources.metrics
+                    if changed_properties
+                    & {
+                        metric.measure_property_id,
+                        metric.time_property_id,
+                        *(item.property_id for item in metric.filter_predicates),
+                    }
+                    or changed_dimension_ids & set(metric.supported_dimension_ids)
+                ),
             }
         )
         affected_dimensions = sorted(
-            item.id
-            for item in self.bundle.dimensions
-            if item.property_id in changed_properties
+            {
+                *changed_dimension_ids,
+                *(
+                    item.id
+                    for item in aggregate.resources.dimensions
+                    if item.property_id in changed_properties
+                ),
+            }
         )
         affected_assets = self._affected_sql_assets(changes)
         breaking = [
@@ -191,6 +236,7 @@ class OntologyChangeAnalyzer:
             item.resource_type in {"binding", "physical_join"}
             for item in changes.changes
         )
+        analytical_changed = bool(changed_metric_ids or changed_dimension_ids)
         report = OntologyImpactReport(
             draft_id=aggregate.draft.id,
             affected_metrics=affected_metrics,
@@ -204,8 +250,8 @@ class OntologyChangeAnalyzer:
                 else []
             ),
             rebuild_concept_index=bool(changes.changes),
-            rebuild_sql_assets=physical_changed or bool(affected_metrics),
-            rerun_gold_hashes=physical_changed or bool(affected_metrics),
+            rebuild_sql_assets=physical_changed or analytical_changed or bool(affected_metrics),
+            rerun_gold_hashes=physical_changed or analytical_changed or bool(affected_metrics),
             automatic_publish_allowed=not breaking,
             breaking_changes=breaking,
         )

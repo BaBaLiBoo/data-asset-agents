@@ -15,8 +15,10 @@ from data_asset_agents.ontology.repository.postgres_repository import PostgresOn
 
 from .models import (
     DataSourceDefinition,
+    DimensionDefinition,
     DraftResources,
     LinkType,
+    MetricDefinition,
     ObjectDataSourceBinding,
     ObjectType,
     OntologyDraft,
@@ -62,6 +64,8 @@ RESOURCE_TABLES = {
     LinkType: ("draft_link_type", "link_type_id"),
     ObjectDataSourceBinding: ("draft_object_data_source_binding", "binding_id"),
     PhysicalJoinDefinition: ("draft_physical_join", "physical_join_id"),
+    MetricDefinition: ("draft_metric_definition", "metric_id"),
+    DimensionDefinition: ("draft_dimension_definition", "dimension_id"),
 }
 KIND_TABLES = {
     "object_type": ("draft_object_type", "object_type_id"),
@@ -69,6 +73,8 @@ KIND_TABLES = {
     "link_type": ("draft_link_type", "link_type_id"),
     "binding": ("draft_object_data_source_binding", "binding_id"),
     "physical_join": ("draft_physical_join", "physical_join_id"),
+    "metric": ("draft_metric_definition", "metric_id"),
+    "dimension": ("draft_dimension_definition", "dimension_id"),
 }
 
 
@@ -117,6 +123,8 @@ class MemoryOntologyManagerRepository:
             LinkType: resources.link_types,
             ObjectDataSourceBinding: resources.bindings,
             PhysicalJoinDefinition: resources.physical_joins,
+            MetricDefinition: resources.metrics,
+            DimensionDefinition: resources.dimensions,
         }[type(resource)]
         collection[:] = [item for item in collection if item.id != resource.id]
         collection.append(deepcopy(resource))
@@ -129,6 +137,8 @@ class MemoryOntologyManagerRepository:
             "link_type": resources.link_types,
             "binding": resources.bindings,
             "physical_join": resources.physical_joins,
+            "metric": resources.metrics,
+            "dimension": resources.dimensions,
         }[kind]
         collection[:] = [item for item in collection if item.id != resource_id]
 
@@ -221,6 +231,8 @@ class PostgresOntologyManagerRepository:
             resources.link_types,
             resources.bindings,
             resources.physical_joins,
+            resources.metrics,
+            resources.dimensions,
         ]
         for group in groups:
             for resource in group:
@@ -284,6 +296,15 @@ class PostgresOntologyManagerRepository:
                         "draft_physical_join",
                         draft_id,
                         PhysicalJoinDefinition,
+                    ),
+                    metrics=self._payloads(
+                        connection, "draft_metric_definition", draft_id, MetricDefinition
+                    ),
+                    dimensions=self._payloads(
+                        connection,
+                        "draft_dimension_definition",
+                        draft_id,
+                        DimensionDefinition,
                     ),
                 ),
             )
@@ -400,6 +421,8 @@ class PostgresOntologyManagerRepository:
                 link_types=rows("published_link_type", LinkType),
                 bindings=rows("published_object_data_source_binding", ObjectDataSourceBinding),
                 physical_joins=rows("published_physical_join", PhysicalJoinDefinition),
+                metrics=rows("published_metric_definition", MetricDefinition),
+                dimensions=rows("published_dimension_definition", DimensionDefinition),
             )
 
     def publish(
@@ -464,6 +487,18 @@ class PostgresOntologyManagerRepository:
                         "physical_join_id",
                         "PHYSICAL_JOIN",
                         resources.physical_joins,
+                    ),
+                    (
+                        "published_metric_definition",
+                        "metric_id",
+                        "METRIC",
+                        resources.metrics,
+                    ),
+                    (
+                        "published_dimension_definition",
+                        "dimension_id",
+                        "DIMENSION",
+                        resources.dimensions,
                     ),
                 ]
                 for table, key, kind, items in groups:

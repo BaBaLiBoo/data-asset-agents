@@ -109,12 +109,34 @@ class ObjectSemanticCompiler:
                 ),
             )
 
+        draft_owns_analytical_semantics = bool(resources.metrics or resources.dimensions)
         dimensions_by_property: dict[str, str] = {}
+        dimensions_by_id: dict[str, Dimension] = {}
         compiled_dimensions: list[Dimension] = []
         conflicts: list[str] = []
-        for dimension in bundle.dimensions:
+        dimension_sources = (
+            [
+                Dimension(
+                    id=item.id,
+                    name=item.name,
+                    description=item.description,
+                    table="",
+                    column="",
+                    synonyms=item.synonyms,
+                    property_id=item.property_id,
+                )
+                for item in resources.dimensions
+                if item.lifecycle_status == LifecycleStatus.ACTIVE
+            ]
+            if draft_owns_analytical_semantics
+            else bundle.dimensions
+        )
+        for dimension in dimension_sources:
             if not dimension.property_id:
+                if draft_owns_analytical_semantics:
+                    raise OntologyError(f"Dimension {dimension.id} has no Property reference")
                 compiled_dimensions.append(dimension)
+                dimensions_by_id[dimension.id] = dimension
                 continue
             location = property_locations.get(dimension.property_id)
             if location is None:
@@ -123,13 +145,18 @@ class ObjectSemanticCompiler:
                     f"{dimension.property_id}"
                 )
             table, column = location
-            if strict_compatibility and (dimension.table, dimension.column) != location:
+            if (
+                not draft_owns_analytical_semantics
+                and strict_compatibility
+                and (dimension.table, dimension.column) != location
+            ):
                 conflicts.append(
                     f"Dimension {dimension.id}: legacy {dimension.table}.{dimension.column} "
                     f"conflicts with {dimension.property_id} -> {table}.{column}"
                 )
             compiled = dimension.model_copy(update={"table": table, "column": column})
             compiled_dimensions.append(compiled)
+            dimensions_by_id[dimension.id] = compiled
             dimensions_by_property[dimension.property_id] = dimension.id
             self._replace_mapping(
                 bundle.mappings,
@@ -144,9 +171,40 @@ class ObjectSemanticCompiler:
         legacy_mappings = {
             item.concept_id: item for item in self.fallback_bundle.mappings
         }
+        metric_sources = (
+            [
+                Metric(
+                    id=item.id,
+                    name=item.name,
+                    description=item.description,
+                    expression="",
+                    base_table="",
+                    synonyms=item.synonyms,
+                    measure_property_id=item.measure_property_id,
+                    aggregation=item.aggregation,
+                    filter_predicates=item.filter_predicates,
+                    time_property_id=item.time_property_id,
+                    supported_dimensions=item.supported_dimension_ids,
+                    supported_dimension_property_ids=[
+                        dimensions_by_id[dimension_id].property_id
+                        for dimension_id in item.supported_dimension_ids
+                        if dimension_id in dimensions_by_id
+                        and dimensions_by_id[dimension_id].property_id
+                    ],
+                )
+                for item in resources.metrics
+                if item.lifecycle_status == LifecycleStatus.ACTIVE
+            ]
+            if draft_owns_analytical_semantics
+            else bundle.metrics
+        )
         compiled_metrics: list[Metric] = []
-        for metric in bundle.metrics:
+        for metric in metric_sources:
             if not metric.measure_property_id or not metric.aggregation:
+                if draft_owns_analytical_semantics:
+                    raise OntologyError(
+                        f"Metric {metric.id} requires measure_property_id and aggregation"
+                    )
                 compiled_metrics.append(metric)
                 continue
             measure = property_locations.get(metric.measure_property_id)
@@ -207,11 +265,20 @@ class ObjectSemanticCompiler:
                     )
                 metric_bindings[metric.time_property_id.rsplit(".", 1)[-1]] = time_location[1]
                 metric_bindings[time_location[1]] = time_location[1]
-            supported_dimensions = [
-                dimensions_by_property[property_id]
-                for property_id in metric.supported_dimension_property_ids
-                if property_id in dimensions_by_property
-            ]
+            if draft_owns_analytical_semantics:
+                missing_dimensions = set(metric.supported_dimensions) - dimensions_by_id.keys()
+                if missing_dimensions:
+                    raise OntologyError(
+                        f"Metric {metric.id} references missing or inactive Dimensions: "
+                        f"{sorted(missing_dimensions)}"
+                    )
+                supported_dimensions = list(metric.supported_dimensions)
+            else:
+                supported_dimensions = [
+                    dimensions_by_property[property_id]
+                    for property_id in metric.supported_dimension_property_ids
+                    if property_id in dimensions_by_property
+                ]
             compiled = metric.model_copy(
                 update={
                     "base_table": table,
@@ -222,7 +289,7 @@ class ObjectSemanticCompiler:
                 }
             )
             legacy = self._legacy_metric(metric, legacy_mappings)
-            if strict_compatibility and (
+            if not draft_owns_analytical_semantics and strict_compatibility and (
                 legacy.base_table != compiled.base_table
                 or legacy.expression != compiled.expression
                 or legacy.required_filters != compiled.required_filters

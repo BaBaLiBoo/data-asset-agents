@@ -12,8 +12,10 @@ from pydantic import BaseModel, ValidationError
 from data_asset_agents.core.errors import OntologyError
 
 from .models import (
+    DimensionDefinition,
     DraftResources,
     LinkType,
+    MetricDefinition,
     ObjectDataSourceBinding,
     ObjectType,
     PhysicalJoinDefinition,
@@ -75,6 +77,10 @@ class ObjectOntologySeedRepository:
             physical_joins=self._load(
                 root / "physical_joins.yaml", PhysicalJoinDefinition
             ),
+            metrics=self._load(root / "metrics.yaml", MetricDefinition, timestamped=True),
+            dimensions=self._load(
+                root / "dimensions.yaml", DimensionDefinition, timestamped=True
+            ),
         )
         self._validate(resources)
         return resources
@@ -86,6 +92,8 @@ class ObjectOntologySeedRepository:
             "Binding": [item.id for item in resources.bindings],
             "Link": [item.id for item in resources.link_types],
             "Physical Join": [item.id for item in resources.physical_joins],
+            "Metric": [item.id for item in resources.metrics],
+            "Dimension": [item.id for item in resources.dimensions],
         }
         for kind, identifiers in groups.items():
             duplicates = self._duplicates(identifiers)
@@ -95,6 +103,7 @@ class ObjectOntologySeedRepository:
         objects = {item.id: item for item in resources.object_types}
         properties = {item.id: item for item in resources.properties}
         joins = {item.id: item for item in resources.physical_joins}
+        dimensions = {item.id: item for item in resources.dimensions}
         for prop in resources.properties:
             if prop.object_type_id not in objects:
                 raise OntologyError(
@@ -135,4 +144,28 @@ class ObjectOntologySeedRepository:
             if missing:
                 raise OntologyError(
                     f"Link {link.id} references missing Physical Join(s): {sorted(missing)}"
+                )
+        for dimension in resources.dimensions:
+            if dimension.property_id not in properties:
+                raise OntologyError(
+                    f"Dimension {dimension.id} references missing Property "
+                    f"{dimension.property_id}"
+                )
+        for metric in resources.metrics:
+            property_ids = {
+                metric.measure_property_id,
+                metric.time_property_id,
+                *(item.property_id for item in metric.filter_predicates),
+            } - {None}
+            missing_properties = property_ids - properties.keys()
+            if missing_properties:
+                raise OntologyError(
+                    f"Metric {metric.id} references missing Properties: "
+                    f"{sorted(missing_properties)}"
+                )
+            missing_dimensions = set(metric.supported_dimension_ids) - dimensions.keys()
+            if missing_dimensions:
+                raise OntologyError(
+                    f"Metric {metric.id} references missing Dimensions: "
+                    f"{sorted(missing_dimensions)}"
                 )

@@ -133,6 +133,42 @@ def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
             item["id"] == "transaction_belongs_to_branch"
             for item in draft["resources"]["link_types"]
         )
+        metric = next(
+            item
+            for item in draft["resources"]["metrics"]
+            if item["id"] == "credit_card_transaction_amount"
+        )
+        metric["description"] = "API-reviewed fictional credit-card amount definition"
+        updated_metric = client.put(
+            f"/api/v1/ontology/drafts/{draft_id}/metrics/{metric['id']}",
+            json=metric,
+        )
+        assert updated_metric.status_code == 200, updated_metric.text
+        assert any(
+            item["description"] == metric["description"]
+            for item in updated_metric.json()["resources"]["metrics"]
+        )
+        temporary_metric = client.post(
+            f"/api/v1/ontology/drafts/{draft_id}/metrics",
+            json={
+                "id": "temporary_amount_metric",
+                "name": "临时金额指标",
+                "description": "Only exercises Draft CRUD",
+                "measure_property_id": "transaction.amount",
+                "aggregation": "SUM",
+                "supported_dimension_ids": ["branch"],
+                "lifecycle_status": "ACTIVE",
+            },
+        )
+        assert temporary_metric.status_code == 200, temporary_metric.text
+        deleted_metric = client.delete(
+            f"/api/v1/ontology/drafts/{draft_id}/metrics/temporary_amount_metric"
+        )
+        assert deleted_metric.status_code == 200, deleted_metric.text
+        assert all(
+            item["id"] != "temporary_amount_metric"
+            for item in deleted_metric.json()["resources"]["metrics"]
+        )
         candidates_response = client.post(
             f"/api/v1/ontology/drafts/{draft_id}/candidates/generate"
         )

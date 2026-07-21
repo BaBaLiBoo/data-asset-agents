@@ -42,6 +42,14 @@ class OntologyChangeSet(BaseModel):
     removed_links: list[ResourceChange] = Field(default_factory=list)
     changed_bindings: list[ResourceChange] = Field(default_factory=list)
     changed_physical_joins: list[ResourceChange] = Field(default_factory=list)
+    added_metrics: list[ResourceChange] = Field(default_factory=list)
+    modified_metrics: list[ResourceChange] = Field(default_factory=list)
+    deprecated_metrics: list[ResourceChange] = Field(default_factory=list)
+    removed_metrics: list[ResourceChange] = Field(default_factory=list)
+    added_dimensions: list[ResourceChange] = Field(default_factory=list)
+    modified_dimensions: list[ResourceChange] = Field(default_factory=list)
+    deprecated_dimensions: list[ResourceChange] = Field(default_factory=list)
+    removed_dimensions: list[ResourceChange] = Field(default_factory=list)
     calculated_at: datetime = Field(default_factory=utc_now)
 
     @property
@@ -59,6 +67,14 @@ class OntologyChangeSet(BaseModel):
             *self.removed_links,
             *self.changed_bindings,
             *self.changed_physical_joins,
+            *self.added_metrics,
+            *self.modified_metrics,
+            *self.deprecated_metrics,
+            *self.removed_metrics,
+            *self.added_dimensions,
+            *self.modified_dimensions,
+            *self.deprecated_dimensions,
+            *self.removed_dimensions,
         ]
 
 

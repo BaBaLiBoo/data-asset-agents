@@ -9,7 +9,7 @@ from sqlalchemy import Engine, inspect
 
 from data_asset_agents.core.errors import OntologyError
 from data_asset_agents.execution.executor import QueryExecutor
-from data_asset_agents.ontology.models import OntologyBundle
+from data_asset_agents.ontology.models import MetricAggregation, OntologyBundle
 from data_asset_agents.ontology.validation import OntologyContractValidator
 
 from .compiler import ObjectSemanticCompiler
@@ -116,16 +116,29 @@ class OntologyDraftValidator:
         issues: list[ValidationIssue] = []
         objects = {item.id: item for item in resources.object_types}
         properties = {item.id: item for item in resources.properties}
+        dimensions = {item.id: item for item in resources.dimensions}
         bindings = {item.id: item for item in resources.bindings}
         joins = {item.id: item for item in resources.physical_joins}
         assets = {item.name: item for item in self.bundle.tables}
         schema, primary_keys, unique_keys = self._schema()
+
+        if not resources.object_types:
+            self._issue(
+                issues,
+                "OBJECT_TYPE_REQUIRED",
+                "draft",
+                "object-model",
+                "Draft has no ObjectType resources",
+                "Create at least one governed ObjectType before review",
+            )
 
         for kind, values in (
             ("object_type", [x.id for x in resources.object_types]),
             ("property", [x.id for x in resources.properties]),
             ("link_type", [x.id for x in resources.link_types]),
             ("physical_join", [x.id for x in resources.physical_joins]),
+            ("metric", [x.id for x in resources.metrics]),
+            ("dimension", [x.id for x in resources.dimensions]),
         ):
             for identifier, count in Counter(values).items():
                 if count > 1:
@@ -205,6 +218,160 @@ class OntologyDraftValidator:
                     "Property references a missing object",
                     "Select an existing object",
                     "object_type_id",
+                )
+
+        if resources.object_types and not resources.metrics and not resources.dimensions:
+            self._issue(
+                issues,
+                "ANALYTICAL_SEMANTICS_REQUIRED",
+                "draft",
+                "analytical-semantics",
+                "Object Draft has no governed Metric or Dimension resources",
+                "Create analysis semantics in this Draft or import them through legacy migration",
+            )
+
+        for dimension in resources.dimensions:
+            prop = properties.get(dimension.property_id)
+            if prop is None:
+                self._issue(
+                    issues,
+                    "DIMENSION_PROPERTY_NOT_FOUND",
+                    "dimension",
+                    dimension.id,
+                    f"Dimension references missing Property {dimension.property_id}",
+                    "Select an existing governed Property",
+                    "property_id",
+                )
+                continue
+            if prop.lifecycle_status != LifecycleStatus.ACTIVE or not prop.groupable:
+                self._issue(
+                    issues,
+                    "DIMENSION_PROPERTY_NOT_GROUPABLE",
+                    "dimension",
+                    dimension.id,
+                    "Dimension Property must be ACTIVE and groupable",
+                    "Activate the Property and set groupable=true",
+                    "property_id",
+                )
+            if prop.semantic_role not in {
+                SemanticRole.DIMENSION,
+                SemanticRole.STATUS,
+                SemanticRole.TIME,
+            }:
+                self._issue(
+                    issues,
+                    "DIMENSION_PROPERTY_ROLE_INVALID",
+                    "dimension",
+                    dimension.id,
+                    f"Property role {prop.semantic_role} cannot define a Dimension",
+                    "Use a DIMENSION, STATUS, or TIME Property",
+                    "property_id",
+                )
+
+        for metric in resources.metrics:
+            measure = properties.get(metric.measure_property_id)
+            if measure is None or measure.lifecycle_status != LifecycleStatus.ACTIVE:
+                self._issue(
+                    issues,
+                    "METRIC_MEASURE_PROPERTY_INVALID",
+                    "metric",
+                    metric.id,
+                    f"Metric measure Property {metric.measure_property_id} is missing or inactive",
+                    "Select an ACTIVE governed Property",
+                    "measure_property_id",
+                )
+            elif (
+                metric.aggregation
+                in {
+                    MetricAggregation.SUM,
+                    MetricAggregation.AVG,
+                    MetricAggregation.MIN,
+                    MetricAggregation.MAX,
+                }
+                and measure.semantic_role != SemanticRole.MEASURE
+            ):
+                self._issue(
+                    issues,
+                    "METRIC_AGGREGATION_ROLE_INVALID",
+                    "metric",
+                    metric.id,
+                    f"{metric.aggregation} requires a MEASURE Property",
+                    "Choose a MEASURE Property or a count aggregation",
+                    "aggregation",
+                )
+            for predicate in metric.filter_predicates:
+                prop = properties.get(predicate.property_id)
+                if prop is None or prop.lifecycle_status != LifecycleStatus.ACTIVE:
+                    self._issue(
+                        issues,
+                        "METRIC_FILTER_PROPERTY_INVALID",
+                        "metric",
+                        metric.id,
+                        f"Filter Property {predicate.property_id} is missing or inactive",
+                        "Select an ACTIVE filterable Property",
+                        "filter_predicates",
+                    )
+                elif not prop.filterable:
+                    self._issue(
+                        issues,
+                        "METRIC_FILTER_PROPERTY_NOT_FILTERABLE",
+                        "metric",
+                        metric.id,
+                        f"Property {predicate.property_id} is not filterable",
+                        "Set filterable=true or remove the predicate",
+                        "filter_predicates",
+                    )
+                if predicate.operator != "EQ" or isinstance(predicate.value, list):
+                    self._issue(
+                        issues,
+                        "METRIC_FILTER_RUNTIME_UNSUPPORTED",
+                        "metric",
+                        metric.id,
+                        "Runtime compatibility projection currently supports EQ scalar filters",
+                        "Use an EQ scalar predicate until the runtime contract is expanded",
+                        "filter_predicates",
+                    )
+            if metric.time_property_id:
+                time_property = properties.get(metric.time_property_id)
+                if (
+                    time_property is None
+                    or time_property.lifecycle_status != LifecycleStatus.ACTIVE
+                    or time_property.semantic_role != SemanticRole.TIME
+                ):
+                    self._issue(
+                        issues,
+                        "METRIC_TIME_PROPERTY_INVALID",
+                        "metric",
+                        metric.id,
+                        f"Time Property {metric.time_property_id} is missing, inactive, "
+                        "or not TIME",
+                        "Select an ACTIVE TIME Property",
+                        "time_property_id",
+                    )
+                elif not any(
+                    dimension.property_id == metric.time_property_id
+                    and dimension.id in metric.supported_dimension_ids
+                    for dimension in resources.dimensions
+                ):
+                    self._issue(
+                        issues,
+                        "METRIC_TIME_DIMENSION_REQUIRED",
+                        "metric",
+                        metric.id,
+                        "Time Property must have a supported Dimension in the same Draft",
+                        "Create and select the Dimension that exposes the Time Property",
+                        "supported_dimension_ids",
+                    )
+            missing_dimensions = set(metric.supported_dimension_ids) - dimensions.keys()
+            if missing_dimensions:
+                self._issue(
+                    issues,
+                    "METRIC_DIMENSION_NOT_FOUND",
+                    "metric",
+                    metric.id,
+                    f"Missing supported Dimensions: {sorted(missing_dimensions)}",
+                    "Select Dimensions from the same Draft",
+                    "supported_dimension_ids",
                 )
 
         active_binding_count: defaultdict[str, int] = defaultdict(int)

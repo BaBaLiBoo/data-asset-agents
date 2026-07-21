@@ -48,7 +48,7 @@ Data Asset Agents 是一个面向企业数据资产研发场景的多智能体�
 Ontology Manager 在原有分析语义层上增加一层可编辑、可审核的业务对象模型，三层职责明确分离：
 
 - **业务对象模型**：`ObjectType / PropertyDefinition / LinkType` 描述客户、账户、卡、交易、分行和商户，以及对象之间的业务关系。
-- **分析语义模型**：`Metric / Dimension` 通过强类型 Property ID 引用业务属性；发布对象资源存在时由 `ObjectSemanticCompiler` 从属性绑定编译表达式、过滤、时间字段和支持维度，YAML 只作回退。
+- **分析语义模型**：`MetricDefinition / DimensionDefinition` 与对象资源进入同一 Draft、审核、Diff、Impact 和版本发布；它们只引用 Property/Dimension ID，物理表达式由 `ObjectSemanticCompiler` 生成。
 - **物理实现模型**：`DataSourceDefinition / ObjectDataSourceBinding / PhysicalJoinDefinition` 描述受控 PostgreSQL、属性字段绑定和审核 Join。
 - **运行时资产**：不可变 `OntologyVersion` 与版本匹配的 `SQLAssetBuild` 供在线查询读取。
 
@@ -69,7 +69,7 @@ flowchart LR
 
 一个业务对象不等于一张表：同一对象可以在后续由多个经过治理的物理来源实现，而汇总表只表达特定粒度的分析结果。`dws_*` 汇总表、`tmp_*`/`test_*` 技术表以及废弃表因此不会自动变成对象。业务 Link（例如 `Transaction belongsTo Branch`）描述业务含义；Physical Join（例如 `dwd_card_transaction.branch_id = dim_branch.branch_id`）只是它的审核物理实现。
 
-字段级 Candidate 仍作为机器证据，不能直接发布；Draft 是一次包含多个对象、属性、Link、版本化 Physical Join 和绑定的原子变更集。只有 `VALIDATED` Draft 能发布，`DRAFT / IN_REVIEW / REJECTED` 资源与在线查询完全隔离。默认入口直接读取 `ontology/retail_banking/object_model/` 的强类型对象资源，或从空白 Draft 开始；MetadataSnapshot、字段画像和结构化历史 SQL 只提出带证据的候选，由用户显式选择后才进入 Draft。发布对象资源存在时，YAML 与对象属性绑定对同一语义产生不同物理口径会被视为契约冲突并阻断发布，不会静默混用。
+字段级 Candidate 仍作为机器证据，不能直接发布；Draft 是一次包含对象、属性、Metric、Dimension、Link、版本化 Physical Join 和绑定的原子变更集。只有 `VALIDATED` Draft 能发布，`DRAFT / IN_REVIEW / REJECTED` 资源与在线查询完全隔离。默认入口直接读取 `ontology/retail_banking/object_model/` 的强类型资源，或从空白 Draft 开始；MetadataSnapshot、字段画像和结构化历史 SQL 只提出带证据的候选，由用户显式选择后才进入 Draft。
 
 ### 为什么不再把 Legacy Migration 作为主流程
 
@@ -80,7 +80,7 @@ flowchart LR
 完整编译契约、变更生命周期和安全边界见 [`docs/ontology-runtime.md`](docs/ontology-runtime.md)。
 
 - 发布校验动态编译 4 个核心问题（分行信用卡金额/笔数、分行排名、渠道金额、分行活跃客户），逐项返回 Property、Binding、Join、SQLGlot、业务策略与 PostgreSQL `EXPLAIN` 证据。
-- Draft Diff 将对象、属性、Link、Binding 和 Physical Join 分类为新增、修改、废弃或删除；Impact 报告列出受影响 Metric、Dimension、Join Path、SQLAsset、Benchmark 以及需要重建的索引。
+- Draft Diff 将对象、属性、Metric、Dimension、Link、Binding 和 Physical Join 分类为新增、修改、废弃或删除；Impact 报告列出受影响的分析语义、Join Path、SQLAsset、Benchmark 以及需要重建的索引。
 - 删除资源、修改主键/类型/Binding/Physical Join 等 Breaking Change 必须在发布请求中显式确认并填写变更工单；未确认时拒绝发布。
 - Metadata Sync 使用只读数据库元数据对比发布时保存的字段、类型、主键和 schema hash，区分 `NONE / ADDITIVE / BREAKING`；Breaking Drift 会阻断后续发布。
 - Ontology IndexBuild 按 `ontology_version_id`、资源类型与 embedding 模型留存 `BUILDING / READY / FAILED / STALE` 状态。新 READY 构建原子切换，失败构建不覆盖旧索引。
@@ -225,6 +225,8 @@ docker compose exec postgres psql -U minibank -d minibank `
   -f /docker-entrypoint-initdb.d/006_ontology_manager_core.sql
 docker compose exec postgres psql -U minibank -d minibank `
   -f /docker-entrypoint-initdb.d/007_ontology_runtime_governance.sql
+docker compose exec postgres psql -U minibank -d minibank `
+  -f /docker-entrypoint-initdb.d/008_ontology_analysis_semantics.sql
 ```
 
 ## 本地 Python 开发
@@ -429,7 +431,7 @@ python -m data_asset_agents.ontology.manager.cli migrate-legacy --dry-run `
   --created-by demo --draft-name "MiniBank object model"
 ```
 
-数据库迁移 `data/ddl/006_ontology_manager_core.sql` 新增 Draft 与 published 资源表以及 `ontology_version_object_resource` 来源关联；`data/ddl/007_ontology_runtime_governance.sql` 新增版本化 Physical Join、ChangeSet/Impact、Sync/Drift 和 Ontology IndexBuild/Search Document 表。DDL 使用 `IF NOT EXISTS`，新卷由 Compose 自动加载；已有演示卷按上文命令依次执行。删除 Draft 只级联 Draft 资源，不会删除任何正式版本。
+数据库迁移 `data/ddl/006_ontology_manager_core.sql` 新增 Draft 与 published 资源表以及 `ontology_version_object_resource` 来源关联；`data/ddl/007_ontology_runtime_governance.sql` 新增版本化 Physical Join、ChangeSet/Impact、Sync/Drift 和 Ontology IndexBuild/Search Document 表；`data/ddl/008_ontology_analysis_semantics.sql` 新增 Draft/Published Metric 与 Dimension 资源表。DDL 使用 `IF NOT EXISTS`，新卷由 Compose 自动加载；已有演示卷按上文命令依次执行。删除 Draft 只级联 Draft 资源，不会删除任何正式版本。
 
 ## 当前边界
 

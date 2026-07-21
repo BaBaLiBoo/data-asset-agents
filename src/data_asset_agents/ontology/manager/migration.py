@@ -13,9 +13,11 @@ from .models import (
     BindingSyncStatus,
     Cardinality,
     DataSourceDefinition,
+    DimensionDefinition,
     DraftResources,
     LifecycleStatus,
     LinkType,
+    MetricDefinition,
     ObjectDataSourceBinding,
     ObjectType,
     PhysicalJoinDefinition,
@@ -245,12 +247,60 @@ class LegacyOntologyObjectMigrator:
                     lifecycle_status=LifecycleStatus.ACTIVE,
                 )
             )
+        dimension_property_ids = {
+            dimension.property_id
+            for dimension in self.bundle.dimensions
+            if dimension.property_id
+        }
+        properties = [
+            prop.model_copy(
+                update={
+                    "groupable": True,
+                    "semantic_role": (
+                        SemanticRole.DIMENSION
+                        if prop.semantic_role == SemanticRole.ATTRIBUTE
+                        else prop.semantic_role
+                    ),
+                }
+            )
+            if prop.id in dimension_property_ids
+            else prop
+            for prop in properties
+        ]
         return DraftResources(
             object_types=objects,
             properties=sorted(properties, key=lambda item: item.id),
             link_types=sorted({item.id: item for item in links}.values(), key=lambda item: item.id),
             bindings=bindings,
             physical_joins=physical_joins,
+            metrics=[
+                MetricDefinition(
+                    id=metric.id,
+                    name=metric.name,
+                    description=metric.description,
+                    synonyms=metric.synonyms,
+                    measure_property_id=metric.measure_property_id,
+                    aggregation=metric.aggregation,
+                    filter_predicates=metric.filter_predicates,
+                    time_property_id=metric.time_property_id,
+                    supported_dimension_ids=metric.supported_dimensions,
+                    lifecycle_status=LifecycleStatus.ACTIVE,
+                )
+                for metric in self.bundle.metrics
+                if metric.measure_property_id and metric.aggregation
+            ],
+            dimensions=[
+                DimensionDefinition(
+                    id=dimension.id,
+                    name=dimension.name,
+                    description=dimension.description,
+                    synonyms=dimension.synonyms,
+                    property_id=dimension.property_id,
+                    lifecycle_status=LifecycleStatus.ACTIVE,
+                )
+                for dimension in self.bundle.dimensions
+                if dimension.property_id
+            ],
         )
 
     @staticmethod

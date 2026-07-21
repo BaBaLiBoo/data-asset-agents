@@ -55,6 +55,13 @@ def test_minibank_object_seed_loads_complete_and_stable() -> None:
     assert {item.id for item in first.physical_joins} >= {
         "transaction_branch_join"
     }
+    assert {item.id for item in first.metrics} >= {
+        "credit_card_transaction_amount",
+        "credit_card_transaction_count",
+    }
+    assert {item.id for item in first.dimensions} >= {"branch", "transaction_date"}
+    assert "expression" not in type(first.metrics[0]).model_fields
+    assert "table" not in type(first.dimensions[0]).model_fields
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
 
 
@@ -74,6 +81,22 @@ def test_direct_seed_compiles_to_runtime_without_legacy_migration() -> None:
     assert amount.expression == "SUM(dwd_card_transaction.txn_amount_cny)"
     assert branch.table == "dim_branch"
     assert branch.column == "branch_name"
+
+
+def test_draft_metric_and_dimension_changes_compile_without_legacy_physical_edits() -> None:
+    resources = repository().load("retail_banking")
+    fallback = YamlOntologyRepository("ontology/retail_banking").load()
+    amount = next(item for item in resources.metrics if item.id == "transaction_amount")
+    amount.aggregation = "AVG"
+    branch = next(item for item in resources.dimensions if item.id == "branch")
+    branch.property_id = "branch.region"
+
+    compiled = ObjectSemanticCompiler(fallback).compile(resources).bundle
+    runtime_amount = next(item for item in compiled.metrics if item.id == amount.id)
+    runtime_branch = next(item for item in compiled.dimensions if item.id == branch.id)
+    assert runtime_amount.expression == "AVG(dwd_card_transaction.txn_amount_cny)"
+    assert runtime_branch.table == "dim_branch"
+    assert runtime_branch.column == "region"
 
 
 def test_seed_rejects_duplicate_ids(tmp_path: Path) -> None:

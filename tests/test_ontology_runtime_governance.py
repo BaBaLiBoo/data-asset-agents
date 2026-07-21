@@ -42,7 +42,7 @@ def bundle():
     return YamlOntologyRepository("ontology/retail_banking").load()
 
 
-def test_object_compiler_is_authoritative_and_detects_yaml_conflict(bundle) -> None:
+def test_draft_metric_is_authoritative_over_legacy_physical_fields(bundle) -> None:
     resources = LegacyOntologyObjectMigrator(bundle).migrate("snapshot-a")
     transaction = next(
         item for item in resources.bindings if item.object_type_id == "transaction"
@@ -56,7 +56,7 @@ def test_object_compiler_is_authoritative_and_detects_yaml_conflict(bundle) -> N
         item for item in compilation.bundle.metrics if item.id == "transaction_amount"
     )
     assert metric.expression == "SUM(dwd_card_transaction.txn_amount)"
-    assert compilation.conflicts
+    assert not compilation.conflicts
 
 
 def test_object_compiler_enforces_measure_role_and_bound_properties(bundle) -> None:
@@ -122,6 +122,36 @@ def test_property_description_change_is_non_breaking(bundle) -> None:
     impact = analyzer.impact(aggregate, changes)
     assert changes.modified_properties[0].breaking_level == BreakingLevel.NON_BREAKING
     assert impact.automatic_publish_allowed
+
+
+def test_metric_and_dimension_changes_are_versioned_and_impact_runtime(bundle) -> None:
+    repository = MemoryOntologyManagerRepository()
+    base = LegacyOntologyObjectMigrator(bundle).migrate("snapshot-a")
+    repository.current = ("version-a", deepcopy(base))
+    repository.versions["version-a"] = deepcopy(base)
+    changed = deepcopy(base)
+    changed.metrics[0].aggregation = "AVG"
+    changed.dimensions[0].description = "Clarified analytical grouping boundary"
+    aggregate = OntologyDraftAggregate(
+        draft=OntologyDraft(
+            id="draft-analysis-change",
+            name="analysis change",
+            base_version_id="version-a",
+            created_by="test",
+        ),
+        resources=changed,
+    )
+
+    analyzer = OntologyChangeAnalyzer(repository, bundle)
+    changes = analyzer.diff(aggregate)
+    impact = analyzer.impact(aggregate, changes)
+    assert changes.modified_metrics[0].breaking_level == BreakingLevel.BREAKING
+    assert changes.modified_dimensions[0].breaking_level == BreakingLevel.NON_BREAKING
+    assert changed.metrics[0].id in impact.affected_metrics
+    assert changed.dimensions[0].id in impact.affected_dimensions
+    assert impact.rebuild_sql_assets
+    assert impact.rerun_gold_hashes
+    assert not impact.automatic_publish_allowed
 
 
 def test_breaking_publish_requires_acknowledgement_and_ticket(bundle) -> None:

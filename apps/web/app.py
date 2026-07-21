@@ -726,6 +726,8 @@ def ontology_manager_page() -> None:
         [
             "对象类型",
             "属性",
+            "指标",
+            "维度",
             "数据源映射",
             "业务关系",
             "Physical Join",
@@ -805,7 +807,85 @@ def ontology_manager_page() -> None:
                         },
                     )
                     st.rerun()
+    with tabs[2]:
+        st.caption("Metric 只引用业务 Property/Dimension；物理表达式在发布时确定性编译。")
+        st.dataframe(resources["metrics"], use_container_width=True, hide_index=True)
+        property_ids = [item["id"] for item in resources["properties"]]
+        dimension_ids = [item["id"] for item in resources["dimensions"]]
+        if property_ids:
+            with st.form("manager_metric_form"):
+                metric_id = st.text_input("Metric ID", "new_metric")
+                metric_name = st.text_input("指标名称", "新指标")
+                metric_description = st.text_area("业务口径", "描述统计范围与计算含义")
+                measure_property = st.selectbox("度量 Property", property_ids)
+                aggregation = st.selectbox(
+                    "聚合方式", ["SUM", "COUNT", "COUNT_DISTINCT", "AVG", "MIN", "MAX"]
+                )
+                filter_property = st.selectbox("固定过滤 Property", ["(none)", *property_ids])
+                filter_value = st.text_input("固定过滤值", "")
+                time_properties = [
+                    item["id"]
+                    for item in resources["properties"]
+                    if item["semantic_role"] == "TIME"
+                ]
+                time_property = st.selectbox("时间 Property", ["(none)", *time_properties])
+                supported_dimensions = st.multiselect("支持的 Dimension", dimension_ids)
+                if st.form_submit_button("保存 Metric"):
+                    predicates = (
+                        [
+                            {
+                                "property_id": filter_property,
+                                "operator": "EQ",
+                                "value": filter_value,
+                            }
+                        ]
+                        if filter_property != "(none)" and filter_value
+                        else []
+                    )
+                    api_request(
+                        "POST",
+                        f"/api/v1/ontology/drafts/{draft_id}/metrics",
+                        json={
+                            "id": metric_id,
+                            "name": metric_name,
+                            "description": metric_description,
+                            "measure_property_id": measure_property,
+                            "aggregation": aggregation,
+                            "filter_predicates": predicates,
+                            "time_property_id": (
+                                None if time_property == "(none)" else time_property
+                            ),
+                            "supported_dimension_ids": supported_dimensions,
+                            "lifecycle_status": "ACTIVE",
+                        },
+                    )
+                    st.rerun()
     with tabs[3]:
+        st.caption("Dimension 只选择可分组 Property；table/column 不再人工录入。")
+        st.dataframe(resources["dimensions"], use_container_width=True, hide_index=True)
+        groupable_properties = [
+            item["id"] for item in resources["properties"] if item["groupable"]
+        ]
+        if groupable_properties:
+            with st.form("manager_dimension_form"):
+                dimension_id = st.text_input("Dimension ID", "new_dimension")
+                dimension_name = st.text_input("维度名称", "新维度")
+                dimension_description = st.text_area("维度含义", "描述可分组的业务口径")
+                dimension_property = st.selectbox("业务 Property", groupable_properties)
+                if st.form_submit_button("保存 Dimension"):
+                    api_request(
+                        "POST",
+                        f"/api/v1/ontology/drafts/{draft_id}/dimensions",
+                        json={
+                            "id": dimension_id,
+                            "name": dimension_name,
+                            "description": dimension_description,
+                            "property_id": dimension_property,
+                            "lifecycle_status": "ACTIVE",
+                        },
+                    )
+                    st.rerun()
+    with tabs[5]:
         joins = {item["id"]: item for item in resources["physical_joins"]}
         st.dataframe(
             [
@@ -862,7 +942,7 @@ def ontology_manager_page() -> None:
                         },
                     )
                     st.rerun()
-    with tabs[2]:
+    with tabs[4]:
         for binding in resources["bindings"]:
             st.markdown(
                 f"**{binding['object_type_id']} → "
@@ -910,7 +990,7 @@ def ontology_manager_page() -> None:
                         },
                     )
                     st.rerun()
-    with tabs[5]:
+    with tabs[7]:
         st.caption(
             "候选来自 Draft 固定的 Metadata Snapshot、字段画像与历史 SQL 证据；"
             "生成和导入都不会自动发布。"
@@ -987,7 +1067,7 @@ def ontology_manager_page() -> None:
                 )
                 st.session_state.pop(candidate_key, None)
                 st.rerun()
-    with tabs[6]:
+    with tabs[8]:
         actions = st.columns(4)
         action_specs = [
             ("运行校验", "validate", None),
@@ -1024,7 +1104,7 @@ def ontology_manager_page() -> None:
                 )
                 st.success(f"已发布 {result['version']}")
                 st.rerun()
-    with tabs[7]:
+    with tabs[9]:
         diff = api_request("GET", f"/api/v1/ontology/drafts/{draft_id}/diff")
         impact = api_request("GET", f"/api/v1/ontology/drafts/{draft_id}/impact")
         st.markdown("#### 变更集合")
@@ -1039,7 +1119,7 @@ def ontology_manager_page() -> None:
             st.error("存在 Breaking Change，发布时必须确认并填写变更工单。")
         st.markdown("#### 影响分析")
         st.json(impact)
-    with tabs[4]:
+    with tabs[6]:
         st.dataframe(
             resources["physical_joins"], use_container_width=True, hide_index=True
         )
@@ -1071,7 +1151,7 @@ def ontology_manager_page() -> None:
                     },
                 )
                 st.rerun()
-    with tabs[8]:
+    with tabs[10]:
         sync_col, index_col = st.columns(2)
         if sync_col.button("运行 Metadata Sync", use_container_width=True):
             sync_col.json(
@@ -1090,7 +1170,7 @@ def ontology_manager_page() -> None:
         st.dataframe(drift_reports, use_container_width=True, hide_index=True)
         st.markdown("#### 版本化索引构建")
         st.dataframe(index_builds, use_container_width=True, hide_index=True)
-    with tabs[9]:
+    with tabs[11]:
         published_object_ids = [item["id"] for item in objects]
         if not published_object_ids:
             st.info("发布对象模型后可使用只读 Object Explorer。")
