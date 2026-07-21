@@ -190,12 +190,15 @@ class PostgresSQLAssetRepository:
                           AND a.execution_status = 'EXPLAIN_PASSED'
                           AND a.ontology_version_id = :ontology_version_id
                           AND b.status = 'READY'
-                          AND (:bundle_hash IS NULL OR b.bundle_hash = :bundle_hash)
+                          AND (CAST(:bundle_hash AS VARCHAR(64)) IS NULL
+                               OR b.bundle_hash = CAST(:bundle_hash AS VARCHAR(64)))
                           AND b.build_id = (
                               SELECT latest.build_id FROM sql_asset_build latest
                               WHERE latest.ontology_version_id = :ontology_version_id
                                 AND latest.status = 'READY'
-                                AND (:bundle_hash IS NULL OR latest.bundle_hash = :bundle_hash)
+                                AND (CAST(:bundle_hash AS VARCHAR(64)) IS NULL
+                                     OR latest.bundle_hash =
+                                        CAST(:bundle_hash AS VARCHAR(64)))
                               ORDER BY latest.completed_at DESC, latest.started_at DESC
                               LIMIT 1
                           )
@@ -285,7 +288,8 @@ class PostgresSQLAssetRepository:
                         SELECT * FROM sql_asset_build
                         WHERE ontology_version_id = :ontology_version_id
                           AND status = 'READY'
-                          AND (:bundle_hash IS NULL OR bundle_hash = :bundle_hash)
+                          AND (CAST(:bundle_hash AS VARCHAR(64)) IS NULL
+                               OR bundle_hash = CAST(:bundle_hash AS VARCHAR(64)))
                         ORDER BY completed_at DESC, started_at DESC LIMIT 1
                         """
                     ),
