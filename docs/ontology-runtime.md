@@ -2,6 +2,23 @@
 
 本文描述 MiniBank 演示域的对象语义运行时。它借鉴企业本体平台的治理思想，但不声称复刻任何商业平台；所有表、规则、SQL 与数据均为仓库自行构造的虚构内容。
 
+## 0. 对象优先的构建入口
+
+默认构建不再从旧分析 YAML 反推对象。三个受控入口最终都进入同一种 `OntologyDraft`：
+
+```text
+Direct Object Seed ───────────────┐
+Blank Draft + manual modelling ───┼→ Draft → Validate/Dry Run → Review → Publish
+MetadataSnapshot + SQL evidence ──┘        ↑
+                  review-only candidates ──┘
+```
+
+直接种子位于 `ontology/retail_banking/object_model/`，分别保存 Object、Property、Binding、Business Link 与 Physical Join。加载器只接受应用配置的 seed 名称，执行强类型及跨资源引用校验，不访问 LLM、不发布、也不回退到 Legacy migrator。元数据候选生成器仅对 `CANONICAL_OBJECT` 和合适的 `EVENT` 表生成建议；汇总、技术、测试和废弃表会以排除原因留在证据报告中。已有 Draft 资源不会被机器候选覆盖，Binding 冲突会显式失败。
+
+LLM Structured Output 只允许影响候选的业务名称、边界描述、属性/Link 名称、证据摘要和置信度。物理表字段、Physical Join、生命周期、指标口径、安全策略和发布状态均来自确定性元数据、受控配置及人工审核。候选导入后 Draft 仍是 `DRAFT`，且必须重新 Validate。
+
+`LegacyOntologyObjectMigrator` 只服务于旧配置的一次性导入和兼容回归。它不会被直接 seed、默认候选生成、候选导入、Streamlit 默认流程或 Docker acceptance 调用。
+
 ## 1. 为什么对象模型是运行时事实源
 
 旧链路以审核 YAML 中的物理表达式为事实源，对象、属性和 Link 主要服务于审核与展示。现在，当前版本存在 PUBLISHED 对象资源时，物理实现沿以下稳定引用编译：
@@ -78,3 +95,5 @@ Object Explorer 只查询当前 PUBLISHED 版本：
 ## 9. 当前边界
 
 当前没有实现 ActionType、Function、Automate、SharedProperty、Interface、对象写回、行列级用户权限、多数据库动态连接或增量 CDC。索引和 Sync 第一版同步运行；复杂分析仍受单事实表、审核 Metric/Dimension 和现有 SQLAsset AST 改写能力约束。
+
+当前编译目标仍是兼容现有 LangGraph、SQLAsset 与 Evaluation 的 `OntologyBundle`。因此 `Metric.expression/base_table/required_filters` 和 `Dimension.table/column` 尚未删除，但一旦存在发布对象资源，Property Binding 是权威物理来源；兼容字段冲突会阻断发布，而不是静默回退。

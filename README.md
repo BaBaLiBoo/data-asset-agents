@@ -54,7 +54,9 @@ Ontology Manager 在原有分析语义层上增加一层可编辑、可审核的
 
 ```mermaid
 flowchart LR
-  M[MetadataSnapshot + Verified evidence] --> C[Object-first candidates]
+  S[Direct Object Seed] --> D[OntologyDraft]
+  B[Blank object modelling] --> D
+  M[MetadataSnapshot + Historical SQL] --> C[Review-only candidates]
   C --> D[OntologyDraft]
   D --> V[Contract + 4-case Dry Run]
   V --> R[Human review]
@@ -67,7 +69,11 @@ flowchart LR
 
 一个业务对象不等于一张表：同一对象可以在后续由多个经过治理的物理来源实现，而汇总表只表达特定粒度的分析结果。`dws_*` 汇总表、`tmp_*`/`test_*` 技术表以及废弃表因此不会自动变成对象。业务 Link（例如 `Transaction belongsTo Branch`）描述业务含义；Physical Join（例如 `dwd_card_transaction.branch_id = dim_branch.branch_id`）只是它的审核物理实现。
 
-字段级 Candidate 仍作为机器证据，不能直接发布；Draft 是一次包含多个对象、属性、Link、版本化 Physical Join 和绑定的原子变更集。只有 `VALIDATED` Draft 能发布，`DRAFT / IN_REVIEW / REJECTED` 资源与在线查询完全隔离。`LegacyOntologyObjectMigrator` 可重复地把现有审核 YAML 转为首个对象 Draft。发布对象资源存在时，YAML 与对象属性绑定对同一语义产生不同物理口径会被视为契约冲突并阻断发布，不会静默混用。
+字段级 Candidate 仍作为机器证据，不能直接发布；Draft 是一次包含多个对象、属性、Link、版本化 Physical Join 和绑定的原子变更集。只有 `VALIDATED` Draft 能发布，`DRAFT / IN_REVIEW / REJECTED` 资源与在线查询完全隔离。默认入口直接读取 `ontology/retail_banking/object_model/` 的强类型对象资源，或从空白 Draft 开始；MetadataSnapshot、字段画像和结构化历史 SQL 只提出带证据的候选，由用户显式选择后才进入 Draft。发布对象资源存在时，YAML 与对象属性绑定对同一语义产生不同物理口径会被视为契约冲突并阻断发布，不会静默混用。
+
+### 为什么不再把 Legacy Migration 作为主流程
+
+`LegacyOntologyObjectMigrator` 是仓库从旧 `Metric / Dimension / Mapping` 配置演进到对象模型时的一次性兼容工具。它从旧物理模型反推对象边界，无法替代“人工定义业务对象、程序提供物理证据、人工审核绑定与关系”的建模过程。因此默认 UI、API 演示和 Docker 验收均从直接对象种子或空白 Draft 开始；`migrate-legacy` 只保留在兼容工具区和独立回归测试中。当前发布结果仍由 `ObjectSemanticCompiler` 编译成 `OntologyBundle`，以兼容既有 LangGraph、SQLAsset 与 Evaluation，旧 `Metric.expression/base_table` 和 `Dimension.table/column` 暂作为运行时兼容字段保留。
 
 ## 对象运行时与变更治理
 
@@ -304,15 +310,18 @@ EMBEDDING_API_KEY=your-key
 | GET | `/api/v1/ontology/versions` | 查看正式本体版本 |
 | POST | `/api/v1/ontology/versions/{version}/activate` | 激活或回滚已发布版本 |
 | POST/GET | `/api/v1/ontology/drafts` | 创建或列出对象模型 Draft |
+| POST | `/api/v1/ontology/drafts/from-seed` | 从允许列表中的直接对象种子创建 Draft |
 | GET/DELETE | `/api/v1/ontology/drafts/{draft_id}` | 查看或删除未发布 Draft |
 | POST/PUT/DELETE | `/api/v1/ontology/drafts/{draft_id}/object-types` | 编辑 Draft 对象类型 |
 | POST/PUT/DELETE | `/api/v1/ontology/drafts/{draft_id}/properties` | 编辑 Draft 属性 |
 | POST/PUT/DELETE | `/api/v1/ontology/drafts/{draft_id}/link-types` | 编辑 Draft 业务 Link |
 | POST/PUT/DELETE | `/api/v1/ontology/drafts/{draft_id}/physical-joins` | 编辑版本化审核 Physical Join |
 | POST/PUT | `/api/v1/ontology/drafts/{draft_id}/bindings` | 编辑对象物理绑定 |
+| POST | `/api/v1/ontology/drafts/{draft_id}/candidates/generate` | 从固定 Snapshot 与历史 SQL 生成对象候选 |
+| POST | `/api/v1/ontology/drafts/{draft_id}/import-candidates` | 显式选择候选并导入 Draft |
 | GET | `/api/v1/ontology/drafts/{draft_id}/diff` | 计算 Draft 结构化变更集合 |
 | GET | `/api/v1/ontology/drafts/{draft_id}/impact` | 计算下游影响与 Breaking Change |
-| POST | `/api/v1/ontology/drafts/migrate-legacy` | 幂等迁移审核 YAML 到新 Draft |
+| POST | `/api/v1/ontology/drafts/migrate-legacy` | 兼容接口：幂等迁移旧审核 YAML 到 Draft |
 | POST | `/api/v1/ontology/drafts/{draft_id}/validate` | 运行对象、物理、投影、SQLGlot 与 EXPLAIN 校验 |
 | POST | `/api/v1/ontology/drafts/{draft_id}/submit` | 提交审核并锁定编辑 |
 | POST | `/api/v1/ontology/drafts/{draft_id}/approve` | 审核并进入 VALIDATED |
@@ -375,7 +384,7 @@ docker compose down
 
 脚本还会执行真实复杂模板问题“查询近30天各分行信用卡交易金额和排名”，并断言：召回认证模板、`sql_rewrite.used_template=true`、SQL 保留 `WITH` 和 `DENSE_RANK`、SQLValidator/EXPLAIN 通过且结果非空。
 
-同一验收还会迁移对象 Draft，核对 `Transaction.amount` 的物理绑定和 Transaction → Branch Link，检查 Diff/Impact，完成 4 个动态 Dry Run、审核和原子发布；随后构建版本化概念索引、执行 Metadata Sync、验证 Object Explorer 的脱敏与 Link 导航，再运行上述两个 Text-to-SQL 回归问题。
+同一验收先抽取 MetadataSnapshot，再从直接对象种子创建 Draft，核对 `Transaction.amount` 的物理绑定和 Transaction → Branch Link；随后生成带 Profile/历史 SQL 证据的候选，确认汇总、技术和废弃表被排除，人工验证并选择至少一个候选导入。验收继续检查 Diff/Impact、4 个动态 Dry Run、审核和原子发布，最后构建版本化概念索引、执行 Metadata Sync、验证 Object Explorer 的脱敏与 Link 导航，并运行上述两个 Text-to-SQL 回归问题。默认验收不调用 Legacy migrator。
 
 代码检查：
 
@@ -411,7 +420,9 @@ YAML 是初始化种子和故障回退；在线事实源是 PostgreSQL 中当前
 
 ## Ontology Manager 标准演示
 
-打开 Streamlit 左侧独立的“Ontology Manager”工作台，可查看对象图、编辑 Draft 对象和属性、区分业务 Link 与物理 Join、检查受控数据源与属性绑定，并执行校验、提交、审核和发布。命令行迁移 Dry Run 不写数据库：
+打开 Streamlit 左侧独立的“Ontology Manager”工作台。默认流程是“从对象种子创建（或空白 Draft）→ 绑定 MetadataSnapshot → 生成并查看候选证据 → 显式选择导入 → 编辑对象/属性/Binding/Link/Physical Join → Validate 与 Dynamic Dry Run → Diff/Impact → Submit → Approve → Publish”。页面显示属性绑定覆盖率、Schema Sync 状态，并严格区分业务 Link 与 Physical Join。人负责对象边界和最终审核，程序负责元数据/历史 SQL 证据，LLM 只辅助名称、描述和置信度，不能决定正式绑定、Join、生命周期或发布状态。
+
+以下命令只用于旧配置兼容；迁移 Dry Run 不写数据库，也不是默认演示入口：
 
 ```powershell
 python -m data_asset_agents.ontology.manager.cli migrate-legacy --dry-run `

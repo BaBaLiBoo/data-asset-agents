@@ -9,6 +9,9 @@
   explicitly publishes a new version. CANDIDATE and REJECTED records are never query-time inputs.
 - Object-first ontology changes must be made in an OntologyDraft. Only a VALIDATED Draft may be
   atomically published; DRAFT, IN_REVIEW, and REJECTED object resources are never runtime inputs.
+- New object models default to the allowlisted direct object seed or a blank Draft. Metadata and
+  historical SQL may only produce review candidates. LegacyOntologyObjectMigrator is a
+  compatibility import tool and must not become a default generator, UI path, or acceptance path.
 - Keep business LinkType separate from PhysicalJoinDefinition. A Link may only reference reviewed,
   enabled joins connecting the actual bound object tables.
 - DataSourceDefinition stores an environment-variable name such as DATABASE_URL, never a resolved
