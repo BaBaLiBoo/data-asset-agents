@@ -250,6 +250,13 @@ class CreateDraftRequest(BaseModel):
     created_by: str = "ontology-manager"
 
 
+class CreateDraftFromSeedRequest(BaseModel):
+    draft_name: str = "MiniBank object-first model"
+    created_by: str = "ontology-manager"
+    source_snapshot_id: str | None = None
+    seed_name: str = Field(default="retail_banking", pattern=r"^[a-z][a-z0-9_-]{1,63}$")
+
+
 class ActorRequest(BaseModel):
     actor: str = "ontology-reviewer"
 
@@ -304,6 +311,28 @@ class CandidateObjectBinding(BaseModel):
     binding: ObjectDataSourceBinding
     confidence: float = Field(ge=0, le=1)
     evidence: list[CandidateEvidence] = Field(default_factory=list)
+
+
+class CandidatePhysicalJoin(BaseModel):
+    candidate_id: str
+    physical_join: PhysicalJoinDefinition
+    confidence: float = Field(ge=0, le=1)
+    evidence: list[CandidateEvidence] = Field(default_factory=list)
+
+
+class ObjectCandidateSet(BaseModel):
+    snapshot_id: str
+    object_types: list[CandidateObjectType] = Field(default_factory=list)
+    properties: list[CandidateProperty] = Field(default_factory=list)
+    bindings: list[CandidateObjectBinding] = Field(default_factory=list)
+    link_types: list[CandidateLinkType] = Field(default_factory=list)
+    physical_joins: list[CandidatePhysicalJoin] = Field(default_factory=list)
+    excluded_tables: dict[str, str] = Field(default_factory=dict)
+
+
+class ImportObjectCandidatesRequest(BaseModel):
+    candidate_ids: list[str] = Field(min_length=1)
+    actor: str = Field(default="ontology-manager", min_length=1, max_length=100)
 
 
 class ObjectCandidateLLMOutput(BaseModel):

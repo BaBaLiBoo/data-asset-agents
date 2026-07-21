@@ -16,18 +16,23 @@ from data_asset_agents.ontology.models import (
     ReviewStatus,
 )
 
+from .candidate_generator import ObjectFirstCandidateGenerator
 from .change_analysis import OntologyChangeAnalyzer
 from .governance_models import OntologyChangeSet, OntologyImpactReport
 from .migration import LegacyOntologyObjectMigrator
 from .models import (
     ActorRequest,
     BindingSyncStatus,
+    CreateDraftFromSeedRequest,
     CreateDraftRequest,
+    DataSourceDefinition,
     DataSourceInspection,
     DraftResources,
     DraftStatus,
+    ImportObjectCandidatesRequest,
     LinkType,
     MigrateLegacyRequest,
+    ObjectCandidateSet,
     ObjectDataSourceBinding,
     ObjectGraph,
     ObjectType,
@@ -42,6 +47,7 @@ from .models import (
 )
 from .projection import CompatibilityProjectionService
 from .repository import OntologyManagerRepository
+from .seed_repository import ObjectOntologySeedRepository
 from .validator import OntologyDraftValidator
 
 
@@ -56,17 +62,28 @@ class OntologyManagerService:
         *,
         engine: Engine | None = None,
         candidate_repository: object | None = None,
+        seed_repository: ObjectOntologySeedRepository | None = None,
+        candidate_generator: ObjectFirstCandidateGenerator | None = None,
     ) -> None:
         self.repository = repository
         self.base_bundle = base_bundle
         self.validator = validator
         self.engine = engine
         self.candidate_repository = candidate_repository
+        self.seed_repository = seed_repository
+        self.candidate_generator = candidate_generator
         self.migrator = LegacyOntologyObjectMigrator(base_bundle)
         self.projection = CompatibilityProjectionService()
         self.change_analyzer = OntologyChangeAnalyzer(repository, base_bundle, engine)
         self.drift_service: object | None = None
-        self.repository.save_data_source(self.migrator.data_source())
+        self.repository.save_data_source(
+            DataSourceDefinition(
+                id="minibank-postgres",
+                name="MiniBank PostgreSQL",
+                connection_ref="DATABASE_URL",
+                description="Application-managed fictional MiniBank data source",
+            )
+        )
 
     def _with_joins(self, aggregate: OntologyDraftAggregate) -> OntologyDraftAggregate:
         """Compatibility wrapper retained for callers; joins now belong to the Draft."""
@@ -121,6 +138,30 @@ class OntologyManagerService:
             created_by=request.created_by,
         )
         return self._with_joins(self.repository.create_draft(draft, resources))
+
+    def create_draft_from_seed(
+        self, request: CreateDraftFromSeedRequest
+    ) -> OntologyDraftAggregate:
+        """Create an editable Draft directly from an allowlisted object seed."""
+
+        if self.seed_repository is None:
+            raise OntologyError("Object ontology seed repository is not configured")
+        resources = self.seed_repository.load(request.seed_name)
+        refreshed: list[ObjectDataSourceBinding] = []
+        for binding in resources.bindings:
+            binding = binding.model_copy(
+                update={"latest_snapshot_id": request.source_snapshot_id}
+            )
+            refreshed.append(self._refresh_binding_schema(binding))
+        resources.bindings = refreshed
+        draft = OntologyDraft(
+            id=f"draft-seed-{uuid4().hex}",
+            name=request.draft_name,
+            description=f"Direct object-first seed: {request.seed_name}",
+            source_snapshot_id=request.source_snapshot_id,
+            created_by=request.created_by,
+        )
+        return self.repository.create_draft(draft, resources)
 
     def migrate_legacy(self, request: MigrateLegacyRequest) -> OntologyDraftAggregate:
         resources = self.migrator.migrate(request.source_snapshot_id)
@@ -188,15 +229,33 @@ class OntologyManagerService:
             if resource.data_source_id != "minibank-postgres":
                 raise OntologyError("Only the application-managed data source may be bound")
             previous = next((item for item in resources.bindings if item.id == resource.id), None)
-            if (
-                previous
-                and previous.object_type_id == resource.object_type_id
-                and previous.table_name == resource.table_name
-            ):
-                resource.property_bindings = {
-                    **previous.property_bindings,
-                    **resource.property_bindings,
+            if previous:
+                if (
+                    previous.object_type_id != resource.object_type_id
+                    or previous.table_name != resource.table_name
+                ):
+                    raise OntologyConflictError(
+                        f"Binding {resource.id} conflicts with the manually selected object/table"
+                    )
+                conflicts = {
+                    property_id
+                    for property_id, column in resource.property_bindings.items()
+                    if property_id in previous.property_bindings
+                    and previous.property_bindings[property_id] != column
                 }
+                if conflicts:
+                    raise OntologyConflictError(
+                        "Binding candidate conflicts with reviewed property binding(s): "
+                        + ", ".join(sorted(conflicts))
+                    )
+                resource = resource.model_copy(
+                    update={
+                        "property_bindings": {
+                            **previous.property_bindings,
+                            **resource.property_bindings,
+                        }
+                    }
+                )
             if self.engine is not None:
                 resource = self._refresh_binding_schema(resource)
         self.repository.save_resource(draft_id, resource)
@@ -235,81 +294,118 @@ class OntologyManagerService:
         self.repository.delete_resource(draft_id, kind, resource_id)
         return self.get_draft(draft_id)
 
-    def import_candidates(self, draft_id: str) -> OntologyDraftAggregate:
-        """Import stable object candidates while retaining old candidate APIs as evidence."""
+    def generate_candidates(self, draft_id: str) -> ObjectCandidateSet:
+        """Generate evidence-backed candidates for one Draft's immutable snapshot."""
+
         aggregate = self._editable(draft_id)
-        migrated = self.migrator.migrate(aggregate.draft.source_snapshot_id)
-        existing = {
-            ObjectType: {x.id for x in aggregate.resources.object_types},
-            PropertyDefinition: {x.id for x in aggregate.resources.properties},
-            LinkType: {x.id for x in aggregate.resources.link_types},
-            ObjectDataSourceBinding: {x.id for x in aggregate.resources.bindings},
-            PhysicalJoinDefinition: {x.id for x in aggregate.resources.physical_joins},
-        }
-        for group in (
-            migrated.object_types,
-            migrated.properties,
-            migrated.link_types,
-            migrated.bindings,
-            migrated.physical_joins,
-        ):
-            for resource in group:
-                if resource.id not in existing[type(resource)]:
-                    self.repository.save_resource(draft_id, resource)
+        if not aggregate.draft.source_snapshot_id:
+            raise OntologyError("Draft source_snapshot_id is required for candidate generation")
+        if self.candidate_repository is None or self.candidate_generator is None:
+            raise OntologyError("Metadata object candidate generation is not configured")
+        snapshot = self.candidate_repository.get_metadata_snapshot(
+            aggregate.draft.source_snapshot_id
+        )
+        historical_sql = self.candidate_repository.list_historical_sql(snapshot.id)
+        return self.candidate_generator.generate(
+            snapshot, historical_sql, aggregate.resources
+        )
+
+    def import_candidates(
+        self, draft_id: str, request: ImportObjectCandidatesRequest
+    ) -> OntologyDraftAggregate:
+        """Import only explicitly selected metadata or VERIFIED field candidates."""
+
+        aggregate = self._editable(draft_id)
+        generated = self.generate_candidates(draft_id)
+        available: dict[str, object] = {}
+        for candidate in generated.object_types:
+            available[candidate.candidate_id] = candidate.object_type
+        for candidate in generated.properties:
+            available[candidate.candidate_id] = candidate.property
+        for candidate in generated.bindings:
+            available[candidate.candidate_id] = candidate.binding
+        for candidate in generated.physical_joins:
+            available[candidate.candidate_id] = candidate.physical_join
+        for candidate in generated.link_types:
+            available[candidate.candidate_id] = candidate.link_type
+
         if self.candidate_repository is not None:
             verified = self.candidate_repository.list_candidates(
                 status=ReviewStatus.VERIFIED,
                 snapshot_id=aggregate.draft.source_snapshot_id,
                 limit=10_000,
             )
-            refreshed = self.get_draft(draft_id)
             binding_objects = {
                 binding.table_name: binding.object_type_id
-                for binding in refreshed.resources.bindings
+                for binding in aggregate.resources.bindings
             }
-            property_ids = {item.id for item in refreshed.resources.properties}
             for envelope in verified:
                 if envelope.candidate_type != "concept":
                     continue
                 candidate = CandidateConcept.model_validate(envelope.payload)
                 object_id = binding_objects.get(candidate.table_name)
-                if not object_id:
-                    continue
-                property_id = f"{object_id}.{candidate.column_name}"
-                if property_id in property_ids:
-                    continue
-                role = {
-                    "identifier": SemanticRole.IDENTIFIER,
-                    "measure": SemanticRole.MEASURE,
-                    "dimension": SemanticRole.DIMENSION,
-                    "time": SemanticRole.TIME,
-                    "status": SemanticRole.STATUS,
-                    "attribute": SemanticRole.ATTRIBUTE,
-                }[candidate.role]
-                data_type = (
-                    PropertyDataType.DECIMAL
-                    if role == SemanticRole.MEASURE
-                    else PropertyDataType.DATE
-                    if role == SemanticRole.TIME
-                    else PropertyDataType.STRING
-                )
-                self.save_resource(
-                    draft_id,
-                    PropertyDefinition(
-                        id=property_id,
-                        object_type_id=object_id,
-                        name=candidate.business_name,
-                        description=candidate.semantic_property,
-                        data_type=data_type,
-                        semantic_role=role,
-                        nullable=role != SemanticRole.IDENTIFIER,
-                        groupable=role in {SemanticRole.DIMENSION, SemanticRole.STATUS},
-                        unit=candidate.unit,
-                        synonyms=candidate.synonyms,
-                    ),
-                )
-                property_ids.add(property_id)
+                if object_id:
+                    available[envelope.id] = self._property_from_verified_candidate(
+                        object_id, candidate
+                    )
+
+        missing = set(request.candidate_ids) - available.keys()
+        if missing:
+            raise OntologyError(
+                "Selected candidates are unavailable or not VERIFIED: "
+                + ", ".join(sorted(missing))
+            )
+        for candidate_id in request.candidate_ids:
+            resource = available[candidate_id]
+            current = self.get_draft(draft_id).resources
+            collection = {
+                ObjectType: current.object_types,
+                PropertyDefinition: current.properties,
+                LinkType: current.link_types,
+                ObjectDataSourceBinding: current.bindings,
+                PhysicalJoinDefinition: current.physical_joins,
+            }[type(resource)]
+            previous = next((item for item in collection if item.id == resource.id), None)
+            if previous is not None and not isinstance(resource, ObjectDataSourceBinding):
+                continue
+            self.save_resource(draft_id, resource)
+        refreshed = self.get_draft(draft_id)
+        refreshed.draft.validation_report = None
+        refreshed.draft.updated_at = datetime.now(UTC)
+        self.repository.save_draft(refreshed.draft)
         return self.get_draft(draft_id)
+
+    @staticmethod
+    def _property_from_verified_candidate(
+        object_id: str, candidate: CandidateConcept
+    ) -> PropertyDefinition:
+        role = {
+            "identifier": SemanticRole.IDENTIFIER,
+            "measure": SemanticRole.MEASURE,
+            "dimension": SemanticRole.DIMENSION,
+            "time": SemanticRole.TIME,
+            "status": SemanticRole.STATUS,
+            "attribute": SemanticRole.ATTRIBUTE,
+        }[candidate.role]
+        data_type = (
+            PropertyDataType.DECIMAL
+            if role == SemanticRole.MEASURE
+            else PropertyDataType.DATE
+            if role == SemanticRole.TIME
+            else PropertyDataType.STRING
+        )
+        return PropertyDefinition(
+            id=f"{object_id}.{candidate.column_name}",
+            object_type_id=object_id,
+            name=candidate.business_name,
+            description=candidate.semantic_property,
+            data_type=data_type,
+            semantic_role=role,
+            nullable=role != SemanticRole.IDENTIFIER,
+            groupable=role in {SemanticRole.DIMENSION, SemanticRole.STATUS},
+            unit=candidate.unit,
+            synonyms=candidate.synonyms,
+        )
 
     def validate(self, draft_id: str) -> OntologyDraftAggregate:
         aggregate = self.get_draft(draft_id)

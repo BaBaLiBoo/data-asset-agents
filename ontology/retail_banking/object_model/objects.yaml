@@ -1,0 +1,59 @@
+- id: customer
+  name: 客户
+  plural_name: 客户集合
+  description: MiniBank 中接受服务的虚构客户业务对象
+  synonyms: [用户]
+  primary_key_property_id: customer.customer_id
+  title_property_id: customer.customer_type
+  property_ids: [customer.customer_id, customer.customer_type, customer.home_branch_id]
+  lifecycle_status: ACTIVE
+- id: account
+  name: 账户
+  plural_name: 账户集合
+  description: 客户持有的虚构零售账户业务对象
+  primary_key_property_id: account.account_id
+  title_property_id: account.account_type
+  property_ids: [account.account_id, account.customer_id, account.account_type, account.branch_id]
+  lifecycle_status: ACTIVE
+- id: card
+  name: 银行卡
+  plural_name: 银行卡集合
+  description: 绑定到客户账户的虚构银行卡业务对象
+  primary_key_property_id: card.card_id
+  title_property_id: card.card_type
+  property_ids: [card.card_id, card.account_id, card.card_type]
+  lifecycle_status: ACTIVE
+- id: transaction
+  name: 交易
+  plural_name: 交易集合
+  description: MiniBank 中已记录的虚构银行卡交易事件
+  primary_key_property_id: transaction.transaction_id
+  property_ids:
+    - transaction.transaction_id
+    - transaction.card_id
+    - transaction.customer_id
+    - transaction.branch_id
+    - transaction.merchant_id
+    - transaction.amount
+    - transaction.status
+    - transaction.card_type
+    - transaction.channel
+    - transaction.event_time
+  lifecycle_status: ACTIVE
+- id: branch
+  name: 分行
+  plural_name: 分行集合
+  description: MiniBank 的虚构服务机构业务对象
+  synonyms: [机构, 网点]
+  primary_key_property_id: branch.branch_id
+  title_property_id: branch.name
+  property_ids: [branch.branch_id, branch.name, branch.region]
+  lifecycle_status: ACTIVE
+- id: merchant
+  name: 商户
+  plural_name: 商户集合
+  description: 交易发生地点对应的虚构商户业务对象
+  primary_key_property_id: merchant.merchant_id
+  title_property_id: merchant.name
+  property_ids: [merchant.merchant_id, merchant.name, merchant.category]
+  lifecycle_status: ACTIVE

@@ -1,0 +1,26 @@
+- {id: customer.customer_id, object_type_id: customer, name: 客户标识, data_type: INTEGER, semantic_role: IDENTIFIER, nullable: false, lifecycle_status: ACTIVE}
+- {id: customer.customer_type, object_type_id: customer, name: 客户类型, data_type: STRING, semantic_role: DIMENSION, groupable: true, lifecycle_status: ACTIVE}
+- {id: customer.home_branch_id, object_type_id: customer, name: 归属分行标识, data_type: INTEGER, semantic_role: ATTRIBUTE, sensitive: true, lifecycle_status: ACTIVE}
+- {id: account.account_id, object_type_id: account, name: 账户标识, data_type: INTEGER, semantic_role: IDENTIFIER, nullable: false, lifecycle_status: ACTIVE}
+- {id: account.customer_id, object_type_id: account, name: 客户标识, data_type: INTEGER, semantic_role: ATTRIBUTE, sensitive: true, lifecycle_status: ACTIVE}
+- {id: account.account_type, object_type_id: account, name: 账户类型, data_type: STRING, semantic_role: DIMENSION, groupable: true, lifecycle_status: ACTIVE}
+- {id: account.branch_id, object_type_id: account, name: 分行标识, data_type: INTEGER, semantic_role: ATTRIBUTE, lifecycle_status: ACTIVE}
+- {id: card.card_id, object_type_id: card, name: 银行卡标识, data_type: INTEGER, semantic_role: IDENTIFIER, nullable: false, lifecycle_status: ACTIVE}
+- {id: card.account_id, object_type_id: card, name: 账户标识, data_type: INTEGER, semantic_role: ATTRIBUTE, sensitive: true, lifecycle_status: ACTIVE}
+- {id: card.card_type, object_type_id: card, name: 卡类型, data_type: STRING, semantic_role: DIMENSION, groupable: true, synonyms: [信用卡, 贷记卡], lifecycle_status: ACTIVE}
+- {id: transaction.transaction_id, object_type_id: transaction, name: 交易标识, data_type: INTEGER, semantic_role: IDENTIFIER, nullable: false, lifecycle_status: ACTIVE}
+- {id: transaction.card_id, object_type_id: transaction, name: 银行卡标识, data_type: INTEGER, semantic_role: ATTRIBUTE, sensitive: true, lifecycle_status: ACTIVE}
+- {id: transaction.customer_id, object_type_id: transaction, name: 客户标识, data_type: INTEGER, semantic_role: ATTRIBUTE, sensitive: true, lifecycle_status: ACTIVE}
+- {id: transaction.branch_id, object_type_id: transaction, name: 分行标识, data_type: INTEGER, semantic_role: ATTRIBUTE, lifecycle_status: ACTIVE}
+- {id: transaction.merchant_id, object_type_id: transaction, name: 商户标识, data_type: INTEGER, semantic_role: ATTRIBUTE, lifecycle_status: ACTIVE}
+- {id: transaction.amount, object_type_id: transaction, name: 交易金额, data_type: DECIMAL, semantic_role: MEASURE, unit: CNY, synonyms: [交易额], lifecycle_status: ACTIVE}
+- {id: transaction.status, object_type_id: transaction, name: 交易状态, data_type: STRING, semantic_role: STATUS, groupable: true, lifecycle_status: ACTIVE}
+- {id: transaction.card_type, object_type_id: transaction, name: 交易卡类型, data_type: STRING, semantic_role: DIMENSION, groupable: true, lifecycle_status: ACTIVE}
+- {id: transaction.channel, object_type_id: transaction, name: 交易渠道, data_type: STRING, semantic_role: DIMENSION, groupable: true, lifecycle_status: ACTIVE}
+- {id: transaction.event_time, object_type_id: transaction, name: 交易日期, data_type: DATE, semantic_role: TIME, groupable: true, lifecycle_status: ACTIVE}
+- {id: branch.branch_id, object_type_id: branch, name: 分行标识, data_type: INTEGER, semantic_role: IDENTIFIER, nullable: false, lifecycle_status: ACTIVE}
+- {id: branch.name, object_type_id: branch, name: 分行名称, data_type: STRING, semantic_role: DIMENSION, groupable: true, lifecycle_status: ACTIVE}
+- {id: branch.region, object_type_id: branch, name: 区域, data_type: STRING, semantic_role: DIMENSION, groupable: true, lifecycle_status: ACTIVE}
+- {id: merchant.merchant_id, object_type_id: merchant, name: 商户标识, data_type: INTEGER, semantic_role: IDENTIFIER, nullable: false, lifecycle_status: ACTIVE}
+- {id: merchant.name, object_type_id: merchant, name: 商户名称, data_type: STRING, semantic_role: DIMENSION, groupable: true, lifecycle_status: ACTIVE}
+- {id: merchant.category, object_type_id: merchant, name: 商户类别, data_type: STRING, semantic_role: DIMENSION, groupable: true, lifecycle_status: ACTIVE}

@@ -15,7 +15,9 @@ from data_asset_agents.ontology.models import (
     CandidateJoin,
     CandidateMapping,
     CandidateReviewRequest,
+    HistoricalSQLAnalysis,
     JoinDefinition,
+    MetadataSnapshot,
     OntologyBuildResult,
     OntologyBundle,
     OntologyPublishRequest,
@@ -179,6 +181,34 @@ class PostgresOntologyRepository:
                             "created_at": candidate.created_at,
                         },
                     )
+
+    def get_metadata_snapshot(self, snapshot_id: str) -> MetadataSnapshot:
+        """Load one immutable snapshot for object candidate generation."""
+
+        with self.engine.connect() as connection:
+            payload = connection.execute(
+                text(
+                    "SELECT payload->'snapshot' FROM metadata_snapshot "
+                    "WHERE snapshot_id=:snapshot_id"
+                ),
+                {"snapshot_id": snapshot_id},
+            ).scalar_one_or_none()
+        if payload is None:
+            raise OntologyError(f"Metadata snapshot not found: {snapshot_id}")
+        return MetadataSnapshot.model_validate(payload)
+
+    def list_historical_sql(self, snapshot_id: str) -> list[HistoricalSQLAnalysis]:
+        """Return persisted structured SQL evidence for exactly one snapshot."""
+
+        with self.engine.connect() as connection:
+            payloads = connection.execute(
+                text(
+                    "SELECT payload FROM historical_sql_analysis "
+                    "WHERE snapshot_id=:snapshot_id ORDER BY analysis_id"
+                ),
+                {"snapshot_id": snapshot_id},
+            ).scalars()
+            return [HistoricalSQLAnalysis.model_validate(item) for item in payloads]
 
     def list_candidates(
         self,

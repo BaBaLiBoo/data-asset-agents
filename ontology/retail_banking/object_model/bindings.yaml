@@ -1,0 +1,58 @@
+- id: customer_primary_binding
+  object_type_id: customer
+  data_source_id: minibank-postgres
+  schema_name: public
+  table_name: dim_customer
+  primary_key_column: customer_id
+  property_bindings: {customer.customer_id: customer_id, customer.customer_type: customer_type, customer.home_branch_id: home_branch_id}
+  schema_hash: seed-pending-inspection
+- id: account_primary_binding
+  object_type_id: account
+  data_source_id: minibank-postgres
+  schema_name: public
+  table_name: dim_account
+  primary_key_column: account_id
+  property_bindings: {account.account_id: account_id, account.customer_id: customer_id, account.account_type: account_type, account.branch_id: branch_id}
+  schema_hash: seed-pending-inspection
+- id: card_primary_binding
+  object_type_id: card
+  data_source_id: minibank-postgres
+  schema_name: public
+  table_name: dim_card
+  primary_key_column: card_id
+  property_bindings: {card.card_id: card_id, card.account_id: account_id, card.card_type: card_type}
+  schema_hash: seed-pending-inspection
+- id: transaction_primary_binding
+  object_type_id: transaction
+  data_source_id: minibank-postgres
+  schema_name: public
+  table_name: dwd_card_transaction
+  primary_key_column: transaction_id
+  property_bindings:
+    transaction.transaction_id: transaction_id
+    transaction.card_id: card_id
+    transaction.customer_id: customer_id
+    transaction.branch_id: branch_id
+    transaction.merchant_id: merchant_id
+    transaction.amount: txn_amount_cny
+    transaction.status: transaction_status
+    transaction.card_type: card_type
+    transaction.channel: transaction_channel
+    transaction.event_time: transaction_date
+  schema_hash: seed-pending-inspection
+- id: branch_primary_binding
+  object_type_id: branch
+  data_source_id: minibank-postgres
+  schema_name: public
+  table_name: dim_branch
+  primary_key_column: branch_id
+  property_bindings: {branch.branch_id: branch_id, branch.name: branch_name, branch.region: region}
+  schema_hash: seed-pending-inspection
+- id: merchant_primary_binding
+  object_type_id: merchant
+  data_source_id: minibank-postgres
+  schema_name: public
+  table_name: dim_merchant
+  primary_key_column: merchant_id
+  property_bindings: {merchant.merchant_id: merchant_id, merchant.name: merchant_name, merchant.category: merchant_category}
+  schema_hash: seed-pending-inspection

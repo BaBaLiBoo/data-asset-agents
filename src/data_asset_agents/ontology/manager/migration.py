@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from data_asset_agents.ontology.models import JoinDefinition, OntologyBundle
 
 from .classifier import TableRoleClassifier
+from .inference import infer_property_contract
 from .models import (
     BindingSyncStatus,
     Cardinality,
@@ -92,23 +93,6 @@ def adapt_physical_joins(joins: Iterable[JoinDefinition]) -> list[PhysicalJoinDe
     ]
 
 
-def _role_and_type(role: str, column: str) -> tuple[SemanticRole, PropertyDataType]:
-    lowered = role.lower()
-    if lowered.endswith("_id") or column.lower().endswith("_id"):
-        return SemanticRole.ATTRIBUTE, PropertyDataType.INTEGER
-    if lowered in {"amount", "txn_amount_cny"} or "amount" in column.lower():
-        return SemanticRole.MEASURE, PropertyDataType.DECIMAL
-    if lowered == "status" or "status" in column.lower():
-        return SemanticRole.STATUS, PropertyDataType.STRING
-    if lowered in {"event_time", "date"} or any(x in column.lower() for x in ("date", "time")):
-        return SemanticRole.TIME, PropertyDataType.DATE
-    if lowered in {"channel", "type", "category", "name"} or any(
-        x in column.lower() for x in ("type", "category", "channel", "name")
-    ):
-        return SemanticRole.DIMENSION, PropertyDataType.STRING
-    return SemanticRole.ATTRIBUTE, PropertyDataType.STRING
-
-
 class LegacyOntologyObjectMigrator:
     """Create stable draft resources from a reviewed legacy ontology bundle."""
 
@@ -152,7 +136,7 @@ class LegacyOntologyObjectMigrator:
             property_bindings: dict[str, str] = {}
             for role, column in role_bindings.items():
                 property_id = f"{object_id}.{role}"
-                semantic_role, data_type = _role_and_type(role, column)
+                semantic_role, data_type = infer_property_contract(column, "")
                 if column == primary_column:
                     semantic_role = SemanticRole.IDENTIFIER
                 properties.append(

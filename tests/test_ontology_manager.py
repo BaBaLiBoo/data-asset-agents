@@ -1,4 +1,5 @@
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
 
@@ -11,11 +12,15 @@ from data_asset_agents.ontology.manager.classifier import TableRoleClassifier
 from data_asset_agents.ontology.manager.migration import LegacyOntologyObjectMigrator
 from data_asset_agents.ontology.manager.models import (
     ActorRequest,
-    CreateDraftRequest,
+    CandidateObjectBinding,
+    CandidateProperty,
+    CreateDraftFromSeedRequest,
     DraftStatus,
+    ImportObjectCandidatesRequest,
     LifecycleStatus,
     LinkType,
     MigrateLegacyRequest,
+    ObjectCandidateSet,
     PropertyDataType,
     PropertyDefinition,
     PublishDraftRequest,
@@ -24,12 +29,17 @@ from data_asset_agents.ontology.manager.models import (
 )
 from data_asset_agents.ontology.manager.projection import CompatibilityProjectionService
 from data_asset_agents.ontology.manager.repository import MemoryOntologyManagerRepository
+from data_asset_agents.ontology.manager.seed_repository import ObjectOntologySeedRepository
 from data_asset_agents.ontology.manager.service import OntologyManagerService
 from data_asset_agents.ontology.manager.validator import OntologyDraftValidator
 from data_asset_agents.ontology.models import (
     CandidateConcept,
     CandidateEnvelope,
     ColumnMetadata,
+    ColumnProfile,
+    ColumnReference,
+    ForeignKeyMetadata,
+    HistoricalSQLAnalysis,
     MetadataSnapshot,
     ReviewStatus,
     TableMetadata,
@@ -45,6 +55,13 @@ def bundle():
 @pytest.fixture
 def migrated(bundle):
     return LegacyOntologyObjectMigrator(bundle).migrate("snapshot-one")
+
+
+@pytest.fixture
+def seed_repository():
+    return ObjectOntologySeedRepository(
+        {"retail_banking": Path("ontology/retail_banking/object_model")}
+    )
 
 
 def test_table_roles_and_aggregate_exclusion(bundle) -> None:
@@ -107,12 +124,12 @@ def test_mock_object_first_candidates_are_stable(bundle) -> None:
                 primary_key=[table.columns[0]],
             )
             for table in bundle.tables
-            if table.status == "ACTIVE"
         ],
     )
-    generator = ObjectFirstCandidateGenerator(Settings(llm_mode="mock"), bundle)
-    objects, properties, links, bindings = generator.generate(snapshot)
-    assert {item.object_type.id for item in objects} == {
+    generator = ObjectFirstCandidateGenerator(Settings(llm_mode="mock"), bundle.tables)
+    first = generator.generate(snapshot)
+    second = generator.generate(snapshot)
+    assert {item.object_type.id for item in first.object_types} >= {
         "customer",
         "account",
         "card",
@@ -120,10 +137,173 @@ def test_mock_object_first_candidates_are_stable(bundle) -> None:
         "branch",
         "merchant",
     }
-    assert all(item.table_role in {TableRole.CANONICAL_OBJECT, TableRole.EVENT} for item in objects)
-    assert any(item.property.id == "transaction.amount" for item in properties)
-    assert any(item.link_type.id == "transaction_belongs_to_branch" for item in links)
-    assert any(item.binding.table_name == "dwd_card_transaction" for item in bindings)
+    assert all(
+        item.table_role in {TableRole.CANONICAL_OBJECT, TableRole.EVENT}
+        for item in first.object_types
+    )
+    assert any(item.property.id == "transaction.amount" for item in first.properties)
+    assert any(
+        item.binding.table_name == "dwd_card_transaction" for item in first.bindings
+    )
+    assert first.excluded_tables["dws_branch_transaction_day"] == "AGGREGATE_VIEW"
+    assert first.excluded_tables["tmp_transaction_result"] == "TECHNICAL"
+    assert first.excluded_tables["test_transaction_copy"] == "TECHNICAL"
+    assert first.excluded_tables["legacy_card_transaction"] == "DEPRECATED"
+    assert first.model_dump(mode="json") == second.model_dump(mode="json")
+
+
+def test_property_candidate_contains_profile_and_historical_sql_evidence(
+    bundle, seed_repository
+) -> None:
+    snapshot = MetadataSnapshot(
+        id="snapshot-property-evidence",
+        schema_name="public",
+        tables=[
+            TableMetadata(
+                schema_name="public",
+                table_name="dwd_card_transaction",
+                columns=[
+                    ColumnMetadata(
+                        name="transaction_id", data_type="BIGINT", nullable=False
+                    ),
+                    ColumnMetadata(name="posted_amount", data_type="NUMERIC", nullable=True),
+                ],
+                primary_key=["transaction_id"],
+                profiles=[
+                    ColumnProfile(
+                        table_name="dwd_card_transaction",
+                        column_name="posted_amount",
+                        data_type="NUMERIC",
+                        row_count=10,
+                        null_count=1,
+                        null_rate=0.1,
+                        distinct_count=8,
+                        unique_rate=0.8,
+                        sample_values=["***12.00", "***18.50"],
+                    )
+                ],
+            )
+        ],
+    )
+    sql = HistoricalSQLAnalysis(
+        id="certified-posted-amount",
+        sql_text="SELECT SUM(posted_amount) FROM dwd_card_transaction",
+        certified=True,
+        tables=["dwd_card_transaction"],
+        columns=[
+            ColumnReference(table="dwd_card_transaction", column="posted_amount")
+        ],
+    )
+    result = ObjectFirstCandidateGenerator(
+        Settings(llm_mode="mock"), bundle.tables
+    ).generate(snapshot, [sql], seed_repository.load("retail_banking"))
+    candidate = next(
+        item for item in result.properties if item.property.id == "transaction.posted_amount"
+    )
+    assert candidate.property.data_type == PropertyDataType.DECIMAL
+    assert candidate.property.semantic_role == SemanticRole.MEASURE
+    assert {item.source for item in candidate.evidence} >= {
+        "metadata",
+        "field-profile",
+        "historical-sql",
+    }
+
+
+def test_metadata_fk_generates_separate_link_and_physical_join_candidates(bundle) -> None:
+    snapshot = MetadataSnapshot(
+        id="snapshot-fk",
+        schema_name="public",
+        tables=[
+            TableMetadata(
+                schema_name="public",
+                table_name="dim_customer",
+                columns=[ColumnMetadata(name="customer_id", data_type="BIGINT", nullable=False)],
+                primary_key=["customer_id"],
+            ),
+            TableMetadata(
+                schema_name="public",
+                table_name="dim_account",
+                columns=[
+                    ColumnMetadata(name="account_id", data_type="BIGINT", nullable=False),
+                    ColumnMetadata(name="customer_id", data_type="BIGINT", nullable=False),
+                ],
+                primary_key=["account_id"],
+                foreign_keys=[
+                    ForeignKeyMetadata(
+                        constrained_columns=["customer_id"],
+                        referred_table="dim_customer",
+                        referred_columns=["customer_id"],
+                    )
+                ],
+            ),
+        ],
+    )
+    result = ObjectFirstCandidateGenerator(
+        Settings(llm_mode="mock"), bundle.tables
+    ).generate(snapshot)
+    assert result.link_types
+    assert result.physical_joins
+    assert result.link_types[0].link_type.physical_join_ids == [
+        result.physical_joins[0].physical_join.id
+    ]
+    assert any(
+        evidence.source == "foreign-key"
+        for evidence in result.physical_joins[0].evidence
+    )
+
+
+def test_live_llm_output_cannot_choose_physical_binding_or_publish_state(bundle) -> None:
+    class StructuredModel:
+        @staticmethod
+        def invoke(prompt):
+            return {
+                "object_name": "客户候选",
+                "boundary_description": "仅供人工审核",
+                "property_names": ["客户标识"],
+                "property_roles": {"customer_id": "IDENTIFIER"},
+                "confidence": 0.91,
+                "evidence": ["masked metadata summary"],
+                "table_name": "legacy_card_transaction",
+                "column_bindings": {"customer.customer_id": "unsafe_column"},
+                "lifecycle_status": "ACTIVE",
+            }
+
+    class ChatModel:
+        @staticmethod
+        def with_structured_output(model):
+            return StructuredModel()
+
+    class Factory:
+        @staticmethod
+        def chat_model():
+            return ChatModel()
+
+    snapshot = MetadataSnapshot(
+        id="snapshot-live-guardrail",
+        schema_name="public",
+        tables=[
+            TableMetadata(
+                schema_name="public",
+                table_name="dim_customer",
+                columns=[
+                    ColumnMetadata(
+                        name="customer_id", data_type="BIGINT", nullable=False
+                    )
+                ],
+                primary_key=["customer_id"],
+            )
+        ],
+    )
+    result = ObjectFirstCandidateGenerator(
+        Settings(llm_mode="live", llm_api_key="test-placeholder"),
+        bundle.tables,
+        Factory(),  # type: ignore[arg-type]
+    ).generate(snapshot)
+    assert result.object_types[0].object_type.lifecycle_status == LifecycleStatus.DRAFT
+    assert result.bindings[0].binding.table_name == "dim_customer"
+    assert result.bindings[0].binding.property_bindings == {
+        "customer.customer_id": "customer_id"
+    }
 
 
 def test_draft_validator_covers_object_property_link_binding_and_lifecycle(
@@ -188,53 +368,100 @@ def test_projection_preserves_analytical_ids_and_compiles_object_bindings(
     assert len(projected.joins) >= len(bundle.joins)
 
 
-def test_draft_state_machine_isolation_and_atomic_publication(bundle) -> None:
+def test_draft_state_machine_isolation_and_atomic_publication(
+    bundle, seed_repository
+) -> None:
     repository = MemoryOntologyManagerRepository()
     service = OntologyManagerService(
         repository,
         bundle,
         OntologyDraftValidator(bundle),
+        seed_repository=seed_repository,
     )
-    empty = service.create_draft(CreateDraftRequest(name="empty", created_by="test"))
-    imported = service.import_candidates(empty.draft.id)
-    assert len(imported.resources.object_types) == 6
+    seeded = service.create_draft_from_seed(
+        CreateDraftFromSeedRequest(draft_name="seeded", created_by="test")
+    )
+    assert len(seeded.resources.object_types) == 6
     assert service.published()[1].object_types == []
 
-    validated = service.validate(empty.draft.id)
+    validated = service.validate(seeded.draft.id)
     assert validated.draft.validation_report.valid
-    reviewing = service.submit(empty.draft.id, ActorRequest(actor="author"))
+    reviewing = service.submit(seeded.draft.id, ActorRequest(actor="author"))
     assert reviewing.draft.status == DraftStatus.IN_REVIEW
     with pytest.raises(OntologyConflictError):
-        service.save_resource(empty.draft.id, imported.resources.object_types[0])
-    approved = service.approve(empty.draft.id, ActorRequest(actor="reviewer"))
+        service.save_resource(seeded.draft.id, seeded.resources.object_types[0])
+    approved = service.approve(seeded.draft.id, ActorRequest(actor="reviewer"))
     assert approved.draft.status == DraftStatus.VALIDATED
     version = service.publish(
-        empty.draft.id,
+        seeded.draft.id,
         PublishDraftRequest(actor="reviewer", version="object-test-1"),
     )
     assert version.version == "object-test-1"
     assert len(service.published()[1].object_types) == 6
     with pytest.raises(OntologyConflictError):
-        service.delete_draft(empty.draft.id)
+        service.delete_draft(seeded.draft.id)
 
 
-def test_verified_field_candidate_imports_as_object_property(bundle) -> None:
+def test_seed_creation_never_calls_legacy_migrator(
+    monkeypatch, bundle, seed_repository
+) -> None:
+    service = OntologyManagerService(
+        MemoryOntologyManagerRepository(),
+        bundle,
+        OntologyDraftValidator(bundle),
+        seed_repository=seed_repository,
+    )
+    monkeypatch.setattr(
+        service.migrator,
+        "migrate",
+        lambda *_: (_ for _ in ()).throw(AssertionError("legacy path called")),
+    )
+    draft = service.create_draft_from_seed(CreateDraftFromSeedRequest())
+    assert {item.id for item in draft.resources.object_types} >= {"transaction", "branch"}
+
+
+def test_verified_field_candidate_imports_as_object_property(bundle, seed_repository) -> None:
     candidate = CandidateConcept(
-        id="verified-branch-region",
+        id="verified-posted-amount",
         snapshot_id="snapshot-one",
-        table_name="dim_branch",
-        column_name="region",
-        semantic_id="attribute:branch.region",
-        business_name="区域",
-        business_object="分行",
-        semantic_property="分行所属区域",
-        role="dimension",
+        table_name="dwd_card_transaction",
+        column_name="posted_amount",
+        semantic_id="attribute:transaction.posted_amount",
+        business_name="入账金额候选",
+        business_object="交易",
+        semantic_property="仅供审核的虚构入账金额候选",
+        role="measure",
         confidence=0.95,
         evidence=["reviewed test evidence"],
         status=ReviewStatus.VERIFIED,
     )
 
     class CandidateRepository:
+        def get_metadata_snapshot(self, snapshot_id):
+            assert snapshot_id == "snapshot-one"
+            return MetadataSnapshot(
+                id=snapshot_id,
+                schema_name="public",
+                tables=[
+                    TableMetadata(
+                        schema_name="public",
+                        table_name="dwd_card_transaction",
+                        columns=[
+                            ColumnMetadata(
+                                name="transaction_id", data_type="BIGINT", nullable=False
+                            ),
+                            ColumnMetadata(
+                                name="posted_amount", data_type="NUMERIC", nullable=True
+                            ),
+                        ],
+                        primary_key=["transaction_id"],
+                    )
+                ],
+            )
+
+        def list_historical_sql(self, snapshot_id):
+            return []
+
         def list_candidates(self, **kwargs):
             assert kwargs["status"] == ReviewStatus.VERIFIED
             return [
@@ -251,18 +478,150 @@ def test_verified_field_candidate_imports_as_object_property(bundle) -> None:
         bundle,
         OntologyDraftValidator(bundle),
         candidate_repository=CandidateRepository(),
+        seed_repository=seed_repository,
+        candidate_generator=ObjectFirstCandidateGenerator(
+            Settings(llm_mode="mock"), bundle.tables
+        ),
     )
-    draft = service.create_draft(
-        CreateDraftRequest(
-            name="candidate import",
+    draft = service.create_draft_from_seed(
+        CreateDraftFromSeedRequest(
+            draft_name="candidate import",
             created_by="test",
             source_snapshot_id="snapshot-one",
         )
     )
-    imported = service.import_candidates(draft.draft.id)
-    region = next(item for item in imported.resources.properties if item.id == "branch.region")
-    assert region.object_type_id == "branch"
-    assert region.semantic_role == SemanticRole.DIMENSION
+    imported = service.import_candidates(
+        draft.draft.id,
+        ImportObjectCandidatesRequest(candidate_ids=[candidate.id], actor="reviewer"),
+    )
+    posted = next(
+        item
+        for item in imported.resources.properties
+        if item.id == "transaction.posted_amount"
+    )
+    assert posted.object_type_id == "transaction"
+    assert posted.semantic_role == SemanticRole.MEASURE
+
+
+def test_candidate_import_does_not_overwrite_manual_property(
+    bundle, seed_repository
+) -> None:
+    resources = seed_repository.load("retail_banking")
+    manual = next(
+        item for item in resources.properties if item.id == "transaction.status"
+    ).model_copy(update={"description": "Manually reviewed status boundary"})
+    proposed = manual.model_copy(update={"description": "Machine-generated replacement"})
+
+    class CandidateRepository:
+        @staticmethod
+        def get_metadata_snapshot(snapshot_id):
+            return MetadataSnapshot(id=snapshot_id, schema_name="public", tables=[])
+
+        @staticmethod
+        def list_historical_sql(snapshot_id):
+            return []
+
+        @staticmethod
+        def list_candidates(**kwargs):
+            return []
+
+    class Generator:
+        @staticmethod
+        def generate(snapshot, historical_sql, existing):
+            return ObjectCandidateSet(
+                snapshot_id=snapshot.id,
+                properties=[
+                    CandidateProperty(
+                        candidate_id="candidate-manual-status",
+                        property=proposed,
+                        confidence=0.9,
+                    )
+                ],
+            )
+
+    service = OntologyManagerService(
+        MemoryOntologyManagerRepository(),
+        bundle,
+        OntologyDraftValidator(bundle),
+        candidate_repository=CandidateRepository(),
+        candidate_generator=Generator(),  # type: ignore[arg-type]
+        seed_repository=seed_repository,
+    )
+    draft = service.create_draft_from_seed(
+        CreateDraftFromSeedRequest(source_snapshot_id="snapshot-manual")
+    )
+    service.save_resource(draft.draft.id, manual)
+    imported = service.import_candidates(
+        draft.draft.id,
+        ImportObjectCandidatesRequest(candidate_ids=["candidate-manual-status"]),
+    )
+    status = next(
+        item
+        for item in imported.resources.properties
+        if item.id == "transaction.status"
+    )
+    assert status.description == "Manually reviewed status boundary"
+
+
+def test_candidate_binding_conflict_is_explicit(bundle, seed_repository) -> None:
+    resources = seed_repository.load("retail_banking")
+    binding = next(
+        item
+        for item in resources.bindings
+        if item.object_type_id == "transaction"
+    ).model_copy(
+        update={
+            "property_bindings": {
+                "transaction.amount": "posted_amount",
+            }
+        }
+    )
+
+    class CandidateRepository:
+        @staticmethod
+        def get_metadata_snapshot(snapshot_id):
+            return MetadataSnapshot(id=snapshot_id, schema_name="public", tables=[])
+
+        @staticmethod
+        def list_historical_sql(snapshot_id):
+            return []
+
+        @staticmethod
+        def list_candidates(**kwargs):
+            return []
+
+    class Generator:
+        @staticmethod
+        def generate(snapshot, historical_sql, existing):
+            return ObjectCandidateSet(
+                snapshot_id=snapshot.id,
+                bindings=[
+                    CandidateObjectBinding(
+                        candidate_id="candidate-conflicting-binding",
+                        binding=binding,
+                        confidence=0.9,
+                    )
+                ],
+            )
+
+    service = OntologyManagerService(
+        MemoryOntologyManagerRepository(),
+        bundle,
+        OntologyDraftValidator(bundle),
+        candidate_repository=CandidateRepository(),
+        candidate_generator=Generator(),  # type: ignore[arg-type]
+        seed_repository=seed_repository,
+    )
+    draft = service.create_draft_from_seed(
+        CreateDraftFromSeedRequest(source_snapshot_id="snapshot-conflict")
+    )
+    with pytest.raises(OntologyConflictError, match="conflicts"):
+        service.import_candidates(
+            draft.draft.id,
+            ImportObjectCandidatesRequest(
+                candidate_ids=["candidate-conflicting-binding"]
+            ),
+        )
 
 
 def test_rejected_and_unvalidated_drafts_cannot_publish(bundle) -> None:
