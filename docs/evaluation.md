@@ -81,13 +81,16 @@ JSON 计算 SHA-256。
 
 ## 可复现字段
 
-每次 `EvaluationRun` 固化 run kind、模式、SQLAsset 开关、模型与 Embedding、temperature、
-输出 Token、Git SHA、Strategy/Prompt 版本、数据库快照 Hash、Physical RAG Build、
-Ontology Version、SQLAsset Build、Benchmark Version、受控 Benchmark 路径、随机种子、
-并发数和时间范围。
+每次 `EvaluationRun` 固化 run ID/kind、Strategy Variant、Provider/Model、temperature、
+输出 Token、请求超时、Git SHA、Strategy/Prompt 版本、数据库快照 Hash、Benchmark
+Version/Hash、Physical RAG Build、Ontology Version/Bundle Hash、SQLAsset Build、随机种子、
+并发数以及开始/完成时间。
 
-默认 compare 只接受 run kind、Benchmark、数据库快照和模型名称一致的运行；否则返回明确
-公平性错误。Smoke 与 live 不允许默认混合。
+`compare` 对 run kind、Provider/Model、temperature、输出 Token、超时、Git SHA、Benchmark
+Version/Hash、数据库快照、Strategy/Prompt 版本、随机种子、并发数和案例上限做强制一致性
+检查；两个 Ontology 组还必须使用相同 Ontology Version 与 Bundle Hash。任一关键字段不一致
+或缺失都会拒绝比较，旧 `allow_mismatch` 参数仅为调用兼容保留，不能绕过硬门槛。Smoke 与
+live 不能混合。
 
 ## CLI
 
@@ -100,5 +103,9 @@ python -m data_asset_agents.evaluation.cli run --mode ontology --sql-assets enab
 python -m data_asset_agents.evaluation.cli compare
 python -m data_asset_agents.evaluation.cli export --run-id RUN_ID --format csv
 ```
+
+正式运行应显式传入四个 Run ID，并使用 `compare --output comparison.json
+--manifest-output manifest.json` 固化聚合结果与完整 Run Manifest。CLI 导出默认清除
+`raw_model_output`；只有未提交的本地诊断文件才可显式使用 `--include-sensitive-debug`。
 
 完整 80 条 live 实验应优先使用 CLI；CI 只运行少量无 API Key 的 smoke 案例。

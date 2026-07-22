@@ -172,7 +172,6 @@ git clone https://github.com/BaBaLiBoo/data-asset-agents.git
 cd data-asset-agents
 git switch feature/text2sql-mvp
 Copy-Item .env.example .env
-# 在 .env 中设置本地 POSTGRES_PASSWORD，并按注释填写两个 DATABASE_URL。
 docker compose up --build -d
 docker compose ps
 ```
@@ -256,8 +255,9 @@ python data/seed/generate_seed.py
 ## mock / live 配置
 
 Docker Compose 使用环境变量把 `.env` 配置传入容器，不再强制覆盖 `LLM_MODE`。
-模型配置带安全默认值；数据库口令和 `DOCKER_DATABASE_URL` 必须在本地 `.env`
-显式设置，仓库不提供固定共享口令。默认模型配置如下：
+模型配置带安全默认值；本地隔离的 PostgreSQL 容器使用 trust 认证，应用通过
+`DATABASE_HOST/PORT/NAME/USER` 组件连接，不在仓库或日志中保存口令化连接串。
+部署到非本地环境时，应由部署平台通过 Secret 注入认证配置。默认模型配置如下：
 
 ```dotenv
 LLM_MODE=mock
@@ -364,6 +364,7 @@ Windows PowerShell 一键验收脚本会校验 Compose、构建并启动容器�
 ```powershell
 Copy-Item .env.example .env
 .\scripts\acceptance.ps1
+.\scripts\upgrade_acceptance.ps1
 ```
 
 手工执行等价步骤：
@@ -433,7 +434,43 @@ python -m data_asset_agents.ontology.manager.cli migrate-legacy --dry-run `
 
 数据库迁移 `data/ddl/006_ontology_manager_core.sql` 新增 Draft 与 published 资源表以及 `ontology_version_object_resource` 来源关联；`data/ddl/007_ontology_runtime_governance.sql` 新增版本化 Physical Join、ChangeSet/Impact、Sync/Drift 和 Ontology IndexBuild/Search Document 表；`data/ddl/008_ontology_analysis_semantics.sql` 新增 Draft/Published Metric 与 Dimension 资源表；`data/ddl/009_ontology_release_governance.sql` 新增 Draft revision/hash、不可变 CompiledArtifact、append-only Audit Event，以及 IndexBuild/SQLAssetBuild 的 bundle hash 绑定。DDL 使用 `IF NOT EXISTS` 和安全 `ALTER`，新卷由 Compose 自动加载；已有演示卷按编号依次执行。删除 Draft 只级联 Draft 资源，不会删除任何正式版本。
 
+所有初始化和手工升级入口使用同一顺序：`001_schema` → `002_ontology_builder` →
+`003_release_safety_and_search` → `004_sql_assets` → `005_sql_asset_builds` →
+`006_evaluation` → `006_ontology_manager_core` → `007_ontology_runtime_governance` →
+`008_ontology_analysis_semantics` → `009_ontology_release_governance` → `002_seed`。已有数据库
+只补执行尚未应用的后续 DDL，不重新执行 Seed；`upgrade_acceptance.ps1` 会构造只到 008 的
+独立旧卷、应用 009 两次验证幂等性，并自动清理，绝不连接或修改生产数据库。
+
 Draft 编辑请求必须携带 `If-Match: "<resource_revision>"`（或 `X-Draft-Revision`）。一次用户操作只产生一次 revision；资源修改会统一把旧校验置为 `STALE`。只有最新 revision/hash 已通过 Validator 与四问题 Dynamic Dry Run 才能 Submit，审核由 submitted revision/hash 锁定。新发布版本从 READY CompiledArtifact 启动和回滚，不依赖未来编译器重新计算；旧版本没有 artifact 时才进入只读兼容回退。完整规则见 `docs/ontology-runtime.md`。
+
+## 当前完成状态
+
+已实现：
+
+- Object-first Ontology：Object、Property、Metric、Dimension、Binding、Business Link 与 Physical Join。
+- Draft Governance：revision/hash、乐观并发、精确校验快照、Submit/Approve/Publish、Diff/Impact/Drift 和 append-only Audit。
+- Runtime Governance：不可变 Compiled Artifact、Hash 校验、启动回退、激活与回滚。
+- Text-to-SQL：强类型 Semantic Query、Ontology Retrieval、确定性映射/Join、SQLGlot、安全策略、EXPLAIN、只读执行和修复闭环。
+- SQLAsset：版本化 Build、生命周期和业务口径硬门槛、混合检索、重排及受控 CTE/Window AST Rewrite。
+- Evaluation Framework：四组隔离 Strategy、80-case 虚构 Benchmark、Gold Result Hash、可复现 Run Manifest 和强制公平性比较。
+
+验证状态按证据区分：
+
+| 项目 | 当前状态 |
+|---|---|
+| `ruff check .` | 本轮本地源代码基线通过；最终提交后由 CI 复核 |
+| `pytest` | 本轮本地 122 passed、5 skipped；PostgreSQL Integration 需 CI |
+| Benchmark / Gold Hash | 本地无 PostgreSQL，等待 CI 数据库验证 |
+| Fresh Compose Acceptance | 自动化脚本已加固，等待本轮 GitHub Actions 结果 |
+| Upgrade Acceptance | 已新增独立旧卷升级脚本，等待本轮 GitHub Actions 结果 |
+| Live Evaluation | **Pending external model credentials；没有填写或推测数字** |
+
+## 实验结果
+
+当前没有可发布的 live 对照数字。mock smoke 只验证工程和 Strategy 隔离，不能用于效果
+结论。公平性清单见 [`docs/evaluation-checklist.md`](docs/evaluation-checklist.md)，正式报告
+模板见 [`docs/evaluation-results.md`](docs/evaluation-results.md)。取得外部模型凭据后，必须
+在同一 Git SHA 和完全一致模型配置下运行四组 80-case，再由 `compare` 硬门槛通过后填写。
 
 ## 当前边界
 

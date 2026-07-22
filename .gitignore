@@ -1,5 +1,6 @@
 .env
 .venv/
+.deps/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -12,4 +13,8 @@ build/
 .idea/
 .vscode/
 .DS_Store
-
+*.log
+*.secret
+*.provider-response.json
+artifacts/evaluation/**/raw/
+artifacts/evaluation/**/prompts/
