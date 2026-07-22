@@ -416,5 +416,8 @@ class ObjectFirstCandidateGenerator:
             "or publication state.\n"
             + json.dumps({"object_hint": object_id, "metadata": table}, ensure_ascii=False)
         )
-        model = self.factory.chat_model().with_structured_output(ObjectCandidateLLMOutput)
+        model = self.factory.chat_model().with_structured_output(
+            ObjectCandidateLLMOutput,
+            method="function_calling",
+        )
         return ObjectCandidateLLMOutput.model_validate(model.invoke(prompt))

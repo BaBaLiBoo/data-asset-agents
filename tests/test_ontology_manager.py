@@ -271,7 +271,7 @@ def test_live_llm_output_cannot_choose_physical_binding_or_publish_state(bundle)
 
     class ChatModel:
         @staticmethod
-        def with_structured_output(model):
+        def with_structured_output(model, **_kwargs):
             return StructuredModel()
 
     class Factory:

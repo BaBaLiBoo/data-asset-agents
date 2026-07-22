@@ -165,7 +165,10 @@ class SemanticQueryParser:
             f"业务目录：{json.dumps(catalog, ensure_ascii=False)}\n"
             f"用户问题：{question}"
         )
-        structured = self.factory.chat_model().with_structured_output(SemanticQueryDraft)
+        structured = self.factory.chat_model().with_structured_output(
+            SemanticQueryDraft,
+            method="function_calling",
+        )
         return SemanticQueryDraft.model_validate(structured.invoke(prompt))
 
     @staticmethod

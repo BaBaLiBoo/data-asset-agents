@@ -12,7 +12,7 @@ class FakeStructuredModel:
     def __init__(self) -> None:
         self.schema = None
 
-    def with_structured_output(self, schema):
+    def with_structured_output(self, schema, **_kwargs):
         self.schema = schema
         return self
 

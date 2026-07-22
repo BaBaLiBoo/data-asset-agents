@@ -129,7 +129,8 @@ class CandidateGenerator:
             profile, table_comment, context_columns, historical_sql, summary
         )
         model = self.factory.chat_model().with_structured_output(
-            CandidateSemanticOutput
+            CandidateSemanticOutput,
+            method="function_calling",
         )
         result = model.invoke(prompt)
         return CandidateSemanticOutput.model_validate(result)
