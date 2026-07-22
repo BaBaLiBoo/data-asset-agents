@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from pathlib import Path
@@ -39,6 +40,7 @@ class EvaluationService:
         database_snapshot_hash: str,
         physical_rag_build_id: str | None,
         ontology_version_id: str | None,
+        bundle_hash: str | None,
         sql_asset_build_id: str | None,
     ) -> None:
         self.repository = repository
@@ -48,6 +50,7 @@ class EvaluationService:
         self.database_snapshot_hash = database_snapshot_hash
         self.physical_rag_build_id = physical_rag_build_id
         self.ontology_version_id = ontology_version_id
+        self.bundle_hash = bundle_hash
         self.sql_asset_build_id = sql_asset_build_id
         self.normalizer = ResultNormalizer()
 
@@ -68,6 +71,7 @@ class EvaluationService:
             raise DataAssetAgentsError("query_mode does not match strategy_variant")
         provider = request.model_provider or self.settings.llm_provider
         model_name = request.model_name or self.settings.llm_model
+        source_hash = benchmark_source_hash(benchmark_path)
         run = EvaluationRun(
             run_kind=request.run_kind,
             query_mode=request.query_mode,
@@ -80,8 +84,10 @@ class EvaluationService:
             ),
             temperature=0,
             max_output_tokens=self.settings.llm_max_output_tokens,
-            git_commit_sha=os.getenv("GITHUB_SHA", "workspace-uncommitted"),
+            timeout_seconds=self.settings.llm_timeout_seconds,
+            git_commit_sha=_git_commit_sha(),
             database_snapshot_hash=self.database_snapshot_hash,
+            benchmark_hash=source_hash,
             physical_rag_build_id=(
                 self.physical_rag_build_id if request.strategy_variant == "rag" else None
             ),
@@ -90,10 +96,13 @@ class EvaluationService:
                 if request.strategy_variant.startswith("ontology")
                 else None
             ),
+            bundle_hash=(
+                self.bundle_hash if request.strategy_variant.startswith("ontology") else None
+            ),
             sql_asset_build_id=(
                 self.sql_asset_build_id if request.strategy_variant == "ontology_full" else None
             ),
-            benchmark_version=suite.version + ":" + benchmark_source_hash(benchmark_path)[:12],
+            benchmark_version=suite.version + ":" + source_hash[:12],
             benchmark_path=str(benchmark_path.relative_to(Path.cwd())),
             max_cases=request.max_cases,
             concurrency=request.concurrency,
@@ -243,6 +252,7 @@ class EvaluationService:
                 failure_reason=failure_reason,
             )
         except Exception as exc:
+            failure_category = "TIMEOUT" if isinstance(exc, TimeoutError) else "PROVIDER_ERROR"
             return EvaluationCaseResult(
                 run_id=run.run_id,
                 case_id=case.id,
@@ -257,7 +267,7 @@ class EvaluationService:
                 status="FAILED",
                 predicted_status="failed",
                 success=False,
-                failure_category="model_error",
+                failure_category=failure_category,
                 failure_reason=str(exc),
             )
 
@@ -294,15 +304,17 @@ class EvaluationService:
         policy_violations: list[str],
     ) -> tuple[str | None, str | None]:
         if output.status != case.expected_status:
+            if output.error_code == "TEMPLATE_INCOMPATIBLE":
+                return "TEMPLATE_INCOMPATIBLE", output.unsupported_reason
             if case.expected_status == "success" and not output.selected_tables:
-                return "retrieval_miss", "strategy produced no usable physical assets"
+                return "TABLE_SELECTION_ERROR", "strategy produced no usable physical assets"
             category = (
-                "clarification_error"
+                "CLARIFICATION_ERROR"
                 if case.expected_status == "clarification_required"
                 else (
-                    "unsupported_error"
+                    "UNSUPPORTED_CLASSIFICATION_ERROR"
                     if case.expected_status == "unsupported"
-                    else "semantic_parse_error"
+                    else "SEMANTIC_PARSE_ERROR"
                 )
             )
             return category, f"expected {case.expected_status}, got {output.status}"
@@ -310,45 +322,45 @@ class EvaluationService:
             reason = "; ".join(output.common_validation_report.errors)
             lowered = reason.lower()
             if "parse" in lowered:
-                category = "sql_parse_error"
+                category = "SQL_PARSE_ERROR"
             elif "explain" in lowered:
-                category = "explain_error"
+                category = "EXPLAIN_ERROR"
             elif "does not exist" in lowered or "execution" in lowered:
-                category = "execution_error"
+                category = "EXECUTION_ERROR"
             elif "column" in lowered:
-                category = "wrong_column"
+                category = "COLUMN_SELECTION_ERROR"
             elif "table" in lowered:
-                category = "wrong_table"
+                category = "TABLE_SELECTION_ERROR"
             else:
-                category = "validation_error"
+                category = "SQL_PARSE_ERROR"
             return category, reason
         if policy_violations:
             reason = "; ".join(policy_violations)
             lowered = reason.lower()
             if any(item in lowered for item in ("deprecated", "temporary", "test")):
-                category = "lifecycle_error"
+                category = "TABLE_SELECTION_ERROR"
             elif "join" in lowered:
-                category = "wrong_join"
+                category = "JOIN_ERROR"
             elif any(item in lowered for item in ("amount field", "time field", "column")):
-                category = "wrong_column"
+                category = "COLUMN_SELECTION_ERROR"
             else:
-                category = "business_policy_error"
+                category = "BUSINESS_POLICY_ERROR"
             return category, reason
         if set(output.selected_tables) != set(case.gold_tables):
-            return "wrong_table", "generated SQL table set differs from Gold"
+            return "TABLE_SELECTION_ERROR", "generated SQL table set differs from Gold"
         referenced_columns = {
             f"{table}.{column}"
             for table, columns in output.selected_columns.items()
             for column in columns
         }
         if referenced_columns != set(case.gold_columns):
-            return "wrong_column", "generated SQL column set differs from Gold"
+            return "COLUMN_SELECTION_ERROR", "generated SQL column set differs from Gold"
         if case.gold_joins and {
             normalize_join(item) for item in output.discovered_joins
         } != {normalize_join(item) for item in case.gold_joins}:
-            return "wrong_join", "generated SQL Join set differs from Gold"
+            return "JOIN_ERROR", "generated SQL Join set differs from Gold"
         if case.expected_result_hash and result_hash != case.expected_result_hash:
-            return "result_mismatch", "execution result hash differs from Gold"
+            return "RESULT_MISMATCH", "execution result hash differs from Gold"
         return None, None
 
     def metrics(self, run_id: str, benchmark_path: str) -> EvaluationMetrics:
@@ -383,18 +395,58 @@ class EvaluationService:
         if any(run is None for run in runs):
             raise DataAssetAgentsError("One or more evaluation runs do not exist")
         present = [run for run in runs if run is not None]
+        if any(run.status != "COMPLETED" for run in present):
+            raise DataAssetAgentsError("Only COMPLETED evaluation runs can be compared")
+        if any(run.benchmark_hash == "0" * 64 for run in present):
+            raise DataAssetAgentsError("Fairness mismatch: benchmark_hash provenance is missing")
         warnings: list[str] = []
         fairness = {
             "run_kind": {run.run_kind for run in present},
+            "model_provider": {run.model_provider for run in present},
             "benchmark_version": {run.benchmark_version for run in present},
+            "benchmark_hash": {run.benchmark_hash for run in present},
             "database_snapshot_hash": {run.database_snapshot_hash for run in present},
             "model_name": {run.model_name for run in present},
+            "temperature": {run.temperature for run in present},
+            "max_output_tokens": {run.max_output_tokens for run in present},
+            "timeout_seconds": {run.timeout_seconds for run in present},
+            "git_commit_sha": {run.git_commit_sha for run in present},
+            "prompt_version": {run.prompt_version for run in present},
+            "strategy_version": {run.strategy_version for run in present},
+            "random_seed": {run.random_seed for run in present},
+            "concurrency": {run.concurrency for run in present},
+            "max_cases": {run.max_cases for run in present},
         }
+        ontology_runs = [run for run in present if run.strategy_variant.startswith("ontology")]
+        if ontology_runs:
+            if any(not run.bundle_hash for run in ontology_runs):
+                raise DataAssetAgentsError("Fairness mismatch: bundle_hash provenance is missing")
+            fairness["ontology_version_id"] = {
+                run.ontology_version_id for run in ontology_runs
+            }
+            fairness["bundle_hash"] = {run.bundle_hash for run in ontology_runs}
         for field, values in fairness.items():
             if len(values) > 1:
                 warnings.append(f"Fairness mismatch: {field}")
-        if warnings and not allow_mismatch:
+        # Kept in the call signature for API compatibility. Critical provenance
+        # mismatches are never downgraded to warnings, even when an older caller
+        # still sends allow_mismatch=true.
+        _ = allow_mismatch
+        if warnings:
             raise DataAssetAgentsError("; ".join(warnings))
+        case_id_sets: list[set[str]] = []
+        for run in present:
+            suite = load_benchmark(self._allowlisted_benchmark(run.benchmark_path))
+            expected_cases = suite.cases[: run.max_cases] if run.max_cases else suite.cases
+            expected_ids = {case.id for case in expected_cases}
+            actual_ids = {case.case_id for case in self.repository.list_cases(run.run_id)}
+            if actual_ids != expected_ids:
+                raise DataAssetAgentsError(
+                    f"Evaluation run {run.run_id} has incomplete or unexpected case coverage"
+                )
+            case_id_sets.append(actual_ids)
+        if len({frozenset(case_ids) for case_ids in case_id_sets}) > 1:
+            raise DataAssetAgentsError("Fairness mismatch: evaluated case IDs")
         return EvaluationComparison(
             runs=[self.metrics_for_run(run.run_id) for run in present],
             warnings=warnings,
@@ -404,3 +456,19 @@ class EvaluationService:
 def database_snapshot_hash(catalog_json: str, seed_path: Path | str) -> str:
     seed = Path(seed_path).read_bytes()
     return hashlib.sha256(catalog_json.encode("utf-8") + seed).hexdigest()
+
+
+def _git_commit_sha() -> str:
+    configured = os.getenv("GITHUB_SHA")
+    if configured:
+        return configured
+    try:
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"

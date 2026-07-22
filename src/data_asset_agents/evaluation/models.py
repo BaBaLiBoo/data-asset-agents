@@ -118,12 +118,15 @@ class EvaluationRun(BaseModel):
     embedding_model: str | None = None
     temperature: float = 0.0
     max_output_tokens: int = 2048
+    timeout_seconds: int = 30
     git_commit_sha: str
     strategy_version: str = "v1"
     prompt_version: str = "v1"
     database_snapshot_hash: str
+    benchmark_hash: str = Field(default="0" * 64, pattern=r"^[0-9a-f]{64}$")
     physical_rag_build_id: str | None = None
     ontology_version_id: str | None = None
+    bundle_hash: str | None = None
     sql_asset_build_id: str | None = None
     benchmark_version: str
     benchmark_path: str = "data/benchmark/text2sql_v1.json"

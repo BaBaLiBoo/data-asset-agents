@@ -16,6 +16,12 @@ from data_asset_agents.evaluation.strategies import (
 )
 from data_asset_agents.execution.executor import QueryExecutor
 from data_asset_agents.llm.factory import ModelFactory
+from data_asset_agents.ontology.manager.hashing import calculate_bundle_hash
+from data_asset_agents.ontology.manager.repository import (
+    PostgresOntologyManagerRepository,
+)
+from data_asset_agents.ontology.manager.service import OntologyManagerService
+from data_asset_agents.ontology.manager.validator import OntologyDraftValidator
 from data_asset_agents.ontology.repository import (
     PostgresOntologyRepository,
     YamlOntologyRepository,
@@ -53,7 +59,24 @@ def build_evaluation_runtime(settings: Settings) -> EvaluationRuntime:
         settings=settings,
         model_factory=ModelFactory(settings),
     )
+    manager = OntologyManagerService(
+        PostgresOntologyManagerRepository(engine),
+        ontology.bundle,
+        OntologyDraftValidator(ontology.bundle, engine=engine),
+        engine=engine,
+    )
+    current_version = runtime_repository.get_current_version()
+    if current_version is not None:
+        governed_bundle, _, artifact = manager.load_runtime_bundle(
+            current_version.id, ontology.bundle
+        )
+        ontology.bundle = governed_bundle
+        ontology.ontology_version_id = current_version.id
+        ontology.compiled_bundle_hash = artifact.bundle_hash if artifact else ""
+        ontology.compiler_version = artifact.compiler_version if artifact else "legacy"
+        ontology._refresh_indexes()
     executor = QueryExecutor(settings, engine=engine)
+    executor.set_ontology(ontology.bundle)
     sql_repository = PostgresSQLAssetRepository(engine)
     sql_assets = SQLAssetService(
         sql_repository,
@@ -86,6 +109,7 @@ def build_evaluation_runtime(settings: Settings) -> EvaluationRuntime:
         ),
         physical_rag_build_id=rag.build_id,
         ontology_version_id=ontology.ontology_version_id,
+        bundle_hash=ontology.compiled_bundle_hash or calculate_bundle_hash(ontology.bundle),
         sql_asset_build_id=sql_build.build_id if sql_build else None,
     )
     return EvaluationRuntime(

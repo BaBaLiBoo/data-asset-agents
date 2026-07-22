@@ -49,6 +49,7 @@ from data_asset_agents.ontology.manager.governance_models import (
     OntologySyncRun,
     SchemaDriftReport,
 )
+from data_asset_agents.ontology.manager.hashing import calculate_bundle_hash
 from data_asset_agents.ontology.manager.indexing import OntologyIndexService
 from data_asset_agents.ontology.manager.models import (
     ActorRequest,
@@ -120,6 +121,63 @@ from data_asset_agents.text2sql.tools import JoinPlanner
 from data_asset_agents.validation import EvaluationPolicyInspector
 
 
+def _load_startup_runtime(
+    runtime_repository: Any,
+    ontology_manager: OntologyManagerService,
+    fallback_bundle: Any,
+) -> tuple[OntologyVersion, Any, bool, Any] | None:
+    """Load the current governed bundle or atomically select the newest healthy fallback."""
+
+    current_version = runtime_repository.get_current_version()
+    if current_version is None:
+        return None
+    try:
+        governed_bundle, legacy_fallback, runtime_artifact = (
+            ontology_manager.load_runtime_bundle(current_version.id, fallback_bundle)
+        )
+    except DataAssetAgentsError as exc:
+        ontology_manager.record_runtime_event(
+            OntologyAuditAction.ACTIVATION_FAILED,
+            current_version.id,
+            "api-startup",
+            metadata={"error_type": type(exc).__name__},
+        )
+        for candidate in runtime_repository.list_versions():
+            if candidate.id == current_version.id:
+                continue
+            candidate_bundle = runtime_repository.load_published_bundle(candidate.version)
+            if candidate_bundle is None:
+                continue
+            try:
+                bundle, legacy, artifact = ontology_manager.load_runtime_bundle(
+                    candidate.id, candidate_bundle
+                )
+            except DataAssetAgentsError:
+                continue
+            runtime_repository.activate_version(candidate.version)
+            ontology_manager.record_runtime_event(
+                OntologyAuditAction.ROLLED_BACK,
+                candidate.id,
+                "api-startup",
+                metadata={
+                    "legacy_fallback": legacy,
+                    "bundle_hash": artifact.bundle_hash if artifact else None,
+                },
+            )
+            return candidate, bundle, legacy, artifact
+        raise exc
+    ontology_manager.record_runtime_event(
+        OntologyAuditAction.ACTIVATED,
+        current_version.id,
+        "api-startup",
+        metadata={
+            "legacy_fallback": legacy_fallback,
+            "bundle_hash": runtime_artifact.bundle_hash if runtime_artifact else None,
+        },
+    )
+    return current_version, governed_bundle, legacy_fallback, runtime_artifact
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -155,60 +213,14 @@ async def lifespan(app: FastAPI):
         seed_repository=object_seed_repository,
         candidate_generator=object_candidate_generator,
     )
-    current_version = runtime_repository.get_current_version()
     runtime_artifact = None
     legacy_fallback = True
-    if current_version is not None:
-        try:
-            governed_bundle, legacy_fallback, runtime_artifact = (
-                ontology_manager.load_runtime_bundle(current_version.id, ontology.bundle)
-            )
-        except DataAssetAgentsError as exc:
-            ontology_manager.record_runtime_event(
-                OntologyAuditAction.ACTIVATION_FAILED,
-                current_version.id,
-                "api-startup",
-                metadata={"error_type": type(exc).__name__},
-            )
-            healthy = None
-            for candidate in runtime_repository.list_versions():
-                if candidate.id == current_version.id:
-                    continue
-                candidate_bundle = runtime_repository.load_published_bundle(candidate.version)
-                if candidate_bundle is None:
-                    continue
-                try:
-                    bundle, legacy, artifact = ontology_manager.load_runtime_bundle(
-                        candidate.id, candidate_bundle
-                    )
-                except DataAssetAgentsError:
-                    continue
-                healthy = (candidate, bundle, legacy, artifact)
-                break
-            if healthy is None:
-                raise
-            current_version, governed_bundle, legacy_fallback, runtime_artifact = healthy
-            runtime_repository.activate_version(current_version.version)
-            ontology.ontology_version_id = current_version.id
-            ontology_manager.record_runtime_event(
-                OntologyAuditAction.ROLLED_BACK,
-                current_version.id,
-                "api-startup",
-                metadata={
-                    "legacy_fallback": legacy_fallback,
-                    "bundle_hash": runtime_artifact.bundle_hash if runtime_artifact else None,
-                },
-            )
-        else:
-            ontology_manager.record_runtime_event(
-                OntologyAuditAction.ACTIVATED,
-                current_version.id,
-                "api-startup",
-                metadata={
-                    "legacy_fallback": legacy_fallback,
-                    "bundle_hash": runtime_artifact.bundle_hash if runtime_artifact else None,
-                },
-            )
+    startup_runtime = _load_startup_runtime(
+        runtime_repository, ontology_manager, ontology.bundle
+    )
+    if startup_runtime is not None:
+        current_version, governed_bundle, legacy_fallback, runtime_artifact = startup_runtime
+        ontology.ontology_version_id = current_version.id
         ontology.bundle = governed_bundle
         ontology.compiled_bundle_hash = (
             runtime_artifact.bundle_hash if runtime_artifact else ""
@@ -304,6 +316,7 @@ async def lifespan(app: FastAPI):
         ),
         physical_rag_build_id=physical_rag.build_id,
         ontology_version_id=ontology.ontology_version_id,
+        bundle_hash=ontology.compiled_bundle_hash or calculate_bundle_hash(ontology.bundle),
         sql_asset_build_id=(sql_asset_build.build_id if sql_asset_build else None),
     )
     app.state.graph = ontology_full
@@ -1681,8 +1694,13 @@ def _activate_runtime(app_instance: FastAPI, version: OntologyVersion) -> None:
     evaluation_service.strategies = app_instance.state.strategy_router
     evaluation_service.inspector = app_instance.state.evaluation_policy_inspector
     evaluation_service.ontology_version_id = app_instance.state.ontology.ontology_version_id
+    evaluation_service.bundle_hash = (
+        app_instance.state.ontology.compiled_bundle_hash
+        or calculate_bundle_hash(app_instance.state.ontology.bundle)
+    )
     latest_sql_build = app_instance.state.sql_asset_service.repository.latest_ready(
-        app_instance.state.ontology.ontology_version_id
+        app_instance.state.ontology.ontology_version_id,
+        app_instance.state.ontology.compiled_bundle_hash,
     )
     evaluation_service.sql_asset_build_id = latest_sql_build.build_id if latest_sql_build else None
 

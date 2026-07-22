@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -81,20 +82,33 @@ def run_command(args: argparse.Namespace) -> int:
 def compare_command(args: argparse.Namespace) -> int:
     runtime = build_evaluation_runtime(get_settings())
     try:
-        run_ids = (
-            args.run_id
-            or [
-                run.run_id
-                for run in runtime.service.repository.list_runs(20)
-                if run.status == "COMPLETED"
-            ][:4]
-        )
+        run_ids = args.run_id or _latest_strategy_run_ids(runtime.service.repository.list_runs(100))
         comparison = runtime.service.compare(
             run_ids,
             args.benchmark,
             allow_mismatch=args.allow_mismatch,
         )
-        print(json.dumps(comparison.model_dump(mode="json"), ensure_ascii=False, indent=2))
+        payload = comparison.model_dump(mode="json")
+        rendered = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+        if args.output:
+            output = Path(args.output)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(rendered, encoding="utf-8")
+        if args.manifest_output:
+            manifest = {
+                "generated_at": datetime.now(UTC).isoformat(),
+                "runs": [
+                    runtime.service.repository.get_run(run_id).model_dump(mode="json")
+                    for run_id in run_ids
+                ],
+            }
+            manifest_output = Path(args.manifest_output)
+            manifest_output.parent.mkdir(parents=True, exist_ok=True)
+            manifest_output.write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        print(rendered, end="")
         return 0
     finally:
         runtime.engine.dispose()
@@ -105,7 +119,12 @@ def export_command(args: argparse.Namespace) -> int:
     try:
         cases = runtime.service.repository.list_cases(args.run_id)
         output = Path(args.output or f"evaluation-{args.run_id}.{args.format}")
-        rows = [case.model_dump(mode="json") for case in cases]
+        rows = []
+        for case in cases:
+            row = case.model_dump(mode="json")
+            if not args.include_sensitive_debug:
+                row["raw_model_output"] = None
+            rows.append(row)
         if args.format == "json":
             output.write_text(
                 json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -150,14 +169,29 @@ def parser() -> argparse.ArgumentParser:
     compare.add_argument("--run-id", action="append")
     compare.add_argument("--benchmark", default="data/benchmark/text2sql_v1.json")
     compare.add_argument("--allow-mismatch", action="store_true")
+    compare.add_argument("--output")
+    compare.add_argument("--manifest-output")
     compare.set_defaults(handler=compare_command)
 
     export = commands.add_parser("export")
     export.add_argument("--run-id", required=True)
     export.add_argument("--format", choices=["csv", "json"], default="csv")
     export.add_argument("--output")
+    export.add_argument("--include-sensitive-debug", action="store_true")
     export.set_defaults(handler=export_command)
     return root
+
+
+def _latest_strategy_run_ids(runs: list[Any]) -> list[str]:
+    required = ("schema", "rag", "ontology_no_sql_asset", "ontology_full")
+    selected: dict[str, str] = {}
+    for run in runs:
+        if run.status == "COMPLETED" and run.strategy_variant not in selected:
+            selected[run.strategy_variant] = run.run_id
+    missing = [variant for variant in required if variant not in selected]
+    if missing:
+        raise ValueError(f"Missing completed strategy runs: {', '.join(missing)}")
+    return [selected[variant] for variant in required]
 
 
 def main(argv: list[str] | None = None) -> int:

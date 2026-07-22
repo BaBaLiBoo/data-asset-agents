@@ -217,6 +217,7 @@ def _service(
         database_snapshot_hash="d" * 64,
         physical_rag_build_id="rag-build",
         ontology_version_id="ontology-version",
+        bundle_hash="b" * 64,
         sql_asset_build_id="sql-build",
     )
 
@@ -241,7 +242,7 @@ def test_evaluation_run_and_each_case_are_persisted_immediately(
     assert len(repository.list_cases(run.run_id)) == 3
 
 
-def test_compare_rejects_smoke_live_or_snapshot_mismatch(
+def test_compare_rejects_critical_mismatch_even_for_legacy_override(
     ontology: OntologyService,
 ) -> None:
     repository = MemoryEvaluationRepository()
@@ -253,7 +254,9 @@ def test_compare_rejects_smoke_live_or_snapshot_mismatch(
         "model_name": "same-model",
         "git_commit_sha": "abc",
         "database_snapshot_hash": "d" * 64,
+        "benchmark_hash": "e" * 64,
         "benchmark_version": "v1",
+        "status": "COMPLETED",
     }
     smoke = EvaluationRun(run_kind="smoke", **base)
     live = EvaluationRun(run_kind="live", **base)
@@ -264,9 +267,94 @@ def test_compare_rejects_smoke_live_or_snapshot_mismatch(
             [smoke.run_id, live.run_id],
             "data/benchmark/text2sql_v1.json",
         )
-    comparison = service.compare(
-        [smoke.run_id, live.run_id],
-        "data/benchmark/text2sql_v1.json",
-        allow_mismatch=True,
+    with pytest.raises(DataAssetAgentsError, match="run_kind"):
+        service.compare(
+            [smoke.run_id, live.run_id],
+            "data/benchmark/text2sql_v1.json",
+            allow_mismatch=True,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "different"),
+    [
+        ("model_provider", "other-provider"),
+        ("model_name", "other-model"),
+        ("temperature", 0.2),
+        ("max_output_tokens", 4096),
+        ("timeout_seconds", 60),
+        ("git_commit_sha", "def"),
+        ("benchmark_hash", "f" * 64),
+        ("database_snapshot_hash", "a" * 64),
+        ("prompt_version", "v2"),
+        ("strategy_version", "v2"),
+        ("random_seed", 7),
+        ("concurrency", 2),
+        ("max_cases", 5),
+    ],
+)
+def test_compare_rejects_every_shared_reproducibility_mismatch(
+    ontology: OntologyService,
+    field: str,
+    different: object,
+) -> None:
+    repository = MemoryEvaluationRepository()
+    service = _service(repository, ontology)
+    base = EvaluationRun(
+        run_kind="live",
+        query_mode="schema",
+        strategy_variant="schema",
+        model_provider="provider",
+        model_name="model",
+        git_commit_sha="abc",
+        database_snapshot_hash="d" * 64,
+        benchmark_hash="e" * 64,
+        benchmark_version="v1",
+        status="COMPLETED",
     )
-    assert "Fairness mismatch: run_kind" in comparison.warnings
+    changed = base.model_copy(update={field: different, "run_id": "changed-run"})
+    repository.save_run(base)
+    repository.save_run(changed)
+    with pytest.raises(DataAssetAgentsError, match=field):
+        service.compare([base.run_id, changed.run_id], "data/benchmark/text2sql_v1.json")
+
+
+def test_ontology_runs_record_exact_bundle_provenance(ontology: OntologyService) -> None:
+    service = _service(MemoryEvaluationRepository(), ontology)
+    without_assets = service.create_run(
+        EvaluationRunRequest(
+            query_mode="ontology",
+            strategy_variant="ontology_no_sql_asset",
+            run_kind="smoke",
+        )
+    )
+    full = service.create_run(
+        EvaluationRunRequest(
+            query_mode="ontology",
+            strategy_variant="ontology_full",
+            sql_asset_enabled=True,
+            run_kind="smoke",
+        )
+    )
+    assert without_assets.bundle_hash == "b" * 64
+    assert full.bundle_hash == "b" * 64
+    assert without_assets.sql_asset_build_id is None
+    assert full.sql_asset_build_id == "sql-build"
+
+
+def test_compare_rejects_completed_run_with_incomplete_case_coverage(
+    ontology: OntologyService,
+) -> None:
+    repository = MemoryEvaluationRepository()
+    service = _service(repository, ontology)
+    run = service.create_run(
+        EvaluationRunRequest(
+            query_mode="schema",
+            strategy_variant="schema",
+            run_kind="smoke",
+            max_cases=2,
+        )
+    )
+    repository.save_run(run.model_copy(update={"status": "COMPLETED"}))
+    with pytest.raises(DataAssetAgentsError, match="case coverage"):
+        service.compare([run.run_id], "data/benchmark/text2sql_v1.json")
