@@ -13,18 +13,8 @@ function Get-TextSha256([string]$Text) {
     return [System.Convert]::ToHexString($hash).ToLowerInvariant()
 }
 
-# Use an ephemeral local-only database password when the caller did not provide one.
 $env:POSTGRES_DB = if ($env:POSTGRES_DB) { $env:POSTGRES_DB } else { "minibank" }
 $env:POSTGRES_USER = if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "minibank" }
-if ([string]::IsNullOrWhiteSpace($env:POSTGRES_PASSWORD)) {
-    $env:POSTGRES_PASSWORD = "acceptance-$([Guid]::NewGuid().ToString('N'))"
-}
-if ([string]::IsNullOrWhiteSpace($env:DOCKER_DATABASE_URL)) {
-    $env:DOCKER_DATABASE_URL = (
-        "postgresql+psycopg://$($env:POSTGRES_USER):$($env:POSTGRES_PASSWORD)" +
-        "@postgres:5432/$($env:POSTGRES_DB)"
-    )
-}
 
 try {
     Write-Host "[1/15] Validating Docker Compose configuration..."

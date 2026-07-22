@@ -12,7 +12,7 @@ jobs:
         env:
           POSTGRES_DB: minibank
           POSTGRES_USER: minibank
-          POSTGRES_PASSWORD: ci-${{ github.run_id }}
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
@@ -21,7 +21,10 @@ jobs:
           --health-timeout 3s
           --health-retries 20
     env:
-      DATABASE_URL: postgresql+psycopg://minibank:ci-${{ github.run_id }}@localhost:5432/minibank
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: minibank
+      PGUSER: minibank
       ONTOLOGY_PATH: ontology/retail_banking
       LLM_MODE: mock
       RUN_POSTGRES_INTEGRATION: "1"
@@ -34,22 +37,34 @@ jobs:
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Initialize MiniBank schema and seed
-        env:
-          PGPASSWORD: ci-${{ github.run_id }}
         run: |
-          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/001_schema.sql
-          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/002_ontology_builder.sql
-          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/003_release_safety_and_search.sql
-          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/004_sql_assets.sql
-          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/005_sql_asset_builds.sql
-          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/006_evaluation.sql
-          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/006_ontology_manager_core.sql
-          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/007_ontology_runtime_governance.sql
-          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/008_ontology_analysis_semantics.sql
-          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/009_ontology_release_governance.sql
-          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/ddl/009_ontology_release_governance.sql
-          psql -h localhost -U minibank -d minibank -v ON_ERROR_STOP=1 -f data/seed/002_seed.sql
+          psql -v ON_ERROR_STOP=1 -f data/ddl/001_schema.sql
+          psql -v ON_ERROR_STOP=1 -f data/ddl/002_ontology_builder.sql
+          psql -v ON_ERROR_STOP=1 -f data/ddl/003_release_safety_and_search.sql
+          psql -v ON_ERROR_STOP=1 -f data/ddl/004_sql_assets.sql
+          psql -v ON_ERROR_STOP=1 -f data/ddl/005_sql_asset_builds.sql
+          psql -v ON_ERROR_STOP=1 -f data/ddl/006_evaluation.sql
+          psql -v ON_ERROR_STOP=1 -f data/ddl/006_ontology_manager_core.sql
+          psql -v ON_ERROR_STOP=1 -f data/ddl/007_ontology_runtime_governance.sql
+          psql -v ON_ERROR_STOP=1 -f data/ddl/008_ontology_analysis_semantics.sql
+          psql -v ON_ERROR_STOP=1 -f data/ddl/009_ontology_release_governance.sql
+          psql -v ON_ERROR_STOP=1 -f data/seed/002_seed.sql
       - run: python -m pip install -e ".[dev]"
+      - name: Print reproducibility identity
+        run: |
+          echo "Git SHA: ${GITHUB_SHA}"
+          python --version
+          psql -tAc "SELECT version()"
+          psql -tAc "
+            SELECT concat_ws('|',
+              'ontology_version=' || COALESCE(v.version, 'not-published'),
+              'resource_hash=' || COALESCE(a.source_resource_hash, 'not-available'),
+              'bundle_hash=' || COALESCE(a.bundle_hash, 'not-available'),
+              'compiler_version=' || COALESCE(a.compiler_version, 'not-available'))
+            FROM (SELECT 1) AS singleton
+            LEFT JOIN ontology_version v ON v.is_current
+            LEFT JOIN ontology_compiled_artifact a ON a.ontology_version_id = v.version_id
+            LIMIT 1"
       - run: ruff check .
       - run: pytest
       - name: Validate benchmark Gold SQL
@@ -72,16 +87,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run Docker Compose acceptance
+      - name: Run fresh Docker Compose acceptance
         shell: pwsh
         run: |
-          & ./scripts/acceptance.ps1 -TimeoutSeconds 180 *>&1 |
+          & ./scripts/acceptance.ps1 `
+            -ComposeProject data-asset-agents-fresh `
+            -TimeoutSeconds 180 *>&1 |
             Tee-Object -FilePath acceptance.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run existing-database upgrade acceptance
+        shell: pwsh
+        run: |
+          & ./scripts/upgrade_acceptance.ps1 `
+            -ComposeProject data-asset-agents-upgrade `
+            -TimeoutSeconds 180 *>&1 |
+            Tee-Object -FilePath upgrade-acceptance.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload Compose diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: compose-diagnostics
-          path: acceptance.log
+          path: |
+            acceptance.log
+            upgrade-acceptance.log
           if-no-files-found: ignore

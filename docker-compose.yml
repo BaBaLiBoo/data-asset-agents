@@ -4,9 +4,9 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - minibank_data:/var/lib/postgresql/data
       - ./data/ddl/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
@@ -31,7 +31,10 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      DATABASE_URL: ${DOCKER_DATABASE_URL:?DOCKER_DATABASE_URL must be set}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${POSTGRES_DB:?POSTGRES_DB must be set}
+      DATABASE_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
       DATABASE_CONNECT_TIMEOUT: ${DATABASE_CONNECT_TIMEOUT:-5}
       SQL_STATEMENT_TIMEOUT_MS: ${SQL_STATEMENT_TIMEOUT_MS:-5000}
       SQL_MAX_ROWS: ${SQL_MAX_ROWS:-200}

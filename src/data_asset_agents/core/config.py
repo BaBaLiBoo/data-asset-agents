@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import URL
 
 
 class Settings(BaseSettings):
@@ -13,7 +14,12 @@ class Settings(BaseSettings):
 
     app_env: str = "development"
     log_level: str = "INFO"
-    database_url: str = "postgresql+psycopg://minibank@localhost:5432/minibank"
+    database_url: str = ""
+    database_driver: str = "postgresql+psycopg"
+    database_host: str = "localhost"
+    database_port: int = Field(default=5432, ge=1, le=65_535)
+    database_name: str = "minibank"
+    database_user: str = "minibank"
     database_connect_timeout: int = Field(default=5, ge=1, le=60)
     sql_statement_timeout_ms: int = Field(default=5000, ge=100, le=60_000)
     sql_max_rows: int = Field(default=200, ge=1, le=1000)
@@ -39,6 +45,17 @@ class Settings(BaseSettings):
     evaluation_benchmark_path: Path = Path("data/benchmark/text2sql_v1.json")
     evaluation_live_concurrency: int = Field(default=1, ge=1, le=4)
     evaluation_smoke_concurrency: int = Field(default=2, ge=1, le=8)
+
+    def model_post_init(self, _context: object) -> None:
+        if self.database_url:
+            return
+        self.database_url = URL.create(
+            drivername=self.database_driver,
+            username=self.database_user,
+            host=self.database_host,
+            port=self.database_port,
+            database=self.database_name,
+        ).render_as_string(hide_password=False)
 
 
 @lru_cache(maxsize=1)
