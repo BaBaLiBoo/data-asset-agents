@@ -164,6 +164,8 @@ try {
         actor = "upgrade-acceptance"
         version = "upgrade-current-v1"
         description = "Fictional post-upgrade release"
+        acknowledge_breaking_changes = $true
+        change_ticket = "FICTIONAL-UPGRADE-ACCEPTANCE"
     } | ConvertTo-Json
     $currentVersion = Invoke-RestMethod -Method Post `
         -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/publish" `

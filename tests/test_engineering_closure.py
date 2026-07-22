@@ -44,3 +44,9 @@ def test_upgrade_fixture_is_fictional_pre_governance_state(capsys) -> None:
     assert "ontology_audit_event" not in sql
     assert "secret" not in sql.lower()
     assert "password" not in sql.lower()
+
+
+def test_upgrade_acceptance_acknowledges_legacy_breaking_impact() -> None:
+    script = (ROOT / "scripts/upgrade_acceptance.ps1").read_text(encoding="utf-8")
+    assert "acknowledge_breaking_changes = $true" in script
+    assert 'change_ticket = "FICTIONAL-UPGRADE-ACCEPTANCE"' in script
