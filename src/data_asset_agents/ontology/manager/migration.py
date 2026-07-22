@@ -96,7 +96,11 @@ def adapt_physical_joins(joins: Iterable[JoinDefinition]) -> list[PhysicalJoinDe
 
 
 class LegacyOntologyObjectMigrator:
-    """Create stable draft resources from a reviewed legacy ontology bundle."""
+    """Compatibility-only import of reviewed legacy YAML into Draft resources.
+
+    Direct object seeds and blank Drafts are the default creation paths; candidate
+    generation and normal runtime startup must never call this migrator.
+    """
 
     def __init__(self, bundle: OntologyBundle) -> None:
         self.bundle = bundle

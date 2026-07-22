@@ -9,7 +9,11 @@ from .models import DraftResources, LifecycleStatus
 
 
 class CompatibilityProjectionService:
-    """Supplement—not replace—the stable analytical ontology contract."""
+    """Project published object resources for legacy read-only consumers only.
+
+    A READY compiled artifact remains authoritative for normal runtime activation;
+    this projection must not replace or mutate that artifact.
+    """
 
     def project(self, base: OntologyBundle, resources: DraftResources) -> OntologyBundle:
         bundle = ObjectSemanticCompiler(deepcopy(base)).compile(

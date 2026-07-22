@@ -458,11 +458,11 @@ Draft 编辑请求必须携带 `If-Match: "<resource_revision>"`（或 `X-Draft-
 
 | 项目 | 当前状态 |
 |---|---|
-| `ruff check .` | 本轮本地源代码基线通过；最终提交后由 CI 复核 |
-| `pytest` | 本轮本地 122 passed、5 skipped；PostgreSQL Integration 需 CI |
-| Benchmark / Gold Hash | 本地无 PostgreSQL，等待 CI 数据库验证 |
-| Fresh Compose Acceptance | 自动化脚本已加固，等待本轮 GitHub Actions 结果 |
-| Upgrade Acceptance | 已新增独立旧卷升级脚本，等待本轮 GitHub Actions 结果 |
+| `ruff check .` | GitHub Actions run #36 通过 |
+| `pytest` | GitHub Actions run #36：147 passed、14 warnings |
+| Benchmark / Gold Hash | 80-case Benchmark 与 Gold Result Hash 均通过 CI 数据库验证 |
+| Fresh Compose Acceptance | GitHub Actions run #36：15/15 通过并清理新卷 |
+| Upgrade Acceptance | GitHub Actions run #36：10/10 通过，含 DDL 009 二次幂等执行 |
 | Live Evaluation | **Pending external model credentials；没有填写或推测数字** |
 
 ## 实验结果
