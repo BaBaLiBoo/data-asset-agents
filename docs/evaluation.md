@@ -109,3 +109,36 @@ python -m data_asset_agents.evaluation.cli export --run-id RUN_ID --format csv
 `raw_model_output`；只有未提交的本地诊断文件才可显式使用 `--include-sensitive-debug`。
 
 完整 80 条 live 实验应优先使用 CLI；CI 只运行少量无 API Key 的 smoke 案例。
+
+## Live 正式本体与 Git SHA 前置条件
+
+Live Evaluation 不允许回退 `yaml-seed-*`。运行前先把当前 40 位提交 SHA 注入 Docker
+构建和运行环境，并幂等准备正式本体：
+
+```powershell
+$env:GIT_COMMIT_SHA = git rev-parse HEAD
+docker compose build api
+docker compose up -d postgres
+docker compose run --rm api python scripts/prepare_live_evaluation.py
+docker compose up -d api web
+```
+
+`prepare_live_evaluation.py` 只使用允许的 Direct Object Seed：已有正式版本时复用；
+没有时依次执行 Draft、Validate、Submit、Approve、Publish，再验证 READY
+CompiledOntologyArtifact、非空 resource/bundle hash、compiler version，并构建或复用
+READY Ontology IndexBuild 与 SQLAssetBuild。脚本中的 actor 是审计身份和自动化实验执行
+主体，不等同于真实用户在 UI 中完成独立人工审批；生产治理仍要求真实审核人显式批准。
+
+Live runtime 缺少 PUBLISHED 版本、READY 编译产物、READY Ontology Index，或 Full 组
+缺少同版本 READY SQLAssetBuild 时直接失败，不回退 YAML。mock/smoke 仍允许无 API Key
+和 YAML Seed fallback。
+
+`compare` 会拒绝空 SHA、`unknown`、非 40 位十六进制 SHA 或四组不同 SHA，错误为：
+
+```text
+Fairness mismatch: valid git_commit_sha provenance is missing
+```
+
+2026-07-23 的正式四组 80-case 结果、公平性证据和逐案例错误分析见
+[`evaluation-results.md`](evaluation-results.md) 与
+[`../artifacts/evaluation/705b017f00b0526cd244ab117ebe8cd02dfc03e7/error-analysis.md`](../artifacts/evaluation/705b017f00b0526cd244ab117ebe8cd02dfc03e7/error-analysis.md)。

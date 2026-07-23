@@ -1,0 +1,105 @@
+{
+  "runs": [
+    {
+      "run_id": "898801a9-686c-494c-a378-80d1d7b59f27",
+      "case_count": 80,
+      "status_accuracy": 0.925,
+      "semantic_query_accuracy": null,
+      "table_recall_at_k": null,
+      "table_exact_match": 0.932432,
+      "column_recall_at_k": null,
+      "column_exact_match": 0.0,
+      "join_exact_match": 1.0,
+      "deprecated_table_false_selection_rate": 0.0,
+      "business_policy_accuracy": 0.0,
+      "sql_parse_rate": 1.0,
+      "sql_execution_rate": 1.0,
+      "result_accuracy": 0.013514,
+      "template_adoption_rate": null,
+      "average_latency_ms": 1334.14,
+      "p50_latency_ms": 1309.85,
+      "p95_latency_ms": 1750.12,
+      "failure_distribution": {
+        "BUSINESS_POLICY_ERROR": 74,
+        "CLARIFICATION_ERROR": 3,
+        "UNSUPPORTED_CLASSIFICATION_ERROR": 3
+      }
+    },
+    {
+      "run_id": "140ac26c-948e-4977-a61c-f3b3ba94c174",
+      "case_count": 80,
+      "status_accuracy": 0.9125,
+      "semantic_query_accuracy": null,
+      "table_recall_at_k": 0.533784,
+      "table_exact_match": 0.986486,
+      "column_recall_at_k": 0.121622,
+      "column_exact_match": 0.797297,
+      "join_exact_match": 1.0,
+      "deprecated_table_false_selection_rate": 0.0,
+      "business_policy_accuracy": 0.972973,
+      "sql_parse_rate": 0.986486,
+      "sql_execution_rate": 0.986486,
+      "result_accuracy": 0.418919,
+      "template_adoption_rate": null,
+      "average_latency_ms": 1516.72,
+      "p50_latency_ms": 1520.44,
+      "p95_latency_ms": 1813.56,
+      "failure_distribution": {
+        "TABLE_SELECTION_ERROR": 1,
+        "RESULT_MISMATCH": 31,
+        "COLUMN_SELECTION_ERROR": 13,
+        "BUSINESS_POLICY_ERROR": 1,
+        "CLARIFICATION_ERROR": 3,
+        "UNSUPPORTED_CLASSIFICATION_ERROR": 3
+      }
+    },
+    {
+      "run_id": "4c917697-575c-4c03-b3ff-0917e95e6d14",
+      "case_count": 80,
+      "status_accuracy": 1.0,
+      "semantic_query_accuracy": 0.932432,
+      "table_recall_at_k": null,
+      "table_exact_match": 1.0,
+      "column_recall_at_k": null,
+      "column_exact_match": 1.0,
+      "join_exact_match": 1.0,
+      "deprecated_table_false_selection_rate": 0.0,
+      "business_policy_accuracy": 1.0,
+      "sql_parse_rate": 1.0,
+      "sql_execution_rate": 1.0,
+      "result_accuracy": 0.864865,
+      "template_adoption_rate": null,
+      "average_latency_ms": 1761.82,
+      "p50_latency_ms": 1744.44,
+      "p95_latency_ms": 2081.74,
+      "failure_distribution": {
+        "RESULT_MISMATCH": 10
+      }
+    },
+    {
+      "run_id": "1772b89e-0d41-4d97-aa9d-3674b3cb5aec",
+      "case_count": 80,
+      "status_accuracy": 0.9875,
+      "semantic_query_accuracy": 0.932432,
+      "table_recall_at_k": null,
+      "table_exact_match": 1.0,
+      "column_recall_at_k": null,
+      "column_exact_match": 1.0,
+      "join_exact_match": 1.0,
+      "deprecated_table_false_selection_rate": 0.0,
+      "business_policy_accuracy": 1.0,
+      "sql_parse_rate": 1.0,
+      "sql_execution_rate": 1.0,
+      "result_accuracy": 0.918919,
+      "template_adoption_rate": 0.222222,
+      "average_latency_ms": 2202.75,
+      "p50_latency_ms": 2177.08,
+      "p95_latency_ms": 2884.71,
+      "failure_distribution": {
+        "RESULT_MISMATCH": 6,
+        "PROVIDER_ERROR": 1
+      }
+    }
+  ],
+  "warnings": []
+}

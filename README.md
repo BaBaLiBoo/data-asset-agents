@@ -458,19 +458,31 @@ Draft 编辑请求必须携带 `If-Match: "<resource_revision>"`（或 `X-Draft-
 
 | 项目 | 当前状态 |
 |---|---|
-| `ruff check .` | GitHub Actions run #36 通过 |
-| `pytest` | GitHub Actions run #36：147 passed、14 warnings |
-| Benchmark / Gold Hash | 80-case Benchmark 与 Gold Result Hash 均通过 CI 数据库验证 |
-| Fresh Compose Acceptance | GitHub Actions run #36：15/15 通过并清理新卷 |
-| Upgrade Acceptance | GitHub Actions run #36：10/10 通过，含 DDL 009 二次幂等执行 |
-| Live Evaluation | **Pending external model credentials；没有填写或推测数字** |
+| `ruff check .` | 本地最终 SHA 通过；GitHub Actions 等待推送后确认 |
+| `pytest` | 184 passed，5 skipped，4 warnings |
+| Benchmark | 80 cases valid；generator 重跑后文件哈希不变 |
+| Gold Hash | `materialize_benchmark_hashes.py --check` 通过 |
+| Fresh Compose Acceptance | 15/15 通过 |
+| Upgrade Acceptance | 10/10 通过，含 DDL 009 二次幂等执行 |
+| Published Ontology | `version_f906ab4cf5164742b44ddcb29c02ac54` |
+| Compiled Artifact | READY，bundle `0dd064baa8a7…` |
+| Ontology Index | READY，`ontology-index-2339b1a35f274d88b1bcd092411dd6c6` |
+| SQLAsset Build | READY，`sqlbuild-39aa7df587884846ba05bb33e85810ec` |
+| Live Evaluation | 已完成四组各 80 Case，compare `warnings=[]` |
 
 ## 实验结果
 
-当前没有可发布的 live 对照数字。mock smoke 只验证工程和 Strategy 隔离，不能用于效果
-结论。公平性清单见 [`docs/evaluation-checklist.md`](docs/evaluation-checklist.md)，正式报告
-模板见 [`docs/evaluation-results.md`](docs/evaluation-results.md)。取得外部模型凭据后，必须
-在同一 Git SHA 和完全一致模型配置下运行四组 80-case，再由 `compare` 硬门槛通过后填写。
+固定 SHA `705b017f00b0526cd244ab117ebe8cd02dfc03e7` 的四组 Live Result
+Accuracy 为：Schema 1.35%、Physical RAG 41.89%、Ontology No SQLAsset 86.49%、
+Ontology Full 91.89%。Ontology Full 真实采用 4 个复杂 CTE + Window 模板，
+Template Adoption Rate 为 22.22%；同时平均延迟比 No SQLAsset 增加 440.93 ms，
+并保留了 1 个 Provider Structured Output 解析错误。
+
+这些数字来自单次 80-case Benchmark，没有重复实验或统计检验。完整配置、分类指标、
+错误分布、SQLAsset 采用与边界见
+[`docs/evaluation-results.md`](docs/evaluation-results.md)，公平性清单见
+[`docs/evaluation-checklist.md`](docs/evaluation-checklist.md)，逐案例产物见
+[`artifacts/evaluation/705b017f00b0526cd244ab117ebe8cd02dfc03e7/`](artifacts/evaluation/705b017f00b0526cd244ab117ebe8cd02dfc03e7/)。
 
 ## 当前边界
 
