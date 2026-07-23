@@ -55,7 +55,7 @@
   columns: [branch_name]
   column_bindings: {value: branch_name}
 - concept_id: dimension:card_type
-  table: dim_card
+  table: dwd_card_transaction
   columns: [card_type]
   column_bindings: {value: card_type}
 - concept_id: dimension:transaction_channel

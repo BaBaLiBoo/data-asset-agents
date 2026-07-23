@@ -224,6 +224,53 @@ class SemanticQueryParser:
             )
             for item in draft.filters
         ]
+        dimension_property_ids = {
+            f"dimension:{dimension.id}": dimension.property_id
+            for dimension in bundle.dimensions
+            if dimension.property_id
+        }
+        policy_labels_by_property: dict[str, set[str]] = {}
+        for metric in bundle.metrics:
+            if metric.id not in metric_ids:
+                continue
+            labels = {metric.name.lower(), *(item.lower() for item in metric.synonyms)}
+            for predicate in metric.filter_predicates:
+                policy_labels_by_property.setdefault(
+                    predicate.property_id, set()
+                ).update(labels)
+
+        def redundant_metric_filter(item: SemanticFilter) -> bool:
+            property_id = dimension_property_ids.get(item.concept_id)
+            labels = policy_labels_by_property.get(property_id or "", set())
+            if not labels:
+                return False
+            values = item.value if isinstance(item.value, list) else [item.value]
+            return all(
+                any(str(value).lower() in label for label in labels)
+                for value in values
+            )
+
+        normalized_filters = [
+            item for item in normalized_filters if not redundant_metric_filter(item)
+        ]
+        filtered_dimension_ids = {
+            item.concept_id.removeprefix("dimension:")
+            for item in normalized_filters
+            if item.concept_id.startswith("dimension:")
+        }
+        for dimension_id in list(dimension_ids):
+            if dimension_id not in filtered_dimension_ids:
+                continue
+            dimension = next(
+                item for item in bundle.dimensions if item.id == dimension_id
+            )
+            grouping_requested = any(
+                f"{prefix}{phrase}" in question
+                for prefix in ("按", "各", "每", "分")
+                for phrase in (dimension.name, *dimension.synonyms)
+            )
+            if not grouping_requested:
+                dimension_ids.remove(dimension_id)
         known_filter_ids = set(filter_lookup.values())
         unknown_filters = [
             item.concept_id
@@ -250,9 +297,27 @@ class SemanticQueryParser:
         ambiguous = bool(
             unknown_metrics or unknown_dimensions or unknown_filters or physical_leak
         )
-        clarification = ambiguous or (
-            not metric_ids and 0 < draft.confidence < 0.65
+        domain_signal = any(
+            self._matches(question, item.name, item.synonyms)
+            for item in [*bundle.concepts, *bundle.metrics, *bundle.dimensions]
+        ) or any(term in question for term in ("金额", "笔数", "数量"))
+        explicit_metric_signal = any(
+            self._matches(question, metric.name, metric.synonyms)
+            for metric in bundle.metrics
         )
+        vague_in_domain_request = domain_signal and not explicit_metric_signal and (
+            any(term in question for term in ("情况", "数据", "信息"))
+            or (
+                "最近" in question
+                and not re.search(r"\d+\s*(?:天|日|周|月)", question)
+            )
+        )
+        # Classification is grounded in the user's words, not in the model's
+        # confidence. This keeps vague in-domain questions clarifiable while
+        # out-of-domain hallucinated candidates remain unsupported.
+        clarification = bool(physical_leak) or (
+            domain_signal and (ambiguous or not metric_ids)
+        ) or vague_in_domain_request
         metric_names = [
             item.name for item in bundle.metrics if item.id in metric_ids
         ]

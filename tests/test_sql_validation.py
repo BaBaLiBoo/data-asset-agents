@@ -94,6 +94,25 @@ def test_requires_metric_filters(ontology: OntologyService) -> None:
     assert "MISSING_REQUIRED_FILTER" in {issue.code for issue in report.issues}
 
 
+def test_accepts_required_in_filter(ontology: OntologyService) -> None:
+    report = validator(ontology).validate(
+        "SELECT SUM(t.txn_amount_cny) FROM dwd_card_transaction t "
+        "WHERE t.transaction_channel IN ('APP', 'POS')",
+        {"dwd_card_transaction"},
+        [
+            QueryFilter(
+                table="dwd_card_transaction",
+                field="transaction_channel",
+                operator="IN",
+                value="APP, POS",
+                source="user",
+            )
+        ],
+    )
+
+    assert report.valid, report.errors
+
+
 def test_deterministic_repair_adds_missing_filter(ontology: OntologyService) -> None:
     sql = "SELECT SUM(t.txn_amount_cny) FROM dwd_card_transaction t"
     issue = ValidationIssue(

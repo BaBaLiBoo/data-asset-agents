@@ -28,6 +28,20 @@ class FakeExecutor:
         )
 
 
+class FakeEmbeddings:
+    def __init__(self) -> None:
+        self.document_calls: list[list[str]] = []
+        self.query_calls: list[str] = []
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        self.document_calls.append(texts)
+        return [[float(index + 1), 1.0] for index, _ in enumerate(texts)]
+
+    def embed_query(self, text: str) -> list[float]:
+        self.query_calls.append(text)
+        return [1.0, 1.0]
+
+
 def _catalog() -> DatabaseCatalog:
     return DatabaseCatalog.from_table_columns(
         {
@@ -90,9 +104,75 @@ def test_schema_and_rag_are_physically_isolated_from_ontology(tmp_path: Path) ->
     rag_result = rag.execute("查询各分行交易金额")
     assert rag_result.query_mode == "rag"
     assert rag_result.retrieved_context
+    assert {
+        item["document"]["document_type"] for item in rag_result.retrieved_context
+    } == {"historical_sql", "table", "column"}
+    assert rag_result.discovered_joins == [
+        "dwd_card_transaction.branch_id = dim_branch.branch_id"
+    ]
     assert rag_result.semantic_query is None
     assert rag_result.selected_sql_asset is None
     assert rag_result.ontology_policy_report is None
+
+
+def test_physical_rag_uses_configured_embeddings_in_one_build_batch(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "history.json"
+    source.write_text("[]", encoding="utf-8")
+    embeddings = FakeEmbeddings()
+    index = PhysicalRAGIndex(
+        2, embedder=embeddings, embedding_identity="fake-v1"
+    )
+
+    index.build(_catalog(), source)
+    results = index.search("transaction amount", limit=2)
+
+    assert len(embeddings.document_calls) == 1
+    assert len(embeddings.document_calls[0]) == len(index.documents)
+    assert embeddings.query_calls == ["transaction amount"]
+    assert results
+
+
+def test_physical_rag_summarizes_repeated_filters_and_distinct_count(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "history.json"
+    source.write_text(
+        json.dumps(
+            [
+                {
+                    "question": "交易笔数",
+                    "sql": (
+                        "SELECT COUNT(DISTINCT transaction_id) "
+                        "FROM dwd_card_transaction "
+                        "WHERE transaction_status = 'POSTED'"
+                    ),
+                },
+                {
+                    "question": "交易金额",
+                    "sql": (
+                        "SELECT SUM(txn_amount_cny) FROM dwd_card_transaction "
+                        "WHERE transaction_status = 'POSTED'"
+                    ),
+                },
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    index = PhysicalRAGIndex(32)
+    index.build(_catalog(), source)
+    rag = PhysicalRAGStrategy(
+        _catalog(), index, FakeExecutor(), Settings(llm_mode="mock")
+    )
+
+    conventions = rag._observed_conventions(
+        "查询交易笔数", index.search("交易", limit=len(index.documents))
+    )
+
+    assert "transaction_status = 'POSTED' appears in 2" in conventions
+    assert "COUNT(DISTINCT transaction_id)" in conventions
 
 
 def test_common_and_ontology_policy_are_separate(

@@ -7,7 +7,7 @@
 - id: card_type
   name: 卡类型
   description: 借记卡或贷记卡
-  property_id: card.card_type
+  property_id: transaction.card_type
   synonyms: [银行卡类型]
   lifecycle_status: ACTIVE
 - id: transaction_channel

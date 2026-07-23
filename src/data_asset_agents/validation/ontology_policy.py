@@ -154,6 +154,7 @@ class OntologyPolicyValidator:
         issues: list[ValidationIssue],
     ) -> None:
         actual: set[tuple[str | None, str, str]] = set()
+        actual_in: set[tuple[str | None, str, frozenset[str]]] = set()
         for where in statement.find_all(exp.Where):
             for equality in where.find_all(exp.EQ):
                 for possible_column, possible_value in (
@@ -172,14 +173,40 @@ class OntologyPolicyValidator:
                                 str(possible_value.this),
                             )
                         )
+            for membership in where.find_all(exp.In):
+                column = membership.this
+                values = membership.expressions
+                if not isinstance(column, exp.Column) or not values or not all(
+                    isinstance(value, exp.Literal) for value in values
+                ):
+                    continue
+                actual_in.add(
+                    (
+                        aliases.get(column.table) if column.table else None,
+                        column.name,
+                        frozenset(str(value.this) for value in values),
+                    )
+                )
         for required in required_filters:
-            qualified = (required.table, required.field, required.value)
-            unqualified = (None, required.field, required.value)
-            if qualified not in actual and unqualified not in actual:
+            if required.operator.upper() == "IN":
+                expected_values = frozenset(
+                    value.strip()
+                    for value in required.value.split(",")
+                    if value.strip()
+                )
+                qualified_in = (required.table, required.field, expected_values)
+                unqualified_in = (None, required.field, expected_values)
+                matched = qualified_in in actual_in or unqualified_in in actual_in
+            else:
+                qualified = (required.table, required.field, required.value)
+                unqualified = (None, required.field, required.value)
+                matched = qualified in actual or unqualified in actual
+            if not matched:
                 self._add(
                     issues,
                     "MISSING_REQUIRED_FILTER",
-                    f"Missing required metric filter: {required.field} = {required.value}",
+                    "Missing required metric filter: "
+                    f"{required.field} {required.operator} {required.value}",
                     table=required.table,
                     column=required.field,
                     expected_value=required.value,

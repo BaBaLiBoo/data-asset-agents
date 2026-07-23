@@ -156,23 +156,9 @@ class SQLTemplateRewriter:
             ):
                 column.set("table", exp.to_identifier(table_map[column.table]))
 
-        template_target_aliases = {
-            table.name: table.alias_or_name
-            for table in template.find_all(exp.Table)
-            if table.name in join_plan.tables
-        }
         target_alias_to_table = {
             table.alias_or_name: table.name for table in target.find_all(exp.Table)
         }
-
-        def translated(node: exp.Expression) -> exp.Expression:
-            copied = node.copy()
-            for column in copied.find_all(exp.Column):
-                target_table = target_alias_to_table.get(column.table)
-                replacement_alias = template_target_aliases.get(target_table or "")
-                if replacement_alias:
-                    column.set("table", exp.to_identifier(replacement_alias))
-            return copied
 
         template_outer = self._outer_select(template)
         target_outer = self._outer_select(target)
@@ -194,6 +180,23 @@ class SQLTemplateRewriter:
             ),
             template_outer,
         )
+        template_target_aliases: dict[str, str] = {}
+        for table in physical_select.find_all(exp.Table):
+            ancestor = table.parent
+            while ancestor is not None and not isinstance(ancestor, exp.Select):
+                ancestor = ancestor.parent
+            if ancestor is physical_select and table.name in join_plan.tables:
+                template_target_aliases[table.name] = table.alias_or_name
+
+        def translated(node: exp.Expression) -> exp.Expression:
+            copied = node.copy()
+            for column in copied.find_all(exp.Column):
+                target_table = target_alias_to_table.get(column.table)
+                replacement_alias = template_target_aliases.get(target_table or "")
+                if replacement_alias:
+                    column.set("table", exp.to_identifier(replacement_alias))
+            return copied
+
         if rebuild_join_tree:
             complex_structure = {"cte", "subquery", "window"} & set(
                 asset.structural_tags
@@ -209,9 +212,15 @@ class SQLTemplateRewriter:
             )
             changes.append("从确定性 SQL AST 重建 FROM/JOIN 子树")
         target_where = target_outer.args.get("where")
-        if target_where is not None:
+        preserve_subquery_filter = (
+            "subquery" in asset.structural_tags
+            and physical_select is template_outer
+        )
+        if target_where is not None and not preserve_subquery_filter:
             physical_select.set("where", translated(target_where))
             changes.append("按 SemanticQuery 重建时间范围和筛选条件")
+        elif preserve_subquery_filter:
+            changes.append("保留已认证子查询筛选结构")
         target_group = target_outer.args.get("group")
         if target_group is not None:
             physical_select.set("group", translated(target_group))
@@ -219,11 +228,12 @@ class SQLTemplateRewriter:
         elif physical_select is template_outer:
             physical_select.set("group", None)
         target_order = target_outer.args.get("order")
-        if physical_select is template_outer or semantic_query.order_by:
+        # A nested template's outer ORDER BY can reference CTE/window aliases that
+        # do not exist in the deterministic flat query. Preserve that reviewed
+        # structure; only a flat template can safely adopt the target ordering.
+        if physical_select is template_outer:
             template_outer.set("order", translated(target_order) if target_order else None)
-        if target_order is not None and (
-            physical_select is template_outer or semantic_query.order_by
-        ):
+        if target_order is not None and physical_select is template_outer:
             changes.append("按 SemanticQuery 重建 ORDER BY")
         target_limit = target_outer.args.get("limit")
         template_outer.set("limit", translated(target_limit) if target_limit else None)

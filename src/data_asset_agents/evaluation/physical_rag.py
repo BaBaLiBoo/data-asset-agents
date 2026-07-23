@@ -6,12 +6,18 @@ import math
 import re
 import uuid
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field
 
 from data_asset_agents.ontology.retrieval import deterministic_embedding
 from data_asset_agents.validation import DatabaseCatalog
+
+
+class EmbeddingsProtocol(Protocol):
+    def embed_documents(self, texts: list[str]) -> list[list[float]]: ...
+
+    def embed_query(self, text: str) -> list[float]: ...
 
 
 class PhysicalRAGDocument(BaseModel):
@@ -41,8 +47,16 @@ class PhysicalRAGSearchResult(BaseModel):
 class PhysicalRAGIndex:
     """Index of physical metadata/raw SQL that cannot access ontology objects."""
 
-    def __init__(self, dimensions: int = 64) -> None:
+    def __init__(
+        self,
+        dimensions: int = 64,
+        *,
+        embedder: EmbeddingsProtocol | None = None,
+        embedding_identity: str = "deterministic",
+    ) -> None:
         self.dimensions = dimensions
+        self.embedder = embedder
+        self.embedding_identity = embedding_identity
         self.documents: list[PhysicalRAGDocument] = []
         self.build_id: str | None = None
 
@@ -56,7 +70,9 @@ class PhysicalRAGIndex:
         path = Path(historical_sql_path)
         source = path.read_bytes() if path.exists() else b"[]"
         catalog_bytes = catalog.model_dump_json().encode("utf-8")
-        source_hash = hashlib.sha256(catalog_bytes + source).hexdigest()
+        source_hash = hashlib.sha256(
+            catalog_bytes + source + self.embedding_identity.encode("utf-8")
+        ).hexdigest()
         build_id = str(uuid.uuid5(uuid.NAMESPACE_URL, source_hash))
         documents: list[PhysicalRAGDocument] = []
         for table in catalog.tables:
@@ -141,6 +157,16 @@ class PhysicalRAGIndex:
                     document_id=f"historical-sql-{index:04d}",
                 )
             )
+        texts = [document.search_text for document in documents]
+        vectors = (
+            self.embedder.embed_documents(texts)
+            if self.embedder is not None
+            else [deterministic_embedding(text, self.dimensions) for text in texts]
+        )
+        if len(vectors) != len(documents):
+            raise ValueError("Embedding provider returned an unexpected vector count")
+        for document, vector in zip(documents, vectors, strict=True):
+            document.embedding = vector
         self.documents = documents
         self.build_id = build_id
         return build_id
@@ -160,7 +186,7 @@ class PhysicalRAGIndex:
             or str(uuid.uuid5(uuid.NAMESPACE_URL, f"{build_id}:{document_type}:{search_text}")),
             document_type=document_type,
             search_text=search_text,
-            embedding=deterministic_embedding(search_text, self.dimensions),
+            embedding=[],
             source_hash=source_hash,
             build_id=build_id,
             **fields,
@@ -173,7 +199,11 @@ class PhysicalRAGIndex:
         return numerator / denominator if denominator else 0.0
 
     def search(self, query: str, limit: int = 8) -> list[PhysicalRAGSearchResult]:
-        query_vector = deterministic_embedding(query, self.dimensions)
+        query_vector = (
+            self.embedder.embed_query(query)
+            if self.embedder is not None
+            else deterministic_embedding(query, self.dimensions)
+        )
         tokens = set(re.findall(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]", query.lower()))
         results: list[PhysicalRAGSearchResult] = []
         for document in self.documents:

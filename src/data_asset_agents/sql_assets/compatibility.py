@@ -35,6 +35,11 @@ class TemplateCompatibilityChecker:
         )
         if missing_dimensions:
             reasons.append("缺少维度：" + ", ".join(missing_dimensions))
+        unexpected_dimensions = sorted(
+            set(asset.dimensions) - set(semantic_query.dimension_ids)
+        )
+        if unexpected_dimensions:
+            reasons.append("模板包含未请求维度：" + ", ".join(unexpected_dimensions))
         required_tables = set(selected_tables)
         asset_tables = set(asset.tables)
         if required_tables != asset_tables:
@@ -59,16 +64,35 @@ class TemplateCompatibilityChecker:
         asset_joins = {self._join_key(join.expression) for join in asset.joins}
         if required_joins != asset_joins:
             reasons.append("模板 Join 与审核 Join Plan 不一致")
+        lowered_question = question.lower()
+        window_requested = any(
+            term in lowered_question
+            for term in ("排名", "排行", "累计", "累积", "rank", "running total")
+        )
+        subquery_requested = (
+            any(term in lowered_question for term in ("高于", "低于", "超过"))
+            and any(term in lowered_question for term in ("平均", "均值", "average"))
+        )
         required_tags = {"select"}
         if semantic_query.intent == "aggregate":
             required_tags.add("aggregate")
         if semantic_query.dimension_ids:
             required_tags.add("group_by")
-        if any(term in question.lower() for term in ("排名", "排行", "rank")):
+        if window_requested:
             required_tags.add("window")
+        if subquery_requested:
+            required_tags.add("subquery")
         missing_tags = sorted(required_tags - set(asset.structural_tags))
         if missing_tags:
             reasons.append("缺少结构标签：" + ", ".join(missing_tags))
+        if "window" in asset.structural_tags and not window_requested:
+            reasons.append("模板包含问题未要求的窗口分析结构")
+        if "subquery" in asset.structural_tags and not subquery_requested:
+            reasons.append("模板包含问题未要求的子查询筛选结构")
+        if "subquery" in asset.structural_tags and (
+            semantic_query.filters or semantic_query.time_range.kind != "none"
+        ):
+            reasons.append("带额外筛选或时间范围的子查询模板暂不支持安全改写")
         required_mapping_ids = {
             *(f"metric:{item}" for item in semantic_query.metric_ids),
             *(f"dimension:{item}" for item in semantic_query.dimension_ids),

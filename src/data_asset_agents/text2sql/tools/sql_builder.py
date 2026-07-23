@@ -95,13 +95,16 @@ def build_select_sql(
 
     selections: list[str] = []
     groups: list[str] = []
+    output_aliases: dict[str, str] = {}
     for dimension in dimensions:
         reference = _qualified(dimension.table, dimension.column, aliases)
-        selections.append(f"{reference} AS {dimension.id}")
+        selections.append(f"{reference} AS {dimension.column}")
         groups.append(reference)
+        output_aliases[dimension.id] = dimension.column
     for metric in metrics:
         expression = _replace_qualifiers(metric.expression, aliases)
         selections.append(f"{expression} AS {metric.id}")
+        output_aliases[metric.id] = metric.id
 
     sql_lines = [
         f"SELECT {', '.join(selections)}",
@@ -174,7 +177,9 @@ def build_select_sql(
         for item in semantic_query.order_by:
             if item.target not in allowed_targets or not IDENTIFIER.fullmatch(item.target):
                 raise UnsupportedQueryError(f"排序目标不是已选择的业务语义：{item.target}")
-            ordering.append(f"{item.target} {item.direction.upper()}")
+            ordering.append(
+                f"{output_aliases[item.target]} {item.direction.upper()}"
+            )
         sql_lines.append("ORDER BY " + ", ".join(ordering))
     elif groups:
         sql_lines.append("ORDER BY " + ", ".join(groups))

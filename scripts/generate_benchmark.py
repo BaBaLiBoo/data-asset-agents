@@ -12,6 +12,7 @@ from sqlglot import exp
 OUTPUT = Path("data/benchmark/text2sql_v1.json")
 HASHES_PATH = Path("data/benchmark/text2sql_v1_hashes.json")
 PLACEHOLDER_HASH = "0" * 64
+REFERENCE_DATE = "2026-07-16"
 
 
 def load_reviewed_hashes() -> dict[str, str]:
@@ -46,7 +47,11 @@ def references(sql: str) -> tuple[list[str], list[str]]:
 def gold_time_range(sql: str) -> dict[str, object]:
     """Derive the reviewed semantic time contract from controlled DSL SQL."""
 
-    relative = re.search(r"CURRENT_DATE\s*-\s*INTERVAL\s*'(\d+) days'", sql)
+    relative = re.search(
+        r"(?:CURRENT_DATE|DATE\s*'\d{4}-\d{2}-\d{2}')\s*-\s*"
+        r"INTERVAL\s*'(\d+) days'",
+        sql,
+    )
     if relative:
         return {"kind": "relative_days", "days": int(relative.group(1))}
     dates = re.findall(r"DATE\s*'(\d{4}-\d{2}-\d{2})'", sql)
@@ -173,8 +178,11 @@ def build_cases() -> list[dict[str, object]]:
         "统计流水笔数",
         "查询客单价",
     ]
+    basic_template_indexes = [0, 1, 2, 3, 4, 5, 0, 1, 2, 4]
     for index, question in enumerate(basic_questions):
-        metric_id, _, expression, filters, where = base_templates[index % 6]
+        metric_id, _, expression, filters, where = base_templates[
+            basic_template_indexes[index]
+        ]
         sql = f"SELECT {expression} FROM dwd_card_transaction t WHERE {where}"
         cases.append(
             success_case(
@@ -289,10 +297,10 @@ def build_cases() -> list[dict[str, object]]:
         )
 
     time_filters = [
-        ("近7天", "t.transaction_date >= CURRENT_DATE - INTERVAL '7 days'"),
-        ("近30天", "t.transaction_date >= CURRENT_DATE - INTERVAL '30 days'"),
-        ("近60天", "t.transaction_date >= CURRENT_DATE - INTERVAL '60 days'"),
-        ("最近两周", "t.transaction_date >= CURRENT_DATE - INTERVAL '14 days'"),
+        ("近7天", f"t.transaction_date >= DATE '{REFERENCE_DATE}' - INTERVAL '7 days'"),
+        ("近30天", f"t.transaction_date >= DATE '{REFERENCE_DATE}' - INTERVAL '30 days'"),
+        ("近60天", f"t.transaction_date >= DATE '{REFERENCE_DATE}' - INTERVAL '60 days'"),
+        ("最近两周", f"t.transaction_date >= DATE '{REFERENCE_DATE}' - INTERVAL '14 days'"),
         ("2026年7月", "t.transaction_date BETWEEN DATE '2026-07-01' AND DATE '2026-07-31'"),
     ]
     for index in range(10):
@@ -390,23 +398,93 @@ def build_cases() -> list[dict[str, object]]:
             )
         )
 
-    synonym_questions = [
-        "按机构查询消费金额",
-        "各网点贷记卡交易额",
-        "按渠道统计流水笔数",
-        "查询客单价",
-        "统计各机构信用卡消费金额",
-        "近30天网点交易额",
-        "按交易日查询贷记卡流水笔数",
-        "各分行人民币交易金额",
-    ]
-    for index, question in enumerate(synonym_questions):
-        sql = (
-            "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount "
+    branch_credit_amount_sql = (
+        "SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount "
+        "FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id "
+        "WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' "
+        "GROUP BY b.branch_name ORDER BY b.branch_name"
+    )
+    synonym_cases = [
+        (
+            "按机构查询消费金额",
+            branch_credit_amount_sql,
+            ["credit_card_transaction_amount"],
+            ["branch"],
+            [POSTED, CREDIT],
+            [BRANCH_JOIN],
+        ),
+        (
+            "各网点贷记卡交易额",
+            branch_credit_amount_sql,
+            ["credit_card_transaction_amount"],
+            ["branch"],
+            [POSTED, CREDIT],
+            [BRANCH_JOIN],
+        ),
+        (
+            "按渠道统计流水笔数",
+            "SELECT t.transaction_channel, COUNT(DISTINCT t.transaction_id) AS transaction_count "
+            "FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' "
+            "GROUP BY t.transaction_channel ORDER BY t.transaction_channel",
+            ["transaction_count"],
+            ["transaction_channel"],
+            [POSTED],
+            [],
+        ),
+        (
+            "查询客单价",
+            "SELECT AVG(t.txn_amount_cny) AS average_transaction_amount "
+            "FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'",
+            ["average_transaction_amount"],
+            [],
+            [POSTED],
+            [],
+        ),
+        (
+            "统计各机构信用卡消费金额",
+            branch_credit_amount_sql,
+            ["credit_card_transaction_amount"],
+            ["branch"],
+            [POSTED, CREDIT],
+            [BRANCH_JOIN],
+        ),
+        (
+            "近30天网点交易额",
+            "SELECT b.branch_name, SUM(t.txn_amount_cny) AS transaction_amount "
             "FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id "
+            f"WHERE t.transaction_status = 'POSTED' AND t.transaction_date >= "
+            f"DATE '{REFERENCE_DATE}' - INTERVAL '30 days' "
+            "GROUP BY b.branch_name ORDER BY b.branch_name",
+            ["transaction_amount"],
+            ["branch"],
+            [POSTED],
+            [BRANCH_JOIN],
+        ),
+        (
+            "按交易日查询贷记卡流水笔数",
+            "SELECT t.transaction_date, COUNT(DISTINCT t.transaction_id) "
+            "AS credit_card_transaction_count FROM dwd_card_transaction t "
             "WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' "
-            "GROUP BY b.branch_name ORDER BY b.branch_name"
-        )
+            "GROUP BY t.transaction_date ORDER BY t.transaction_date",
+            ["credit_card_transaction_count"],
+            ["transaction_date"],
+            [POSTED, CREDIT],
+            [],
+        ),
+        (
+            "各分行人民币交易金额",
+            "SELECT b.branch_name, SUM(t.txn_amount_cny) AS transaction_amount "
+            "FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id "
+            "WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name",
+            ["transaction_amount"],
+            ["branch"],
+            [POSTED],
+            [BRANCH_JOIN],
+        ),
+    ]
+    for index, (question, sql, metrics, dimensions, filters, joins) in enumerate(
+        synonym_cases
+    ):
         cases.append(
             success_case(
                 f"synonym-{index + 1:02d}",
@@ -414,10 +492,10 @@ def build_cases() -> list[dict[str, object]]:
                 "同义词与金额字段歧义",
                 "hard",
                 sql,
-                ["credit_card_transaction_amount"],
-                ["branch"],
-                filters=[POSTED, CREDIT],
-                joins=[BRANCH_JOIN],
+                metrics,
+                dimensions,
+                filters=filters,
+                joins=joins,
                 tags=["business_policy", "synonym", "amount_field_ambiguity"],
                 ordered=True,
             )

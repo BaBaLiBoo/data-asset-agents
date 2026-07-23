@@ -46,6 +46,7 @@ class EvaluationRuntime:
 
 
 def build_evaluation_runtime(settings: Settings) -> EvaluationRuntime:
+    model_factory = ModelFactory(settings)
     engine = create_engine(
         settings.database_url,
         pool_pre_ping=True,
@@ -57,7 +58,7 @@ def build_evaluation_runtime(settings: Settings) -> EvaluationRuntime:
         YamlOntologyRepository(settings.ontology_path),
         runtime_repository,
         settings=settings,
-        model_factory=ModelFactory(settings),
+        model_factory=model_factory,
     )
     manager = OntologyManagerService(
         PostgresOntologyManagerRepository(engine),
@@ -83,18 +84,30 @@ def build_evaluation_runtime(settings: Settings) -> EvaluationRuntime:
         ontology,
         executor,
         settings,
-        ModelFactory(settings),
+        model_factory,
     )
     sql_build = sql_assets.initialize_if_needed()
     catalog = executor.catalog.business_only()
-    rag = PhysicalRAGIndex(dimensions=min(settings.embedding_dimensions, 128))
+    live_embedder = (
+        model_factory.embeddings()
+        if settings.llm_mode == "live"
+        and settings.embedding_api_key.get_secret_value()
+        else None
+    )
+    rag = PhysicalRAGIndex(
+        dimensions=min(settings.embedding_dimensions, 128),
+        embedder=live_embedder,
+        embedding_identity=(
+            settings.embedding_model if live_embedder is not None else "deterministic"
+        ),
+    )
     rag.build(catalog, settings.historical_sql_path)
     full_graph = build_text2sql_graph(ontology, executor, sql_assets=sql_assets)
     ablation_graph = build_text2sql_graph(ontology, executor, history_enabled=False)
     strategies = StrategyRouter(
         {
-            "schema": SchemaBaselineStrategy(catalog, executor, settings, ModelFactory(settings)),
-            "rag": PhysicalRAGStrategy(catalog, rag, executor, settings, ModelFactory(settings)),
+            "schema": SchemaBaselineStrategy(catalog, executor, settings, model_factory),
+            "rag": PhysicalRAGStrategy(catalog, rag, executor, settings, model_factory),
             "ontology_no_sql_asset": OntologyStrategy(ablation_graph, sql_asset_enabled=False),
             "ontology_full": OntologyStrategy(full_graph, sql_asset_enabled=True),
         }

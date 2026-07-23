@@ -35,7 +35,7 @@
   expression: COUNT(DISTINCT {transaction_id})
   base_table: dwd_card_transaction
   required_filters: {status: POSTED}
-  supported_dimensions: [branch, card_type, transaction_channel, transaction_date]
+  supported_dimensions: [branch, card_type, transaction_channel, transaction_date, customer_type, merchant_category]
   time_dimension: transaction_date
   synonyms: [流水笔数]
   measure_property_id: transaction.transaction_id
@@ -43,7 +43,7 @@
   filter_predicates:
     - {property_id: transaction.status, operator: EQ, value: POSTED}
   time_property_id: transaction.event_time
-  supported_dimension_property_ids: [branch.name, card.card_type, transaction.channel, transaction.event_time]
+  supported_dimension_property_ids: [branch.name, transaction.card_type, transaction.channel, transaction.event_time, customer.customer_type, merchant.category]
 - id: credit_card_transaction_count
   name: 信用卡交易笔数
   description: 已入账贷记卡交易 ID 去重数量

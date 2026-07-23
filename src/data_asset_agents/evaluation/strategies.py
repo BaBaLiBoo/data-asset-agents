@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from contextlib import suppress
 from time import perf_counter
 from typing import Any, Protocol
@@ -10,7 +11,10 @@ import sqlglot
 from data_asset_agents.core.config import Settings
 from data_asset_agents.core.errors import DataAssetAgentsError, QueryExecutionError
 from data_asset_agents.evaluation.models import StrategyResult, TokenUsage
-from data_asset_agents.evaluation.physical_rag import PhysicalRAGIndex
+from data_asset_agents.evaluation.physical_rag import (
+    PhysicalRAGIndex,
+    PhysicalRAGSearchResult,
+)
 from data_asset_agents.execution.protocols import ExecutorProtocol
 from data_asset_agents.llm.factory import ModelFactory
 from data_asset_agents.text2sql.models import TraceStep, ValidationReport
@@ -43,11 +47,17 @@ def _references(sql: str) -> tuple[list[str], dict[str, list[str]], list[str]]:
         if table in tables:
             columns.setdefault(table, []).append(column.name)
     columns = {table: sorted(set(items)) for table, items in columns.items()}
-    joins = [
-        on.sql(dialect="postgres")
-        for join in statement.find_all(sqlglot.exp.Join)
-        if (on := join.args.get("on")) is not None
-    ]
+    joins: list[str] = []
+    for join in statement.find_all(sqlglot.exp.Join):
+        condition = join.args.get("on")
+        if condition is None:
+            continue
+        canonical = condition.copy()
+        for column in canonical.find_all(sqlglot.exp.Column):
+            table = aliases.get(column.table)
+            if table:
+                column.set("table", sqlglot.exp.to_identifier(table))
+        joins.append(canonical.sql(dialect="postgres"))
     return tables, columns, joins
 
 
@@ -232,9 +242,93 @@ class PhysicalRAGStrategy(_PhysicalStrategy):
         super().__init__(catalog, executor, settings, model_factory)
         self.index = index
 
+    def _retrieve(self, question: str, limit: int = 8) -> list[PhysicalRAGSearchResult]:
+        ranked = self.index.search(question, limit=max(limit * 4, limit))
+        quotas = {"historical_sql": 3, "table": 2, "column": 3}
+        counts = {document_type: 0 for document_type in quotas}
+        selected: list[PhysicalRAGSearchResult] = []
+        selected_ids: set[str] = set()
+        for item in ranked:
+            document_type = item.document.document_type
+            if counts[document_type] >= quotas[document_type]:
+                continue
+            selected.append(item)
+            selected_ids.add(item.document.document_id)
+            counts[document_type] += 1
+            if len(selected) == limit:
+                return selected
+        for item in ranked:
+            if item.document.document_id in selected_ids:
+                continue
+            selected.append(item)
+            if len(selected) == limit:
+                break
+        return selected
+
+    @staticmethod
+    def _observed_conventions(
+        question: str, retrieved: list[PhysicalRAGSearchResult]
+    ) -> str:
+        statements: list[sqlglot.exp.Expression] = []
+        for item in retrieved:
+            raw_sql = item.document.raw_sql
+            if item.document.document_type != "historical_sql" or not raw_sql:
+                continue
+            with suppress(sqlglot.errors.ParseError):
+                statements.append(sqlglot.parse_one(raw_sql, read="postgres"))
+        predicates: Counter[str] = Counter()
+        distinct_columns: Counter[str] = Counter()
+        for statement in statements:
+            seen_predicates: set[str] = set()
+            for predicate in statement.find_all(sqlglot.exp.EQ):
+                left, right = predicate.this, predicate.expression
+                if isinstance(left, sqlglot.exp.Column) and isinstance(
+                    right, sqlglot.exp.Literal
+                ):
+                    seen_predicates.add(f"{left.name} = {right.sql(dialect='postgres')}")
+            predicates.update(seen_predicates)
+            for count in statement.find_all(sqlglot.exp.Count):
+                distinct = count.this
+                if not isinstance(distinct, sqlglot.exp.Distinct):
+                    continue
+                distinct_columns.update(
+                    column.name for column in distinct.find_all(sqlglot.exp.Column)
+                )
+        card_context = any(
+            term in question.lower()
+            for term in ("信用卡", "贷记卡", "借记卡", "卡类型", "credit", "debit")
+        )
+        observations = []
+        for predicate, frequency in predicates.most_common():
+            if frequency < 2:
+                continue
+            if predicate.lower().startswith("card_type =") and not card_context:
+                continue
+            observations.append(
+                f"- {predicate} appears in {frequency} retrieved examples"
+            )
+        if any(term in question.lower() for term in ("笔数", "数量", "count")):
+            lowered = question.lower()
+            if any(term in lowered for term in ("客户", "用户", "customer")) and (
+                "customer_id" in distinct_columns
+            ):
+                count_column = "customer_id"
+            elif any(
+                term in lowered for term in ("交易", "流水", "笔数", "transaction")
+            ) and "transaction_id" in distinct_columns:
+                count_column = "transaction_id"
+            else:
+                most_common = distinct_columns.most_common(1)
+                count_column = most_common[0][0] if most_common else None
+            if count_column is not None:
+                observations.append(
+                    f"- transaction counts use COUNT(DISTINCT {count_column})"
+                )
+        return "\n".join(observations) or "- No repeated physical convention observed"
+
     def execute(self, question: str) -> StrategyResult:
         started = perf_counter()
-        retrieved = self.index.search(question, limit=8)
+        retrieved = self._retrieve(question, limit=8)
         context = [item.model_dump(mode="json") for item in retrieved]
         if self.settings.llm_mode == "mock":
             sql = next(
@@ -255,9 +349,21 @@ class PhysicalRAGStrategy(_PhysicalStrategy):
                 started=started,
             )
         allowed_context = "\n\n".join(item.document.search_text for item in retrieved)
+        observed_conventions = self._observed_conventions(question, retrieved)
         prompt = (
             "Generate one PostgreSQL SELECT query from physical metadata and raw historical "
-            "SQL only. Return SQL only. Do not assume business rules not present here.\n\n"
+            "SQL only. Return SQL only. Do not assume business rules not present here. "
+            "Historical SQL is reference material, not an answer: adapt it to the exact "
+            "question and remove every unrequested filter, output column, ranking, window, "
+            "CTE, grouping, and limit. Prefer the full schema when examples conflict. "
+            "When examples for the same physical subject consistently use a status or "
+            "deduplication convention, follow that convention.\n\n"
+            "FULL PHYSICAL SCHEMA:\n"
+            + self.catalog.schema_prompt()
+            + "\n\nOBSERVED RELEVANT CONVENTIONS FROM RETRIEVED SQL:\n"
+            + "Treat every listed convention as a required physical constraint for this query.\n"
+            + observed_conventions
+            + "\n\nRETRIEVED PHYSICAL CONTEXT:\n"
             + allowed_context
             + "\n\nQUESTION:\n"
             + question

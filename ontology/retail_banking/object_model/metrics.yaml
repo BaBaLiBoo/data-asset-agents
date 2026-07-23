@@ -29,7 +29,7 @@
   filter_predicates:
     - {property_id: transaction.status, operator: EQ, value: POSTED}
   time_property_id: transaction.event_time
-  supported_dimension_ids: [branch, card_type, transaction_channel, transaction_date]
+  supported_dimension_ids: [branch, card_type, transaction_channel, transaction_date, customer_type, merchant_category]
   synonyms: [流水笔数]
   lifecycle_status: ACTIVE
 - id: credit_card_transaction_count

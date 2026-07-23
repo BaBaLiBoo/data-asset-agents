@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 
 import pytest
+import sqlglot
+from sqlglot import exp
 
 from data_asset_agents.core.config import Settings
 from data_asset_agents.core.errors import QueryExecutionError
@@ -21,7 +23,13 @@ from data_asset_agents.sql_assets.parser import HistoricalSQLParser
 from data_asset_agents.sql_assets.repository import MemorySQLAssetRepository
 from data_asset_agents.sql_assets.rewriter import SQLTemplateRewriter
 from data_asset_agents.sql_assets.service import SQLAssetService
-from data_asset_agents.text2sql.models import JoinPlan, QueryFilter, SemanticQuery, TimeRange
+from data_asset_agents.text2sql.models import (
+    JoinPlan,
+    QueryFilter,
+    SemanticOrderBy,
+    SemanticQuery,
+    TimeRange,
+)
 from data_asset_agents.text2sql.nodes import Text2SQLNodes
 
 
@@ -437,7 +445,15 @@ def test_ast_rewrite_preserves_complex_structure_and_falls_back_on_explain(
     ontology: OntologyService,
 ) -> None:
     asset = HistoricalSQLParser().parse_asset(_records()[2], ontology)
-    semantic = ontology.parse("查询近30天各分行信用卡交易金额")
+    semantic = ontology.parse("查询近30天各分行信用卡交易金额").model_copy(
+        update={
+            "order_by": [
+                SemanticOrderBy(
+                    target="credit_card_transaction_amount", direction="desc"
+                )
+            ]
+        }
+    )
     mappings = [
         mapping
         for mapping in ontology.bundle.mappings
@@ -471,6 +487,9 @@ def test_ast_rewrite_preserves_complex_structure_and_falls_back_on_explain(
     rewritten, _ = rewriter.rewrite_ast(asset, deterministic, semantic, mappings, plan)
     assert "WITH branch_totals" in rewritten
     assert "DENSE_RANK() OVER" in rewritten
+    compact_rewritten = " ".join(rewritten.split())
+    assert "ORDER BY amount_rank" in compact_rewritten
+    assert "ORDER BY credit_card_transaction_amount" not in compact_rewritten
 
     successful = SQLTemplateRewriter(ontology, ExplainExecutor()).rewrite_or_fallback(
         asset,
@@ -520,6 +539,67 @@ def test_ast_rewrite_preserves_complex_structure_and_falls_back_on_explain(
     assert result.used_template is False
     assert result.rewritten_sql == deterministic
     assert "确定性编译器" in str(result.fallback_reason)
+
+
+def test_subquery_template_requires_explicit_analytical_intent_and_is_preserved(
+    ontology: OntologyService,
+) -> None:
+    record = next(
+        item for item in _records() if item["id"] == "sqlasset-average-subquery"
+    )
+    asset = HistoricalSQLParser().parse_asset(record, ontology)
+    asset.ontology_version_id = ontology.ontology_version_id
+    semantic = SemanticQuery(
+        metric_ids=["average_transaction_amount"],
+        intent="aggregate",
+        confidence=0.9,
+    )
+    resolved = ontology.resolve(semantic)
+    plan = JoinPlan(tables=["dwd_card_transaction"])
+    checker = TemplateCompatibilityChecker(ontology)
+
+    plain = checker.check(
+        asset,
+        "查询客单价",
+        semantic,
+        resolved["selected_tables"],
+        resolved["selected_columns"],
+        plan,
+    )
+    analytical = checker.check(
+        asset,
+        "查询高于整体均值的交易平均金额",
+        semantic,
+        resolved["selected_tables"],
+        resolved["selected_columns"],
+        plan,
+    )
+
+    assert not plain.compatible
+    assert any("未要求的子查询" in reason for reason in plain.reasons)
+    assert analytical.compatible, analytical.reasons
+
+    mappings = [
+        mapping
+        for mapping in ontology.bundle.mappings
+        if mapping.concept_id == "metric:average_transaction_amount"
+    ]
+    deterministic = (
+        "SELECT AVG(t0.txn_amount_cny) AS average_transaction_amount "
+        "FROM dwd_card_transaction t0 "
+        "WHERE t0.transaction_status = 'POSTED'"
+    )
+    rewritten, changes = SQLTemplateRewriter(
+        ontology, ExplainExecutor()
+    ).rewrite_ast(asset, deterministic, semantic, mappings, plan)
+    statement = sqlglot.parse_one(rewritten, read="postgres")
+
+    assert statement.find(exp.Subquery) is not None
+    assert any(
+        column.table == "s" and column.name == "transaction_status"
+        for column in statement.find_all(exp.Column)
+    )
+    assert "保留已认证子查询筛选结构" in changes
 
 
 def test_complex_template_with_different_join_cannot_be_reused(

@@ -8,10 +8,10 @@
 - id: card_type
   name: 卡类型
   description: 借记卡或贷记卡
-  table: dim_card
+  table: dwd_card_transaction
   column: card_type
   synonyms: [银行卡类型]
-  property_id: card.card_type
+  property_id: transaction.card_type
 - id: transaction_channel
   name: 交易渠道
   description: APP、POS、ATM 或 WEB
