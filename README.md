@@ -458,12 +458,12 @@ Draft 编辑请求必须携带 `If-Match: "<resource_revision>"`（或 `X-Draft-
 
 | 项目 | 当前状态 |
 |---|---|
-| `ruff check .` | 本地最终 SHA 通过；GitHub Actions 等待推送后确认 |
-| `pytest` | 184 passed，5 skipped，4 warnings |
+| `ruff check .` | GitHub Actions Run #30009633789 通过 |
+| `pytest` | Run #30009633789 通过；184 passed，5 skipped，4 warnings |
 | Benchmark | 80 cases valid；generator 重跑后文件哈希不变 |
 | Gold Hash | `materialize_benchmark_hashes.py --check` 通过 |
-| Fresh Compose Acceptance | 15/15 通过 |
-| Upgrade Acceptance | 10/10 通过，含 DDL 009 二次幂等执行 |
+| Fresh Compose Acceptance | Run #30009633789 通过；15/15 |
+| Upgrade Acceptance | Run #30009633789 通过；10/10，含 DDL 009 二次幂等执行 |
 | Published Ontology | `version_f906ab4cf5164742b44ddcb29c02ac54` |
 | Compiled Artifact | READY，bundle `0dd064baa8a7…` |
 | Ontology Index | READY，`ontology-index-2339b1a35f274d88b1bcd092411dd6c6` |
