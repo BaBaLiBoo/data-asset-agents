@@ -208,17 +208,20 @@ class RecordingRepository(MemoryEvaluationRepository):
 def _service(
     repository: MemoryEvaluationRepository,
     ontology: OntologyService,
+    *,
+    settings: Settings | None = None,
+    sql_asset_build_id: str | None = "sql-build",
 ) -> EvaluationService:
     return EvaluationService(
         repository,
         StrategyRouter({"schema": FixedStrategy()}),
         EvaluationPolicyInspector(ontology.bundle),
-        Settings(llm_mode="mock"),
+        settings or Settings(llm_mode="mock"),
         database_snapshot_hash="d" * 64,
         physical_rag_build_id="rag-build",
         ontology_version_id="ontology-version",
         bundle_hash="b" * 64,
-        sql_asset_build_id="sql-build",
+        sql_asset_build_id=sql_asset_build_id,
     )
 
 
@@ -252,7 +255,7 @@ def test_compare_rejects_critical_mismatch_even_for_legacy_override(
         "strategy_variant": "schema",
         "model_provider": "mock",
         "model_name": "same-model",
-        "git_commit_sha": "abc",
+        "git_commit_sha": "a" * 40,
         "database_snapshot_hash": "d" * 64,
         "benchmark_hash": "e" * 64,
         "benchmark_version": "v1",
@@ -275,6 +278,142 @@ def test_compare_rejects_critical_mismatch_even_for_legacy_override(
         )
 
 
+@pytest.mark.parametrize("invalid_sha", ["unknown", "", "abc", "a" * 39, "g" * 40])
+def test_compare_rejects_missing_or_invalid_git_sha_provenance(
+    ontology: OntologyService,
+    invalid_sha: str,
+) -> None:
+    repository = MemoryEvaluationRepository()
+    service = _service(repository, ontology)
+    run = EvaluationRun(
+        run_kind="live",
+        query_mode="schema",
+        strategy_variant="schema",
+        model_provider="provider",
+        model_name="model",
+        git_commit_sha=invalid_sha,
+        database_snapshot_hash="d" * 64,
+        benchmark_hash="e" * 64,
+        benchmark_version="v1",
+        status="COMPLETED",
+    )
+    repository.save_run(run)
+
+    with pytest.raises(
+        DataAssetAgentsError,
+        match="Fairness mismatch: valid git_commit_sha provenance is missing",
+    ):
+        service.compare([run.run_id], "data/benchmark/text2sql_v1.json")
+
+
+def test_four_runs_with_same_valid_git_sha_can_be_compared(
+    ontology: OntologyService,
+) -> None:
+    repository = MemoryEvaluationRepository()
+    service = _service(repository, ontology)
+    run_ids: list[str] = []
+    for index in range(4):
+        run = EvaluationRun(
+            run_id=f"valid-sha-run-{index}",
+            run_kind="live",
+            query_mode="schema",
+            strategy_variant="schema",
+            model_provider="provider",
+            model_name="model",
+            git_commit_sha="a" * 40,
+            database_snapshot_hash="d" * 64,
+            benchmark_hash="e" * 64,
+            benchmark_version="v1",
+            max_cases=1,
+            status="COMPLETED",
+        )
+        repository.save_run(run)
+        repository.save_case(
+            EvaluationCaseResult(
+                run_id=run.run_id,
+                case_id="basic-01",
+                predicted_status="success",
+                success=True,
+            )
+        )
+        run_ids.append(run.run_id)
+
+    comparison = service.compare(run_ids, "data/benchmark/text2sql_v1.json")
+
+    assert comparison.warnings == []
+    assert len(comparison.runs) == 4
+
+
+def test_live_run_requires_valid_git_sha(
+    ontology: OntologyService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_SHA", "unknown")
+    service = _service(
+        MemoryEvaluationRepository(),
+        ontology,
+        settings=Settings(llm_mode="live"),
+    )
+
+    with pytest.raises(
+        DataAssetAgentsError,
+        match="Live evaluation requires a valid git_commit_sha provenance",
+    ):
+        service.create_run(
+            EvaluationRunRequest(
+                query_mode="schema",
+                strategy_variant="schema",
+                run_kind="live",
+            )
+        )
+
+
+def test_live_ontology_ablation_does_not_require_sql_asset_build(
+    ontology: OntologyService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_SHA", "a" * 40)
+    service = _service(
+        MemoryEvaluationRepository(),
+        ontology,
+        settings=Settings(llm_mode="live"),
+        sql_asset_build_id=None,
+    )
+
+    run = service.create_run(
+        EvaluationRunRequest(
+            query_mode="ontology",
+            strategy_variant="ontology_no_sql_asset",
+            run_kind="live",
+        )
+    )
+
+    assert run.sql_asset_build_id is None
+
+
+def test_live_ontology_full_requires_ready_sql_asset_build(
+    ontology: OntologyService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_SHA", "a" * 40)
+    service = _service(
+        MemoryEvaluationRepository(),
+        ontology,
+        settings=Settings(llm_mode="live"),
+        sql_asset_build_id=None,
+    )
+
+    with pytest.raises(DataAssetAgentsError, match="READY SQLAssetBuild"):
+        service.create_run(
+            EvaluationRunRequest(
+                query_mode="ontology",
+                strategy_variant="ontology_full",
+                sql_asset_enabled=True,
+                run_kind="live",
+            )
+        )
+
+
 @pytest.mark.parametrize(
     ("field", "different"),
     [
@@ -283,7 +422,7 @@ def test_compare_rejects_critical_mismatch_even_for_legacy_override(
         ("temperature", 0.2),
         ("max_output_tokens", 4096),
         ("timeout_seconds", 60),
-        ("git_commit_sha", "def"),
+        ("git_commit_sha", "b" * 40),
         ("benchmark_hash", "f" * 64),
         ("database_snapshot_hash", "a" * 64),
         ("prompt_version", "v2"),
@@ -306,7 +445,7 @@ def test_compare_rejects_every_shared_reproducibility_mismatch(
         strategy_variant="schema",
         model_provider="provider",
         model_name="model",
-        git_commit_sha="abc",
+        git_commit_sha="a" * 40,
         database_snapshot_hash="d" * 64,
         benchmark_hash="e" * 64,
         benchmark_version="v1",
@@ -344,7 +483,9 @@ def test_ontology_runs_record_exact_bundle_provenance(ontology: OntologyService)
 
 def test_compare_rejects_completed_run_with_incomplete_case_coverage(
     ontology: OntologyService,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("GITHUB_SHA", "a" * 40)
     repository = MemoryEvaluationRepository()
     service = _service(repository, ontology)
     run = service.create_run(

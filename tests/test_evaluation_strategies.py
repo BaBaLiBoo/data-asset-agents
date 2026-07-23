@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from data_asset_agents.core.config import Settings
 from data_asset_agents.evaluation import (
     OntologyStrategy,
@@ -12,7 +14,7 @@ from data_asset_agents.evaluation import (
     StrategyRouter,
 )
 from data_asset_agents.ontology.service import OntologyService
-from data_asset_agents.text2sql.models import ExecutionResult
+from data_asset_agents.text2sql.models import ExecutionResult, SemanticQuery
 from data_asset_agents.validation import (
     CommonSQLSafetyValidator,
     DatabaseCatalog,
@@ -197,6 +199,53 @@ def test_evaluation_policy_inspector_never_modifies_sql(
     assert not report.valid
     assert sql == "SELECT transaction_id FROM legacy_card_transaction"
     assert not hasattr(report, "generated_sql")
+
+
+@pytest.mark.parametrize(
+    ("metric_id", "aggregate_sql"),
+    [
+        ("transaction_amount", "SUM(t.txn_amount_cny)"),
+        ("credit_card_transaction_amount", "SUM(t.txn_amount_cny)"),
+        ("transaction_count", "COUNT(DISTINCT t.transaction_id)"),
+        ("credit_card_transaction_count", "COUNT(DISTINCT t.transaction_id)"),
+        ("active_customer_count", "COUNT(DISTINCT t.customer_id)"),
+        ("average_transaction_amount", "AVG(t.txn_amount_cny)"),
+    ],
+)
+def test_metric_measure_role_comes_from_published_definition(
+    ontology: OntologyService,
+    metric_id: str,
+    aggregate_sql: str,
+) -> None:
+    report = OntologyPolicyValidator(ontology.bundle).validate(
+        f"SELECT {aggregate_sql} FROM dwd_card_transaction t",
+        semantic_query=SemanticQuery(metric_ids=[metric_id]),
+    )
+
+    assert report.valid, report.errors
+
+
+@pytest.mark.parametrize(
+    ("metric_id", "wrong_aggregate"),
+    [
+        ("active_customer_count", "COUNT(DISTINCT t.transaction_id)"),
+        ("transaction_count", "COUNT(DISTINCT t.customer_id)"),
+    ],
+)
+def test_metric_measure_role_rejects_wrong_published_property_binding(
+    ontology: OntologyService,
+    metric_id: str,
+    wrong_aggregate: str,
+) -> None:
+    report = OntologyPolicyValidator(ontology.bundle).validate(
+        f"SELECT {wrong_aggregate} FROM dwd_card_transaction t",
+        semantic_query=SemanticQuery(metric_ids=[metric_id]),
+    )
+
+    assert not report.valid
+    assert "METRIC_AGGREGATION_MISMATCH" in {
+        issue.code for issue in report.issues
+    }
 
 
 class StubGraph:

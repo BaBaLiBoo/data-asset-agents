@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
@@ -69,9 +70,22 @@ class EvaluationService:
         }[request.strategy_variant]
         if request.query_mode != expected_mode:
             raise DataAssetAgentsError("query_mode does not match strategy_variant")
+        if (
+            request.run_kind == "live"
+            and request.strategy_variant == "ontology_full"
+            and not self.sql_asset_build_id
+        ):
+            raise DataAssetAgentsError(
+                "ontology_full live evaluation requires a READY SQLAssetBuild"
+            )
         provider = request.model_provider or self.settings.llm_provider
         model_name = request.model_name or self.settings.llm_model
         source_hash = benchmark_source_hash(benchmark_path)
+        git_commit_sha = _git_commit_sha()
+        if request.run_kind == "live" and not _valid_git_commit_sha(git_commit_sha):
+            raise DataAssetAgentsError(
+                "Live evaluation requires a valid git_commit_sha provenance"
+            )
         run = EvaluationRun(
             run_kind=request.run_kind,
             query_mode=request.query_mode,
@@ -85,7 +99,7 @@ class EvaluationService:
             temperature=0,
             max_output_tokens=self.settings.llm_max_output_tokens,
             timeout_seconds=self.settings.llm_timeout_seconds,
-            git_commit_sha=_git_commit_sha(),
+            git_commit_sha=git_commit_sha,
             database_snapshot_hash=self.database_snapshot_hash,
             benchmark_hash=source_hash,
             physical_rag_build_id=(
@@ -246,7 +260,27 @@ class EvaluationService:
                     if run.strategy_variant == "ontology_full"
                     else None
                 ),
+                sql_asset_candidates=(
+                    output.sql_asset_candidates
+                    if run.strategy_variant == "ontology_full"
+                    else None
+                ),
                 selected_sql_asset_id=selected_asset_id,
+                selected_template_rank=(
+                    output.selected_template_rank
+                    if run.strategy_variant == "ontology_full"
+                    else None
+                ),
+                template_rejection_reasons=(
+                    output.template_rejection_reasons
+                    if run.strategy_variant == "ontology_full"
+                    else {}
+                ),
+                sql_rewrite=(
+                    output.sql_rewrite
+                    if run.strategy_variant == "ontology_full"
+                    else None
+                ),
                 success=success,
                 failure_category=failure_category,
                 failure_reason=failure_reason,
@@ -399,6 +433,10 @@ class EvaluationService:
             raise DataAssetAgentsError("Only COMPLETED evaluation runs can be compared")
         if any(run.benchmark_hash == "0" * 64 for run in present):
             raise DataAssetAgentsError("Fairness mismatch: benchmark_hash provenance is missing")
+        if any(not _valid_git_commit_sha(run.git_commit_sha) for run in present):
+            raise DataAssetAgentsError(
+                "Fairness mismatch: valid git_commit_sha provenance is missing"
+            )
         warnings: list[str] = []
         fairness = {
             "run_kind": {run.run_kind for run in present},
@@ -472,3 +510,7 @@ def _git_commit_sha() -> str:
         ).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return "unknown"
+
+
+def _valid_git_commit_sha(value: str | None) -> bool:
+    return bool(value and re.fullmatch(r"[0-9a-f]{40}", value))

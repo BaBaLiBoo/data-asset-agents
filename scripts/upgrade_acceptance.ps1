@@ -32,15 +32,49 @@ function Wait-Api([int]$Seconds) {
     throw "API did not become healthy within $Seconds seconds"
 }
 
+function Invoke-IgnoredNativeCleanup([scriptblock]$Action) {
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & $Action *> $null
+    }
+    finally {
+        $ErrorActionPreference = $previousPreference
+    }
+}
+
+function Assert-NativeCommandFails([scriptblock]$Action, [string]$Message) {
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & $Action *> $null
+        $commandExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    if ($commandExitCode -eq 0) { throw $Message }
+}
+
 $env:POSTGRES_DB = if ($env:POSTGRES_DB) { $env:POSTGRES_DB } else { "minibank" }
 $env:POSTGRES_USER = if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "minibank" }
 $env:LLM_MODE = "mock"
+$env:LLM_API_KEY = ""
+$env:EMBEDDING_API_KEY = ""
+if ([string]::IsNullOrWhiteSpace($env:GIT_COMMIT_SHA)) {
+    $env:GIT_COMMIT_SHA = (git rev-parse HEAD).Trim()
+}
+if ($env:GIT_COMMIT_SHA -notmatch "^[0-9a-f]{40}$") {
+    throw "GIT_COMMIT_SHA must be a 40-character lowercase hexadecimal SHA"
+}
 
 try {
     Write-Host "[1/10] Preparing an isolated pre-DDL-009 PostgreSQL volume..."
-    docker compose -p $ComposeProject down --volumes --remove-orphans 2>$null
-    docker rm -f $legacyContainer 2>$null
-    docker volume rm $volumeName 2>$null
+    Invoke-IgnoredNativeCleanup {
+        docker compose -p $ComposeProject down --volumes --remove-orphans
+    }
+    Invoke-IgnoredNativeCleanup { docker rm -f $legacyContainer }
+    Invoke-IgnoredNativeCleanup { docker volume rm $volumeName }
     docker volume create `
         --label "com.docker.compose.project=$ComposeProject" `
         --label "com.docker.compose.volume=minibank_data" `
@@ -90,9 +124,19 @@ try {
     Write-Host "[2/10] Inserting fictional legacy version, Draft, resources, and builds..."
     docker compose -p $ComposeProject build api | Out-Null
     Assert-LastExitCode "Could not build the API image for fixture generation"
-    $fixtureSql = & docker compose -p $ComposeProject run --rm --no-deps api `
-        python scripts/generate_upgrade_fixture.py 2>$null
-    Assert-LastExitCode "Could not generate the legacy upgrade fixture"
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $fixtureSql = & docker compose -p $ComposeProject run --rm --no-deps api `
+            python scripts/generate_upgrade_fixture.py 2>$null
+        $fixtureExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    if ($fixtureExitCode -ne 0) {
+        throw "Could not generate the legacy upgrade fixture"
+    }
     $fixtureSql | docker exec -i $legacyContainer `
         psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB -v ON_ERROR_STOP=1
     Assert-LastExitCode "Could not insert the legacy upgrade fixture"
@@ -200,34 +244,36 @@ try {
     }
 
     Write-Host "[9/10] Proving artifact and audit rows are database-immutable..."
-    docker compose -p $ComposeProject exec -T postgres `
-        psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB -c `
-        "UPDATE ontology_compiled_artifact SET bundle_hash=repeat('0',64) WHERE ontology_version_id='$($currentVersion.id)'" *> $null
-    if ($LASTEXITCODE -eq 0) { throw "READY artifact update unexpectedly succeeded" }
-    docker compose -p $ComposeProject exec -T postgres `
-        psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB -c `
-        "DELETE FROM ontology_audit_event WHERE ontology_version_id='$($currentVersion.id)'" *> $null
-    if ($LASTEXITCODE -eq 0) { throw "Audit event delete unexpectedly succeeded" }
+    Assert-NativeCommandFails {
+        docker compose -p $ComposeProject exec -T postgres `
+            psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB -c `
+            "UPDATE ontology_compiled_artifact SET bundle_hash=repeat('0',64) WHERE ontology_version_id='$($currentVersion.id)'"
+    } "READY artifact update unexpectedly succeeded"
+    Assert-NativeCommandFails {
+        docker compose -p $ComposeProject exec -T postgres `
+            psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB -c `
+            "DELETE FROM ontology_audit_event WHERE ontology_version_id='$($currentVersion.id)'"
+    } "Audit event delete unexpectedly succeeded"
 
     Write-Host "[10/10] Upgrade acceptance passed."
 }
 catch {
     $exitCode = 1
-    Write-Error "Upgrade acceptance failed: $($_.Exception.Message)" -ErrorAction Continue
+    Write-Host "Upgrade acceptance failed: $($_.Exception.Message)" -ForegroundColor Red
     try {
         docker compose -p $ComposeProject ps
-        docker compose -p $ComposeProject logs --no-color
+        docker compose -p $ComposeProject logs --no-color --tail 200
     } catch {
         Write-Warning "Could not collect upgrade diagnostics: $($_.Exception.Message)"
     }
 }
 finally {
-    try { docker rm -f $legacyContainer 2>$null | Out-Null } catch { }
+    Invoke-IgnoredNativeCleanup { docker rm -f $legacyContainer }
     try { docker compose -p $ComposeProject down --volumes --remove-orphans | Out-Null } catch {
         Write-Warning "Could not stop upgrade acceptance services: $($_.Exception.Message)"
         $exitCode = 1
     }
-    try { docker volume rm $volumeName 2>$null | Out-Null } catch { }
+    Invoke-IgnoredNativeCleanup { docker volume rm $volumeName }
 }
 
 exit $exitCode

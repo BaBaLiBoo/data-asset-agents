@@ -16,7 +16,7 @@ VERSION_ID = "legacy-upgrade-version-id"
 def _literal(value: object) -> str:
     if value is None:
         return "NULL"
-    text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+    text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=True)
     return "'" + str(text).replace("'", "''") + "'"
 
 

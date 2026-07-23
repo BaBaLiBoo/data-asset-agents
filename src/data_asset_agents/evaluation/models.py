@@ -197,7 +197,11 @@ class EvaluationCaseResult(BaseModel):
     token_usage: TokenUsage | None = None
     template_adopted: bool | None = None
     template_compatible: bool | None = None
+    sql_asset_candidates: list[dict[str, Any]] | None = None
     selected_sql_asset_id: str | None = None
+    selected_template_rank: int | None = None
+    template_rejection_reasons: dict[str, list[str]] = Field(default_factory=dict)
+    sql_rewrite: dict[str, Any] | None = None
     success: bool
     failure_category: str | None = None
     failure_reason: str | None = None

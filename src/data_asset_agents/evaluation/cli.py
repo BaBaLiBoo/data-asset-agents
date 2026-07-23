@@ -26,7 +26,8 @@ def _variant(mode: str, sql_assets: str) -> str:
 
 
 def validate_command(args: argparse.Namespace) -> int:
-    runtime = build_evaluation_runtime(get_settings())
+    settings = get_settings().model_copy(update={"llm_mode": "mock"})
+    runtime = build_evaluation_runtime(settings, sql_assets_enabled=False)
     try:
         suite = load_benchmark(args.path)
         errors = validate_benchmark(
@@ -57,9 +58,12 @@ def validate_command(args: argparse.Namespace) -> int:
 
 def run_command(args: argparse.Namespace) -> int:
     settings = get_settings()
-    runtime = build_evaluation_runtime(settings)
+    variant = _variant(args.mode, args.sql_assets)
+    runtime = build_evaluation_runtime(
+        settings,
+        sql_assets_enabled=variant == "ontology_full",
+    )
     try:
-        variant = _variant(args.mode, args.sql_assets)
         run = runtime.service.create_run(
             EvaluationRunRequest(
                 query_mode=args.mode,
@@ -80,7 +84,8 @@ def run_command(args: argparse.Namespace) -> int:
 
 
 def compare_command(args: argparse.Namespace) -> int:
-    runtime = build_evaluation_runtime(get_settings())
+    settings = get_settings().model_copy(update={"llm_mode": "mock"})
+    runtime = build_evaluation_runtime(settings, sql_assets_enabled=False)
     try:
         run_ids = args.run_id or _latest_strategy_run_ids(runtime.service.repository.list_runs(100))
         comparison = runtime.service.compare(
@@ -115,7 +120,8 @@ def compare_command(args: argparse.Namespace) -> int:
 
 
 def export_command(args: argparse.Namespace) -> int:
-    runtime = build_evaluation_runtime(get_settings())
+    settings = get_settings().model_copy(update={"llm_mode": "mock"})
+    runtime = build_evaluation_runtime(settings, sql_assets_enabled=False)
     try:
         cases = runtime.service.repository.list_cases(args.run_id)
         output = Path(args.output or f"evaluation-{args.run_id}.{args.format}")

@@ -1,4 +1,33 @@
+import json
+from pathlib import Path
+
 from scripts.generate_benchmark import REFERENCE_DATE, build_cases
+
+ROOT = Path(__file__).parents[1]
+
+
+def test_reviewed_benchmark_and_hash_contracts_are_frozen() -> None:
+    benchmark = json.loads(
+        (ROOT / "data/benchmark/text2sql_v1.json").read_text(encoding="utf-8")
+    )
+    hashes = json.loads(
+        (ROOT / "data/benchmark/text2sql_v1_hashes.json").read_text(encoding="utf-8")
+    )
+    generated = build_cases()
+    successful = {
+        case["id"] for case in generated if case["expected_status"] == "success"
+    }
+
+    assert benchmark["cases"] == generated
+    assert len(generated) == 80
+    assert len({case["id"] for case in generated}) == 80
+    assert set(hashes) == successful
+    assert all(value != "0" * 64 for value in hashes.values())
+    assert all(
+        case["gold_sql"] is None
+        for case in generated
+        if case["expected_status"] != "success"
+    )
 
 
 def test_benchmark_synonyms_have_question_aligned_gold_contracts() -> None:

@@ -27,8 +27,12 @@ services:
       retries: 20
 
   api:
-    build: .
+    build:
+      context: .
+      args:
+        GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-unknown}
     environment:
+      GITHUB_SHA: ${GIT_COMMIT_SHA:-unknown}
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_HOST: postgres
@@ -68,10 +72,14 @@ services:
       retries: 20
 
   web:
-    build: .
+    build:
+      context: .
+      args:
+        GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-unknown}
     command: ["streamlit", "run", "apps/web/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
     environment:
       API_BASE_URL: ${WEB_API_BASE_URL:-http://api:8000}
+      GITHUB_SHA: ${GIT_COMMIT_SHA:-unknown}
     ports:
       - "8501:8501"
     depends_on:

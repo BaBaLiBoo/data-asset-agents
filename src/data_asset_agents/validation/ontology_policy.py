@@ -6,6 +6,7 @@ import sqlglot
 from sqlglot import exp
 
 from data_asset_agents.ontology.models import OntologyBundle
+from data_asset_agents.ontology.models.entities import MetricAggregation
 from data_asset_agents.text2sql.models import (
     QueryFilter,
     SemanticQuery,
@@ -238,21 +239,46 @@ class OntologyPolicyValidator:
                     "UNSUPPORTED_DIMENSION",
                     f"Metric {metric_id} does not support dimension {dimension}",
                 )
-            aggregate_key = metric.expression.split("(", 1)[0].upper()
-            binding_role = (
-                "transaction_id"
-                if "DISTINCT" in metric.expression.upper()
-                else ("customer_id" if "CUSTOMER" in metric.id.upper() else "amount")
+            if not metric.measure_property_id or metric.aggregation is None:
+                self._add(
+                    issues,
+                    "MISSING_METRIC_MEASURE_EVIDENCE",
+                    f"Metric {metric_id} has no published measure Property or aggregation",
+                )
+                continue
+            measure_role = metric.measure_property_id.rsplit(".", 1)[-1]
+            physical_column = mapping.column_bindings.get(measure_role)
+            if physical_column is None:
+                self._add(
+                    issues,
+                    "MISSING_PHYSICAL_MAPPING",
+                    f"Metric {metric_id} measure Property has no physical column binding",
+                )
+                continue
+            aggregate_key = (
+                "COUNT"
+                if metric.aggregation
+                in {MetricAggregation.COUNT, MetricAggregation.COUNT_DISTINCT}
+                else metric.aggregation.value
             )
-            physical_column = mapping.column_bindings.get(binding_role)
             matching_aggregate = False
             for aggregate in statement.find_all(exp.AggFunc):
                 if aggregate.key.upper() != aggregate_key:
                     continue
-                if physical_column is None or any(
-                    column.name == physical_column for column in aggregate.find_all(exp.Column)
+                if not any(
+                    column.name == physical_column
+                    for column in aggregate.find_all(exp.Column)
                 ):
-                    matching_aggregate = True
+                    continue
+                has_distinct = aggregate.find(exp.Distinct) is not None
+                if (
+                    metric.aggregation == MetricAggregation.COUNT_DISTINCT
+                    and not has_distinct
+                ):
+                    continue
+                if metric.aggregation == MetricAggregation.COUNT and has_distinct:
+                    continue
+                matching_aggregate = True
             if not matching_aggregate:
                 self._add(
                     issues,

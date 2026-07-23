@@ -1,5 +1,7 @@
 {
-  "generated_at": "2026-07-22T10:47:47.630055+00:00",
+  "status": "superseded",
+  "reason": "Benchmark Gold contracts changed in commit a3ea85b71b4dce2b425b3698616b10e7fbc972ea",
+  "generated_at": "2026-07-22T10:51:43.581652+00:00",
   "runs": [
     {
       "run_id": "e49a9145-8baa-42f2-bd55-956db3a2a17b",
@@ -95,7 +97,7 @@
       "error_message": null
     },
     {
-      "run_id": "2b8fa360-796f-4f1c-974a-c82fd1da6f8f",
+      "run_id": "f7948ddc-3753-4b8a-930b-94d4c7ebd4b2",
       "run_kind": "live",
       "query_mode": "ontology",
       "strategy_variant": "ontology_full",
@@ -120,8 +122,8 @@
       "random_seed": 20260716,
       "max_cases": null,
       "concurrency": 1,
-      "started_at": "2026-07-22T09:07:28.843974Z",
-      "completed_at": "2026-07-22T10:47:11.152867Z",
+      "started_at": "2026-07-22T10:48:26.520219Z",
+      "completed_at": "2026-07-22T10:51:05.208111Z",
       "status": "COMPLETED",
       "error_message": null
     }

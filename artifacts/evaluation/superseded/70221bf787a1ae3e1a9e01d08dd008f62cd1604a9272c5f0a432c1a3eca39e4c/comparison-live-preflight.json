@@ -1,4 +1,6 @@
 {
+  "status": "superseded",
+  "reason": "Benchmark Gold contracts changed in commit a3ea85b71b4dce2b425b3698616b10e7fbc972ea",
   "runs": [
     {
       "run_id": "170d5c45-7b51-4d97-938e-0c7d41f080f0",
