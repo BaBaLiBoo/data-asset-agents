@@ -37,9 +37,9 @@ from data_asset_agents.ontology.repository import (
 from data_asset_agents.ontology.service import OntologyService
 from data_asset_agents.sql_assets import (
     PostgresSQLAssetRepository,
-    SQLAssetBuildStatus,
     SQLAssetService,
 )
+from data_asset_agents.sql_assets.models import SQLAssetBuildStatus
 
 
 def _require(value: object, message: str) -> None:
