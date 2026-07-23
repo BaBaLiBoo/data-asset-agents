@@ -1,7 +1,5 @@
 FROM python:3.11-slim
 
-ARG GIT_COMMIT_SHA=unknown
-ENV GITHUB_SHA=${GIT_COMMIT_SHA}
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DEFAULT_TIMEOUT=300
 WORKDIR /app
 
@@ -13,6 +11,9 @@ COPY apps ./apps
 COPY ontology ./ontology
 COPY data ./data
 COPY scripts ./scripts
+
+ARG GIT_COMMIT_SHA=unknown
+ENV GITHUB_SHA=${GIT_COMMIT_SHA}
 
 EXPOSE 8000 8501
 CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
