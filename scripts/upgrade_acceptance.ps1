@@ -19,6 +19,17 @@ function Invoke-DatabaseSql([string]$Sql) {
     Assert-LastExitCode "PostgreSQL command failed"
 }
 
+function Wait-Postgres([int]$Seconds) {
+    $deadline = (Get-Date).AddSeconds($Seconds)
+    do {
+        docker compose -p $ComposeProject exec -T postgres `
+            pg_isready -U $env:POSTGRES_USER -d $env:POSTGRES_DB *> $null
+        if ($LASTEXITCODE -eq 0) { return }
+        Start-Sleep -Seconds 2
+    } while ((Get-Date) -lt $deadline)
+    throw "PostgreSQL did not become ready within $Seconds seconds"
+}
+
 function Wait-Api([int]$Seconds) {
     $deadline = (Get-Date).AddSeconds($Seconds)
     while ((Get-Date) -lt $deadline) {
@@ -146,6 +157,7 @@ try {
     docker rm $legacyContainer | Out-Null
     docker compose -p $ComposeProject up -d postgres | Out-Null
     Assert-LastExitCode "Could not start PostgreSQL from the populated old volume"
+    Wait-Postgres $TimeoutSeconds
 
     Write-Host "[4/10] Applying DDL 009 twice to prove upgrade idempotency..."
     $migration = Get-Content data/ddl/009_ontology_release_governance.sql -Raw
