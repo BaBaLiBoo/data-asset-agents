@@ -49,6 +49,7 @@ class HistoricalSQLParser:
         *,
         question: str | None = None,
         certified: bool = False,
+        certification_level: str | None = None,
     ) -> HistoricalSQLAnalysis:
         try:
             statements = sqlglot.parse(sql, read="postgres")
@@ -141,6 +142,8 @@ class HistoricalSQLParser:
             question=question,
             sql_text=sql,
             certified=certified,
+            certification_level=certification_level
+            or ("CERTIFIED" if certified else "NONE"),
             tables=tables,
             columns=columns,
             joins=joins,
@@ -165,6 +168,7 @@ class HistoricalSQLParser:
                 str(item["sql"]),
                 question=item.get("question"),
                 certified=bool(item.get("certified", False)),
+                certification_level=str(item.get("certification_level") or "NONE"),
             )
             for item in payload
         ]

@@ -11,15 +11,17 @@ from pydantic import BaseModel, Field
 
 from data_asset_agents.core.errors import OntologyError
 from data_asset_agents.ontology.models import (
+    BusinessConcept,
     Dimension,
     JoinDefinition,
     Metric,
     MetricAggregation,
     OntologyBundle,
     PhysicalMapping,
+    TableAsset,
 )
 
-from .models import DraftResources, LifecycleStatus, SemanticRole
+from .models import ConstructionMode, DraftResources, LifecycleStatus, SemanticRole
 
 COMPILER_NAME = "object-semantic-compiler"
 COMPILER_VERSION = "1"
@@ -37,13 +39,35 @@ class SemanticCompilation(BaseModel):
     metric_evidence: list[dict[str, object]] = Field(default_factory=list)
     dimension_evidence: list[dict[str, object]] = Field(default_factory=list)
     join_evidence: list[dict[str, object]] = Field(default_factory=list)
+    seed_accessed: bool = False
+    fallback_used: bool = False
+    legacy_ontology_accessed: bool = False
 
 
 class ObjectSemanticCompiler:
     """Treat published object bindings as the authoritative physical source."""
 
-    def __init__(self, fallback_bundle: OntologyBundle) -> None:
+    def __init__(
+        self,
+        fallback_bundle: OntologyBundle | None,
+        construction_mode: ConstructionMode = ConstructionMode.LEGACY_COMPAT,
+    ) -> None:
         self.fallback_bundle = fallback_bundle
+        self.construction_mode = construction_mode
+
+    @staticmethod
+    def _empty_bundle() -> OntologyBundle:
+        return OntologyBundle(
+            domain={"id": "construction", "name": "Strict construction"},
+            concepts=[],
+            metrics=[],
+            dimensions=[],
+            mappings=[],
+            joins=[],
+            tables=[],
+            policies={},
+            glossary={},
+        )
 
     @staticmethod
     def _aggregation_expression(aggregation: MetricAggregation, reference: str) -> str:
@@ -83,11 +107,42 @@ class ObjectSemanticCompiler:
         resources: DraftResources,
         *,
         strict_compatibility: bool = True,
+        construction_mode: ConstructionMode | None = None,
     ) -> SemanticCompilation:
+        mode = construction_mode or self.construction_mode
+        strict = mode == ConstructionMode.STRICT_CONSTRUCTION
         if not resources.object_types or not resources.bindings:
-            return SemanticCompilation(bundle=deepcopy(self.fallback_bundle))
+            if strict:
+                raise OntologyError(
+                    "STRICT_CONSTRUCTION requires ObjectType and ObjectDataSourceBinding resources"
+                )
+            if self.fallback_bundle is None:
+                raise OntologyError("Legacy fallback bundle is not configured")
+            return SemanticCompilation(
+                bundle=deepcopy(self.fallback_bundle),
+                fallback_used=True,
+                legacy_ontology_accessed=True,
+            )
 
-        bundle = deepcopy(self.fallback_bundle)
+        if strict:
+            missing: list[str] = []
+            if not resources.metrics:
+                missing.append("MetricDefinition")
+            if not resources.dimensions:
+                missing.append("DimensionDefinition")
+            if len(resources.object_types) > 1 and not resources.physical_joins:
+                missing.append("PhysicalJoinDefinition")
+            if missing:
+                raise OntologyError(
+                    "STRICT_CONSTRUCTION missing required resources: " + ", ".join(missing)
+                )
+
+        if strict:
+            bundle = self._empty_bundle()
+        else:
+            if self.fallback_bundle is None:
+                raise OntologyError("Legacy fallback bundle is not configured")
+            bundle = deepcopy(self.fallback_bundle)
         active_objects = {
             item.id: item
             for item in resources.object_types
@@ -122,7 +177,9 @@ class ObjectSemanticCompiler:
                 ),
             )
 
-        draft_owns_analytical_semantics = bool(resources.metrics or resources.dimensions)
+        draft_owns_analytical_semantics = strict or bool(
+            resources.metrics or resources.dimensions
+        )
         dimensions_by_property: dict[str, str] = {}
         dimensions_by_id: dict[str, Dimension] = {}
         compiled_dimensions: list[Dimension] = []
@@ -190,9 +247,11 @@ class ObjectSemanticCompiler:
             )
         bundle.dimensions = compiled_dimensions
 
-        legacy_mappings = {
-            item.concept_id: item for item in self.fallback_bundle.mappings
-        }
+        legacy_mappings = (
+            {}
+            if strict or self.fallback_bundle is None
+            else {item.concept_id: item for item in self.fallback_bundle.mappings}
+        )
         metric_sources = (
             [
                 Metric(
@@ -377,6 +436,47 @@ class ObjectSemanticCompiler:
             for join_id in link.physical_join_ids
             if join_id in physical_joins
         ]
+        if strict:
+            bundle.tables = [
+                TableAsset(
+                    name=binding.table_name,
+                    description=f"Strict construction binding for {binding.object_type_id}",
+                    status="ACTIVE",
+                    selectable=True,
+                    grain=binding.primary_key_column,
+                    columns=sorted(binding.schema_columns),
+                    tags=["constructed"],
+                )
+                for binding in bindings_by_object.values()
+            ]
+            bundle.concepts = [
+                BusinessConcept(
+                    id=item.id,
+                    name=item.name,
+                    kind="object",
+                    description=item.description,
+                    synonyms=item.synonyms,
+                )
+                for item in active_objects.values()
+            ] + [
+                BusinessConcept(
+                    id=item.id,
+                    name=item.name,
+                    kind="dimension",
+                    description=item.description,
+                    synonyms=item.synonyms,
+                )
+                for item in compiled_dimensions
+            ] + [
+                BusinessConcept(
+                    id=item.id,
+                    name=item.name,
+                    kind="metric",
+                    description=item.description,
+                    synonyms=item.synonyms,
+                )
+                for item in compiled_metrics
+            ]
         return SemanticCompilation(
             bundle=bundle,
             property_bindings={
@@ -387,4 +487,7 @@ class ObjectSemanticCompiler:
             metric_evidence=metric_evidence,
             dimension_evidence=dimension_evidence,
             join_evidence=join_evidence,
+            seed_accessed=False,
+            fallback_used=not strict and not draft_owns_analytical_semantics,
+            legacy_ontology_accessed=not strict,
         )

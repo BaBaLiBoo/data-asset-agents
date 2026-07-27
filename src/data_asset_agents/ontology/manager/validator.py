@@ -15,6 +15,7 @@ from data_asset_agents.ontology.validation import OntologyContractValidator
 from .compiler import ObjectSemanticCompiler
 from .dry_run import DraftSemanticDryRun
 from .models import (
+    ConstructionMode,
     DraftResources,
     DraftValidationReport,
     LifecycleStatus,
@@ -111,15 +112,20 @@ class OntologyDraftValidator:
         return any(token in physical for token in families[data_type])
 
     def validate(
-        self, resources: DraftResources, source_snapshot_id: str | None
+        self,
+        resources: DraftResources,
+        source_snapshot_id: str | None,
+        *,
+        construction_mode: ConstructionMode = ConstructionMode.LEGACY_COMPAT,
     ) -> DraftValidationReport:
+        strict = construction_mode == ConstructionMode.STRICT_CONSTRUCTION
         issues: list[ValidationIssue] = []
         objects = {item.id: item for item in resources.object_types}
         properties = {item.id: item for item in resources.properties}
         dimensions = {item.id: item for item in resources.dimensions}
         bindings = {item.id: item for item in resources.bindings}
         joins = {item.id: item for item in resources.physical_joins}
-        assets = {item.name: item for item in self.bundle.tables}
+        assets = {} if strict else {item.name: item for item in self.bundle.tables}
         schema, primary_keys, unique_keys = self._schema()
 
         if not resources.object_types:
@@ -402,7 +408,9 @@ class OntologyDraftValidator:
                     "table_name",
                 )
                 continue
-            if asset is None or asset.status != "ACTIVE" or not asset.selectable:
+            if not strict and (
+                asset is None or asset.status != "ACTIVE" or not asset.selectable
+            ):
                 self._issue(
                     issues,
                     "BINDING_TABLE_NOT_SELECTABLE",
@@ -574,8 +582,15 @@ class OntologyDraftValidator:
                         "physical_join_ids",
                     )
 
+        fallback_used = False
+        legacy_ontology_accessed = False
         try:
-            compilation = ObjectSemanticCompiler(self.bundle).compile(resources)
+            compilation = ObjectSemanticCompiler(
+                None if strict else self.bundle,
+                construction_mode=construction_mode,
+            ).compile(resources)
+            fallback_used = compilation.fallback_used
+            legacy_ontology_accessed = compilation.legacy_ontology_accessed
             for conflict in compilation.conflicts:
                 self._issue(
                     issues,
@@ -595,22 +610,23 @@ class OntologyDraftValidator:
                 str(exc),
                 "Bind every referenced Property and align Metric/Dimension references",
             )
-            projected = self.bundle
-        contract = OntologyContractValidator(self.engine).validate(
-            projected,
-            snapshot_id=source_snapshot_id or "legacy-seed",
-            source_candidates=[],
-        )
-        for check in contract.checks:
-            if not check.passed:
-                self._issue(
-                    issues,
-                    f"PROJECTION_{check.code}",
-                    "projection",
-                    "legacy-contract",
-                    check.message,
-                    "Correct the object projection or legacy bundle",
-                )
+            projected = None
+        if projected is not None:
+            contract = OntologyContractValidator(self.engine).validate(
+                projected,
+                snapshot_id=source_snapshot_id or "legacy-seed",
+                source_candidates=[],
+            )
+            for check in contract.checks:
+                if not check.passed:
+                    self._issue(
+                        issues,
+                        f"PROJECTION_{check.code}",
+                        "projection",
+                        "legacy-contract",
+                        check.message,
+                        "Correct the object projection or legacy bundle",
+                    )
 
         explain_passed: bool | None = None
         dry_run_cases: list[dict[str, object]] = []
@@ -631,7 +647,11 @@ class OntologyDraftValidator:
             )
 
         if self.executor is not None:
-            reports = DraftSemanticDryRun(self.executor).run(resources, self.bundle)
+            reports = DraftSemanticDryRun(self.executor).run(
+                resources,
+                None if strict else self.bundle,
+                construction_mode=construction_mode,
+            )
             dry_run_cases = [item.model_dump(mode="json") for item in reports]
             for report in reports:
                 if (
@@ -655,4 +675,10 @@ class OntologyDraftValidator:
             benchmark_sql=BENCHMARK_SQL,
             explain_passed=explain_passed,
             dry_run_cases=dry_run_cases,
+            construction_mode=construction_mode,
+            seed_accessed=False,
+            fallback_used=False if strict else fallback_used,
+            legacy_ontology_accessed=False
+            if strict
+            else legacy_ontology_accessed,
         )

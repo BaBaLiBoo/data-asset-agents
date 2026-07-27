@@ -29,6 +29,18 @@ SAFE_CATEGORY_TOKENS = (
     "currency",
 )
 SENSITIVE_TOKENS = ("name", "phone", "email", "address", "identity", "id_card")
+PLATFORM_TABLE_PREFIXES = (
+    "ontology_",
+    "draft_",
+    "semantic_",
+    "candidate_",
+    "compiled_",
+    "sql_asset",
+    "evaluation_",
+    "data_source_",
+    "metadata_",
+    "historical_",
+)
 
 
 def _stringify(value: object | None) -> str | None:
@@ -71,18 +83,23 @@ class MetadataInspector:
     def _approved_tables(
         self,
         schema_name: str,
-        allowed_tables: set[str],
+        allowed_tables: set[str] | None,
         requested_tables: list[str] | None,
     ) -> list[str]:
         self._validate_identifier(schema_name, "schema")
         discovered = set(inspect(self.engine).get_table_names(schema=schema_name))
-        requested = set(requested_tables or allowed_tables)
+        effective_allowlist = allowed_tables or {
+            table
+            for table in discovered
+            if not table.startswith(PLATFORM_TABLE_PREFIXES)
+        }
+        requested = set(requested_tables or effective_allowlist)
         unsafe = {name for name in requested if not IDENTIFIER.fullmatch(name)}
         if unsafe:
             raise OntologyError(
                 f"Unsafe table identifier(s): {', '.join(sorted(unsafe))}"
             )
-        outside_allowlist = requested - allowed_tables
+        outside_allowlist = requested - effective_allowlist
         if outside_allowlist:
             raise OntologyError(
                 "Table(s) are not in the profiling allowlist: "
@@ -99,7 +116,7 @@ class MetadataInspector:
         self,
         *,
         schema_name: str = "public",
-        allowed_tables: set[str],
+        allowed_tables: set[str] | None,
         requested_tables: list[str] | None = None,
         sample_limit: int = 5,
         top_value_limit: int = 5,
@@ -190,6 +207,24 @@ class MetadataInspector:
                     )
                 )
         return MetadataSnapshot(schema_name=schema_name, tables=tables)
+
+    def capture_raw_snapshot(
+        self,
+        *,
+        schema_name: str = "public",
+        requested_tables: list[str] | None = None,
+        sample_limit: int = 5,
+        top_value_limit: int = 5,
+    ) -> MetadataSnapshot:
+        """Capture safe application-schema tables without governed catalog answers."""
+
+        return self.capture_snapshot(
+            schema_name=schema_name,
+            allowed_tables=None,
+            requested_tables=requested_tables,
+            sample_limit=sample_limit,
+            top_value_limit=top_value_limit,
+        )
 
     def _profile_column(
         self,

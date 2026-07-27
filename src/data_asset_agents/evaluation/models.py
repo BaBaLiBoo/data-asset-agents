@@ -128,6 +128,9 @@ class EvaluationRun(BaseModel):
     ontology_version_id: str | None = None
     bundle_hash: str | None = None
     sql_asset_build_id: str | None = None
+    experiment_group: Literal["T-A", "T-B", "T-C", "T-D", "T-E"] | None = None
+    ontology_source: Literal["NONE", "REVIEWED_AUTO_SCAFFOLD", "GOLD"] = "NONE"
+    construction_run_id: str | None = None
     benchmark_version: str
     benchmark_path: str = "data/benchmark/text2sql_v1.json"
     random_seed: int = 20260716
@@ -150,11 +153,15 @@ class EvaluationRun(BaseModel):
                 )
             ):
                 raise ValueError("schema runs cannot carry RAG/ontology/SQLAsset provenance")
+            if self.construction_run_id or self.ontology_source != "NONE":
+                raise ValueError("schema runs cannot carry construction provenance")
         elif self.strategy_variant == "rag":
             if not self.physical_rag_build_id:
                 raise ValueError("rag runs require physical_rag_build_id")
             if self.ontology_version_id or self.sql_asset_build_id:
                 raise ValueError("rag runs cannot carry ontology/SQLAsset provenance")
+            if self.construction_run_id or self.ontology_source != "NONE":
+                raise ValueError("rag runs cannot carry construction provenance")
         elif self.strategy_variant == "ontology_no_sql_asset":
             if not self.ontology_version_id or self.sql_asset_build_id:
                 raise ValueError("ontology ablation requires ontology only")
@@ -240,6 +247,9 @@ class EvaluationRunRequest(BaseModel):
     concurrency: int = Field(default=1, ge=1, le=16)
     model_provider: str | None = None
     model_name: str | None = None
+    experiment_group: Literal["T-A", "T-B", "T-C", "T-D", "T-E"] | None = None
+    ontology_source: Literal["NONE", "REVIEWED_AUTO_SCAFFOLD", "GOLD"] = "NONE"
+    construction_run_id: str | None = None
 
 
 class EvaluationComparison(BaseModel):

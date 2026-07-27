@@ -39,6 +39,7 @@ from .models import (
     CompiledArtifactStatus,
     CompiledArtifactSummary,
     CompiledOntologyArtifact,
+    ConstructionMode,
     CreateDraftFromSeedRequest,
     CreateDraftRequest,
     DataSourceDefinition,
@@ -527,6 +528,10 @@ class OntologyManagerService:
             available[candidate.candidate_id] = candidate.physical_join
         for candidate in generated.link_types:
             available[candidate.candidate_id] = candidate.link_type
+        for candidate in generated.dimensions:
+            available[candidate.candidate_id] = candidate.dimension
+        for candidate in generated.metrics:
+            available[candidate.candidate_id] = candidate.metric
 
         if self.candidate_repository is not None:
             verified = self.candidate_repository.list_candidates(
@@ -633,8 +638,11 @@ class OntologyManagerService:
         expected_revision: int | None = None,
         actor: str = "ontology-validator",
         request_id: str | None = None,
+        construction_mode: ConstructionMode = ConstructionMode.LEGACY_COMPAT,
     ) -> OntologyDraftAggregate:
         aggregate = self.get_draft(draft_id)
+        if aggregate.draft.construction_run_id:
+            construction_mode = ConstructionMode.STRICT_CONSTRUCTION
         self._check_expected_revision(aggregate, expected_revision)
         if aggregate.draft.status in {DraftStatus.PUBLISHED, DraftStatus.REJECTED}:
             raise OntologyConflictError(f"Cannot validate a {aggregate.draft.status} Draft")
@@ -665,9 +673,16 @@ class OntologyManagerService:
             )
         )
         try:
-            report = self.validator.validate(
-                aggregate.resources, aggregate.draft.source_snapshot_id
-            )
+            if construction_mode == ConstructionMode.STRICT_CONSTRUCTION:
+                report = self.validator.validate(
+                    aggregate.resources,
+                    aggregate.draft.source_snapshot_id,
+                    construction_mode=construction_mode,
+                )
+            else:
+                report = self.validator.validate(
+                    aggregate.resources, aggregate.draft.source_snapshot_id
+                )
         except Exception as exc:
             report = DraftValidationReport(
                 valid=False,
@@ -926,7 +941,17 @@ class OntologyManagerService:
             and self.drift_service.has_breaking_drift(aggregate.draft.base_version_id)
         ):
             raise OntologyError("Breaking metadata drift blocks publication")
-        compilation = ObjectSemanticCompiler(self.base_bundle).compile(aggregate.resources)
+        mode = report.construction_mode
+        compilation = ObjectSemanticCompiler(
+            None if mode == ConstructionMode.STRICT_CONSTRUCTION else self.base_bundle,
+            construction_mode=mode,
+        ).compile(aggregate.resources)
+        if mode == ConstructionMode.STRICT_CONSTRUCTION and (
+            compilation.seed_accessed
+            or compilation.fallback_used
+            or compilation.legacy_ontology_accessed
+        ):
+            raise OntologyError("Strict construction leakage flags invalidate publication")
         if compilation.conflicts:
             raise OntologyError("; ".join(compilation.conflicts))
         bundle = compilation.bundle
@@ -951,6 +976,7 @@ class OntologyManagerService:
             source_draft_id=aggregate.draft.id,
             source_revision=aggregate.draft.resource_revision,
             source_resource_hash=aggregate.draft.resource_hash,
+            construction_run_id=aggregate.draft.construction_run_id,
             compiler_name=COMPILER_NAME,
             compiler_version=COMPILER_VERSION,
             compiler_source_hash=compiler_source_hash(),
@@ -961,6 +987,11 @@ class OntologyManagerService:
             metric_compilation_evidence=compilation.metric_evidence,
             dimension_compilation_evidence=compilation.dimension_evidence,
             join_compilation_evidence=compilation.join_evidence,
+            construction_evidence_summary={
+                "metrics": len(compilation.metric_evidence),
+                "dimensions": len(compilation.dimension_evidence),
+                "joins": len(compilation.join_evidence),
+            },
         )
         self.repository.publish(
             aggregate.draft, aggregate.resources, version, bundle, artifact

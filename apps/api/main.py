@@ -28,6 +28,7 @@ from data_asset_agents.evaluation import (
     StrategyRouter,
 )
 from data_asset_agents.evaluation.models import EvaluationCaseResult
+from data_asset_agents.evaluation.ontology_construction import GoldOntologyLoader
 from data_asset_agents.evaluation.repository import PostgresEvaluationRepository
 from data_asset_agents.evaluation.service import EvaluationService, database_snapshot_hash
 from data_asset_agents.execution.executor import QueryExecutor
@@ -36,6 +37,10 @@ from data_asset_agents.metadata import MetadataInspector
 from data_asset_agents.ontology.builder import CandidateGenerator, OntologyBuildService
 from data_asset_agents.ontology.manager.candidate_generator import (
     ObjectFirstCandidateGenerator,
+)
+from data_asset_agents.ontology.manager.construction import OntologyConstructionService
+from data_asset_agents.ontology.manager.construction_repository import (
+    PostgresConstructionRepository,
 )
 from data_asset_agents.ontology.manager.drift import MetadataDriftService
 from data_asset_agents.ontology.manager.governance_models import (
@@ -49,11 +54,16 @@ from data_asset_agents.ontology.manager.governance_models import (
     OntologySyncRun,
     SchemaDriftReport,
 )
+from data_asset_agents.ontology.manager.governed_catalog import load_governed_catalog
 from data_asset_agents.ontology.manager.hashing import calculate_bundle_hash
 from data_asset_agents.ontology.manager.indexing import OntologyIndexService
 from data_asset_agents.ontology.manager.models import (
     ActorRequest,
     CompiledArtifactSummary,
+    ConstructionCandidate,
+    ConstructionCandidateStatus,
+    ConstructionEvaluationReport,
+    CreateConstructionRunRequest,
     CreateDraftFromSeedRequest,
     CreateDraftRequest,
     DataSourceDefinition,
@@ -69,12 +79,15 @@ from data_asset_agents.ontology.manager.models import (
     ObjectType,
     OntologyAuditAction,
     OntologyAuditEvent,
+    OntologyConstructionRun,
     OntologyDraft,
     OntologyDraftAggregate,
     PhysicalJoinDefinition,
+    PromoteConstructionRunRequest,
     PropertyDefinition,
     PublishDraftRequest,
     RejectDraftRequest,
+    ReviewConstructionCandidateRequest,
 )
 from data_asset_agents.ontology.manager.object_query import ObjectQueryService
 from data_asset_agents.ontology.manager.repository import (
@@ -202,7 +215,9 @@ async def lifespan(app: FastAPI):
         {"retail_banking": settings.ontology_path / "object_model"}
     )
     object_candidate_generator = ObjectFirstCandidateGenerator(
-        settings, ontology.bundle.tables, model_factory
+        settings,
+        load_governed_catalog(Path("data/governed_catalog/minibank_tables.json")),
+        model_factory,
     )
     ontology_manager = OntologyManagerService(
         ontology_manager_repository,
@@ -212,6 +227,13 @@ async def lifespan(app: FastAPI):
         candidate_repository=runtime_repository,
         seed_repository=object_seed_repository,
         candidate_generator=object_candidate_generator,
+    )
+    construction_service = OntologyConstructionService(
+        PostgresConstructionRepository(engine),
+        ontology_manager_repository,
+        runtime_repository,
+        object_candidate_generator,
+        gold_loader=GoldOntologyLoader(settings.ontology_path / "object_model"),
     )
     runtime_artifact = None
     legacy_fallback = True
@@ -296,7 +318,11 @@ async def lifespan(app: FastAPI):
     app.state.executor = executor
     app.state.ontology_repository = runtime_repository
     app.state.ontology_builder = builder
+    app.state.metadata_inspector = MetadataInspector(engine)
+    app.state.historical_sql_parser = HistoricalSQLParser()
+    app.state.settings = settings
     app.state.ontology_manager = ontology_manager
+    app.state.ontology_construction = construction_service
     app.state.ontology_drift_service = drift_service
     app.state.ontology_index_service = ontology_index_service
     app.state.object_query_service = object_query_service
@@ -577,6 +603,130 @@ def ontology_metrics(request: Request) -> list[dict[str, Any]]:
 @app.get("/api/v1/ontology/tables")
 def ontology_tables(request: Request) -> list[dict[str, Any]]:
     return [item.model_dump(mode="json") for item in request.app.state.ontology.tables()]
+
+
+@app.post("/api/v1/ontology/construction-runs", response_model=OntologyConstructionRun)
+def create_construction_run(
+    payload: CreateConstructionRunRequest, request: Request
+) -> OntologyConstructionRun:
+    return request.app.state.ontology_construction.create_run(payload)
+
+
+@app.post(
+    "/api/v1/ontology/metadata-snapshots/raw",
+    response_model=OntologyBuildResult,
+)
+def create_raw_metadata_snapshot(
+    payload: OntologyBuildRequest, request: Request
+) -> OntologyBuildResult:
+    snapshot = request.app.state.metadata_inspector.capture_raw_snapshot(
+        schema_name=payload.schema_name,
+        requested_tables=payload.tables,
+        sample_limit=payload.sample_limit,
+        top_value_limit=payload.top_value_limit,
+    )
+    historical_sql = request.app.state.historical_sql_parser.parse_file(
+        request.app.state.settings.historical_sql_path
+    )
+    result = OntologyBuildResult(
+        snapshot=snapshot,
+        historical_sql=historical_sql,
+        historical_summary=request.app.state.historical_sql_parser.summarize(
+            historical_sql
+        ),
+        concepts=[],
+        mappings=[],
+        joins=[],
+    )
+    request.app.state.ontology_repository.save_build(result)
+    return result
+
+
+@app.get(
+    "/api/v1/ontology/construction-runs",
+    response_model=list[OntologyConstructionRun],
+)
+def list_construction_runs(request: Request) -> list[OntologyConstructionRun]:
+    return request.app.state.ontology_construction.list_runs()
+
+
+@app.get(
+    "/api/v1/ontology/construction-runs/{run_id}",
+    response_model=OntologyConstructionRun,
+)
+def get_construction_run(run_id: str, request: Request) -> OntologyConstructionRun:
+    return request.app.state.ontology_construction.get_run(run_id)
+
+
+@app.post(
+    "/api/v1/ontology/construction-runs/{run_id}/generate",
+    response_model=OntologyConstructionRun,
+)
+def generate_construction_run(run_id: str, request: Request) -> OntologyConstructionRun:
+    return request.app.state.ontology_construction.generate(run_id)
+
+
+@app.get(
+    "/api/v1/ontology/construction-runs/{run_id}/candidates",
+    response_model=list[ConstructionCandidate],
+)
+def list_construction_candidates(
+    run_id: str,
+    request: Request,
+    resource_type: str | None = None,
+    review_status: ConstructionCandidateStatus | None = None,
+) -> list[ConstructionCandidate]:
+    return request.app.state.ontology_construction.list_candidates(
+        run_id, resource_type=resource_type, status=review_status
+    )
+
+
+@app.post(
+    "/api/v1/ontology/construction-runs/{run_id}/candidates/{candidate_id}/review",
+    response_model=ConstructionCandidate,
+)
+def review_construction_candidate(
+    run_id: str,
+    candidate_id: str,
+    payload: ReviewConstructionCandidateRequest,
+    request: Request,
+) -> ConstructionCandidate:
+    return request.app.state.ontology_construction.review(run_id, candidate_id, payload)
+
+
+@app.post(
+    "/api/v1/ontology/construction-runs/{run_id}/promote-to-draft",
+    response_model=OntologyDraftAggregate,
+)
+def promote_construction_run(
+    run_id: str,
+    payload: PromoteConstructionRunRequest,
+    request: Request,
+) -> OntologyDraftAggregate:
+    return request.app.state.ontology_construction.promote_to_draft(run_id, payload)
+
+
+@app.post(
+    "/api/v1/ontology/construction-runs/{run_id}/evaluate",
+    response_model=ConstructionEvaluationReport,
+)
+def evaluate_construction_run(
+    run_id: str, request: Request
+) -> ConstructionEvaluationReport:
+    return request.app.state.ontology_construction.evaluate(run_id)
+
+
+@app.get(
+    "/api/v1/ontology/construction-runs/{run_id}/evaluation",
+    response_model=ConstructionEvaluationReport,
+)
+def get_construction_evaluation(
+    run_id: str, request: Request
+) -> ConstructionEvaluationReport:
+    run = request.app.state.ontology_construction.get_run(run_id)
+    if run.evaluation is None:
+        raise HTTPException(status_code=404, detail="Construction evaluation not found")
+    return ConstructionEvaluationReport.model_validate(run.evaluation)
 
 
 @app.post("/api/v1/ontology/drafts", response_model=OntologyDraftAggregate)

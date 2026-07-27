@@ -1,6 +1,6 @@
 """Deterministic table-role classification used before object candidate generation."""
 
-from data_asset_agents.ontology.models import TableAsset
+from data_asset_agents.ontology.models import TableAsset, TableMetadata
 
 from .models import TableRole
 
@@ -25,3 +25,28 @@ class TableRoleClassifier:
 
     def eligible_for_object(self, table: TableAsset) -> bool:
         return self.classify(table)[0] in {TableRole.CANONICAL_OBJECT, TableRole.EVENT}
+
+    def classify_raw(self, table: TableMetadata) -> tuple[TableRole, list[str]]:
+        """Classify from physical evidence only, without a governed/Gold table asset."""
+
+        name = table.table_name.lower()
+        evidence = [
+            f"name={table.table_name}",
+            f"primary_key={table.primary_key}",
+            f"foreign_key_count={len(table.foreign_keys)}",
+        ]
+        if name.startswith(("legacy_", "old_", "deprecated_")):
+            return TableRole.DEPRECATED, evidence
+        if name.startswith(("tmp_", "temp_", "test_")):
+            return TableRole.TECHNICAL, evidence
+        if name.startswith(("dws_", "agg_")) or any(
+            token in name for token in ("summary", "aggregate")
+        ):
+            return TableRole.AGGREGATE_VIEW, evidence
+        if name.startswith(("dim_", "master_")):
+            return TableRole.CANONICAL_OBJECT, evidence
+        if name.startswith(("dwd_", "fact_", "event_")):
+            return TableRole.EVENT, evidence
+        # Unknown physical tables remain review-only technical candidates. This avoids
+        # silently asserting that every table is a business object.
+        return TableRole.TECHNICAL, [*evidence, "no deterministic object/event evidence"]

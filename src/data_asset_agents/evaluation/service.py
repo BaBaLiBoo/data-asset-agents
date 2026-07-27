@@ -116,6 +116,9 @@ class EvaluationService:
             sql_asset_build_id=(
                 self.sql_asset_build_id if request.strategy_variant == "ontology_full" else None
             ),
+            experiment_group=request.experiment_group,
+            ontology_source=request.ontology_source,
+            construction_run_id=request.construction_run_id,
             benchmark_version=suite.version + ":" + source_hash[:12],
             benchmark_path=str(benchmark_path.relative_to(Path.cwd())),
             max_cases=request.max_cases,

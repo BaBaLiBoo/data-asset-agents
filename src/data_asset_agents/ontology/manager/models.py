@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -103,6 +104,69 @@ class TableRole(StrEnum):
     AGGREGATE_VIEW = "AGGREGATE_VIEW"
     TECHNICAL = "TECHNICAL"
     DEPRECATED = "DEPRECATED"
+
+
+class ConstructionMode(StrEnum):
+    LEGACY_COMPAT = "LEGACY_COMPAT"
+    STRICT_CONSTRUCTION = "STRICT_CONSTRUCTION"
+
+
+class CatalogMode(StrEnum):
+    RAW_METADATA = "RAW_METADATA"
+    GOVERNED_CATALOG = "GOVERNED_CATALOG"
+
+
+class ConstructionRunStatus(StrEnum):
+    CREATED = "CREATED"
+    RUNNING = "RUNNING"
+    CANDIDATES_READY = "CANDIDATES_READY"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    PROMOTED_TO_DRAFT = "PROMOTED_TO_DRAFT"
+    EVALUATED = "EVALUATED"
+    FAILED = "FAILED"
+
+
+class ConstructionEvidenceMode(StrEnum):
+    O_A_SCHEMA_ONLY = "O-A"
+    O_B_SCHEMA_PROFILING = "O-B"
+    O_C_SCHEMA_PROFILING_SQL = "O-C"
+    O_D_ALL_EVIDENCE_LLM = "O-D"
+
+
+class CandidateReviewDecision(StrEnum):
+    ACCEPT = "ACCEPT"
+    MODIFY = "MODIFY"
+    REJECT = "REJECT"
+    MERGE = "MERGE"
+    DEFER = "DEFER"
+
+
+class ConstructionCandidateStatus(StrEnum):
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    MODIFIED = "MODIFIED"
+    REJECTED = "REJECTED"
+    MERGED = "MERGED"
+    DEFERRED = "DEFERRED"
+
+
+class EvidenceSourceType(StrEnum):
+    TABLE_METADATA = "TABLE_METADATA"
+    COLUMN_METADATA = "COLUMN_METADATA"
+    PRIMARY_KEY = "PRIMARY_KEY"
+    FOREIGN_KEY = "FOREIGN_KEY"
+    INDEX = "INDEX"
+    FIELD_PROFILE = "FIELD_PROFILE"
+    COLUMN_COMMENT = "COLUMN_COMMENT"
+    CERTIFIED_HISTORICAL_SQL = "CERTIFIED_HISTORICAL_SQL"
+    SQL_GROUP_BY = "SQL_GROUP_BY"
+    SQL_AGGREGATION = "SQL_AGGREGATION"
+    SQL_FILTER = "SQL_FILTER"
+    SQL_JOIN = "SQL_JOIN"
+    SQL_TIME_USAGE = "SQL_TIME_USAGE"
+    GOVERNED_CATALOG = "GOVERNED_CATALOG"
+    LLM_SEMANTIC_SUGGESTION = "LLM_SEMANTIC_SUGGESTION"
+    HUMAN_REVIEW = "HUMAN_REVIEW"
 
 
 ResourceId = Annotated[str, Field(pattern=IDENTIFIER_PATTERN)]
@@ -278,6 +342,10 @@ class DraftValidationReport(BaseModel):
     validation_run_id: str = ""
     started_at: datetime = Field(default_factory=utc_now)
     completed_at: datetime = Field(default_factory=utc_now)
+    construction_mode: ConstructionMode = ConstructionMode.LEGACY_COMPAT
+    seed_accessed: bool = False
+    fallback_used: bool = False
+    legacy_ontology_accessed: bool = False
 
 
 class OntologyDraft(BaseModel):
@@ -286,6 +354,7 @@ class OntologyDraft(BaseModel):
     description: str = ""
     base_version_id: str | None = None
     source_snapshot_id: str | None = None
+    construction_run_id: str | None = None
     status: DraftStatus = DraftStatus.DRAFT
     created_by: str
     submitted_by: str | None = None
@@ -326,6 +395,7 @@ class CompiledOntologyArtifact(BaseModel):
     source_draft_id: str
     source_revision: int
     source_resource_hash: str
+    construction_run_id: str | None = None
     compiler_name: str
     compiler_version: str
     compiler_source_hash: str
@@ -336,6 +406,7 @@ class CompiledOntologyArtifact(BaseModel):
     metric_compilation_evidence: list[dict[str, object]] = Field(default_factory=list)
     dimension_compilation_evidence: list[dict[str, object]] = Field(default_factory=list)
     join_compilation_evidence: list[dict[str, object]] = Field(default_factory=list)
+    construction_evidence_summary: dict[str, int] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)
     error_message: str | None = None
 
@@ -409,8 +480,70 @@ class MigrateLegacyRequest(BaseModel):
 
 
 class CandidateEvidence(BaseModel):
-    source: str
-    detail: str
+    """Immutable evidence reference shared by every construction candidate.
+
+    ``source`` and ``detail`` remain as read-compatible aliases for V2 clients.
+    """
+
+    evidence_id: str = ""
+    source_type: EvidenceSourceType | str = EvidenceSourceType.TABLE_METADATA
+    source_snapshot_id: str = ""
+    table_name: str | None = None
+    column_name: str | None = None
+    sql_asset_id: str | None = None
+    extracted_fact: str = ""
+    confidence: float = Field(default=1.0, ge=0, le=1)
+    deterministic: bool = True
+    llm_generated: bool = False
+    evidence_hash: str = ""
+    source: str = ""
+    detail: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_evidence(cls, value: Any) -> Any:
+        if not isinstance(value, dict) or "source_type" in value:
+            return value
+        migrated = dict(value)
+        legacy = str(migrated.get("source", "")).lower()
+        mapping = {
+            "metadata": EvidenceSourceType.TABLE_METADATA,
+            "table-role": EvidenceSourceType.TABLE_METADATA,
+            "primary-key": EvidenceSourceType.PRIMARY_KEY,
+            "foreign-key": EvidenceSourceType.FOREIGN_KEY,
+            "field-profile": EvidenceSourceType.FIELD_PROFILE,
+            "historical-sql": EvidenceSourceType.CERTIFIED_HISTORICAL_SQL,
+            "llm": EvidenceSourceType.LLM_SEMANTIC_SUGGESTION,
+        }
+        migrated["source_type"] = mapping.get(legacy, legacy.upper() or "TABLE_METADATA")
+        migrated["extracted_fact"] = migrated.get("detail", "")
+        migrated["llm_generated"] = legacy == "llm"
+        migrated["deterministic"] = legacy != "llm"
+        return migrated
+
+    @model_validator(mode="after")
+    def synchronize_compatibility_fields(self) -> CandidateEvidence:
+        if not self.source:
+            self.source = str(self.source_type)
+        if not self.detail:
+            self.detail = self.extracted_fact
+        if not self.extracted_fact:
+            self.extracted_fact = self.detail
+        if not self.evidence_id or not self.evidence_hash:
+            payload = "|".join(
+                [
+                    str(self.source_type),
+                    self.source_snapshot_id,
+                    self.table_name or "",
+                    self.column_name or "",
+                    self.sql_asset_id or "",
+                    self.extracted_fact,
+                ]
+            )
+            digest = hashlib.sha256(payload.encode()).hexdigest()
+            self.evidence_id = self.evidence_id or f"evidence-{digest[:24]}"
+            self.evidence_hash = self.evidence_hash or digest
+        return self
 
 
 class CandidateObjectType(BaseModel):
@@ -426,6 +559,9 @@ class CandidateProperty(BaseModel):
     property: PropertyDefinition
     confidence: float = Field(ge=0, le=1)
     evidence: list[CandidateEvidence] = Field(default_factory=list)
+    sensitive_suggestion: bool | None = None
+    unit_suggestion: str | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 class CandidateLinkType(BaseModel):
@@ -449,6 +585,34 @@ class CandidatePhysicalJoin(BaseModel):
     evidence: list[CandidateEvidence] = Field(default_factory=list)
 
 
+class CandidateDimension(BaseModel):
+    candidate_id: str
+    dimension: DimensionDefinition
+    time_grain_suggestion: str | None = None
+    confidence: float = Field(ge=0, le=1)
+    evidence: list[CandidateEvidence] = Field(default_factory=list)
+    lifecycle_status: LifecycleStatus = LifecycleStatus.DRAFT
+
+
+class MetricFilterSupport(BaseModel):
+    predicate: PropertyFilterPredicate
+    occurrence_count: int = Field(ge=1)
+    sql_coverage_count: int = Field(ge=1)
+    consistency_ratio: float = Field(ge=0, le=1)
+    conflicting_values: list[str] = Field(default_factory=list)
+
+
+class CandidateMetric(BaseModel):
+    candidate_id: str
+    metric: MetricDefinition
+    source_fact_table: str
+    review_state: Literal["READY", "NEEDS_REVIEW"] = "NEEDS_REVIEW"
+    filter_support: list[MetricFilterSupport] = Field(default_factory=list)
+    confidence: float = Field(ge=0, le=1)
+    evidence: list[CandidateEvidence] = Field(default_factory=list)
+    lifecycle_status: LifecycleStatus = LifecycleStatus.DRAFT
+
+
 class ObjectCandidateSet(BaseModel):
     snapshot_id: str
     object_types: list[CandidateObjectType] = Field(default_factory=list)
@@ -456,7 +620,102 @@ class ObjectCandidateSet(BaseModel):
     bindings: list[CandidateObjectBinding] = Field(default_factory=list)
     link_types: list[CandidateLinkType] = Field(default_factory=list)
     physical_joins: list[CandidatePhysicalJoin] = Field(default_factory=list)
+    dimensions: list[CandidateDimension] = Field(default_factory=list)
+    metrics: list[CandidateMetric] = Field(default_factory=list)
     excluded_tables: dict[str, str] = Field(default_factory=dict)
+
+
+class CreateConstructionRunRequest(BaseModel):
+    source_snapshot_id: str
+    profiling_snapshot_hash: str = ""
+    historical_sql_snapshot_hash: str = ""
+    catalog_mode: CatalogMode = CatalogMode.RAW_METADATA
+    construction_mode: ConstructionMode = ConstructionMode.STRICT_CONSTRUCTION
+    evidence_mode: ConstructionEvidenceMode = (
+        ConstructionEvidenceMode.O_C_SCHEMA_PROFILING_SQL
+    )
+    llm_mode: Literal["mock", "live"] = "mock"
+    provider: str = "mock"
+    model: str = "deterministic-rules-v1"
+    temperature: float = Field(default=0, ge=0, le=2)
+    random_seed: int = 20260715
+    created_by: str = "ontology-constructor"
+
+
+class OntologyConstructionRun(BaseModel):
+    run_id: str
+    status: ConstructionRunStatus = ConstructionRunStatus.CREATED
+    source_snapshot_id: str
+    source_snapshot_hash: str
+    profiling_snapshot_hash: str
+    historical_sql_snapshot_hash: str
+    catalog_mode: CatalogMode
+    construction_mode: ConstructionMode
+    evidence_mode: ConstructionEvidenceMode
+    llm_mode: Literal["mock", "live"]
+    provider: str
+    model: str
+    temperature: float
+    random_seed: int
+    git_sha: str
+    started_at: datetime = Field(default_factory=utc_now)
+    completed_at: datetime | None = None
+    candidate_counts: dict[str, int] = Field(default_factory=dict)
+    excluded_tables: dict[str, str] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+    seed_accessed: bool = False
+    fallback_used: bool = False
+    legacy_ontology_accessed: bool = False
+    created_by: str
+    promoted_draft_id: str | None = None
+    evaluation: dict[str, Any] | None = None
+
+
+class ConstructionCandidate(BaseModel):
+    candidate_id: str
+    run_id: str
+    resource_type: Literal[
+        "object_type",
+        "property",
+        "binding",
+        "link_type",
+        "physical_join",
+        "dimension",
+        "metric",
+    ]
+    status: ConstructionCandidateStatus = ConstructionCandidateStatus.PENDING
+    original_candidate: dict[str, Any]
+    current_resource: dict[str, Any]
+    evidence: list[CandidateEvidence] = Field(default_factory=list)
+    reviewer: str | None = None
+    reviewed_at: datetime | None = None
+    decision: CandidateReviewDecision | None = None
+    comment: str = ""
+    revision: int = 0
+    merge_target_candidate_id: str | None = None
+
+
+class ReviewConstructionCandidateRequest(BaseModel):
+    decision: CandidateReviewDecision
+    reviewer: str = Field(min_length=1, max_length=100)
+    modified_resource: dict[str, Any] | None = None
+    comment: str = Field(default="", max_length=2000)
+    merge_target_candidate_id: str | None = None
+
+
+class PromoteConstructionRunRequest(BaseModel):
+    draft_name: str = "Reviewed data-source-driven ontology"
+    actor: str = "ontology-reviewer"
+
+
+class ConstructionEvaluationReport(BaseModel):
+    run_id: str
+    gold_hash: str
+    valid_run: bool
+    metrics: dict[str, float | int | bool | str | None]
+    provenance: dict[str, Any]
+    generated_at: datetime = Field(default_factory=utc_now)
 
 
 class ImportObjectCandidatesRequest(BaseModel):

@@ -15,6 +15,7 @@ EXPECTED_DATABASE_FILES = [
     "data/ddl/007_ontology_runtime_governance.sql",
     "data/ddl/008_ontology_analysis_semantics.sql",
     "data/ddl/009_ontology_release_governance.sql",
+    "data/ddl/010_ontology_construction.sql",
     "data/seed/002_seed.sql",
 ]
 
@@ -31,6 +32,8 @@ def test_ci_and_compose_use_one_canonical_database_initialization_order() -> Non
     assert compose_files == EXPECTED_DATABASE_FILES
     assert ci_files.count("data/ddl/009_ontology_release_governance.sql") == 1
     assert compose_files.count("data/ddl/009_ontology_release_governance.sql") == 1
+    assert ci_files.count("data/ddl/010_ontology_construction.sql") == 1
+    assert compose_files.count("data/ddl/010_ontology_construction.sql") == 1
 
 
 def test_upgrade_fixture_is_fictional_pre_governance_state(capsys) -> None:

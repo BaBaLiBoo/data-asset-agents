@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 def _identifier(prefix: str) -> str:
@@ -112,6 +112,7 @@ class HistoricalSQLAnalysis(BaseModel):
     question: str | None = None
     sql_text: str
     certified: bool = False
+    certification_level: str = "NONE"
     tables: list[str] = Field(default_factory=list)
     columns: list[ColumnReference] = Field(default_factory=list)
     joins: list[ParsedJoin] = Field(default_factory=list)
@@ -119,6 +120,12 @@ class HistoricalSQLAnalysis(BaseModel):
     aggregates: list[ParsedAggregate] = Field(default_factory=list)
     group_by: list[str] = Field(default_factory=list)
     time_fields: list[ColumnReference] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def default_certification_level(self) -> HistoricalSQLAnalysis:
+        if self.certified and self.certification_level == "NONE":
+            self.certification_level = "CERTIFIED"
+        return self
 
 
 class UsageCount(BaseModel):

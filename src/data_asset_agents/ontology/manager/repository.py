@@ -506,12 +506,14 @@ class PostgresOntologyManagerRepository:
         connection.execute(
             text("""
             INSERT INTO ontology_draft
-              (draft_id,name,description,base_version_id,source_snapshot_id,status,created_by,
+              (draft_id,name,description,base_version_id,source_snapshot_id,construction_run_id,
+               status,created_by,
                submitted_by,reviewed_by,created_at,updated_at,submitted_at,reviewed_at,
                validation_report,rejection_reason,resource_revision,resource_hash,
                validated_revision,validated_hash,submitted_revision,submitted_hash,
                validation_state)
-            VALUES (:id,:name,:description,:base_version_id,:source_snapshot_id,:status,:created_by,
+            VALUES (:id,:name,:description,:base_version_id,:source_snapshot_id,
+               :construction_run_id,:status,:created_by,
                :submitted_by,:reviewed_by,:created_at,:updated_at,:submitted_at,:reviewed_at,
                CAST(:validation_report AS jsonb),:rejection_reason,
                :resource_revision,:resource_hash,
@@ -636,7 +638,8 @@ class PostgresOntologyManagerRepository:
         )
         connection.execute(
             text("""
-            UPDATE ontology_draft SET name=:name,description=:description,status=:status,
+            UPDATE ontology_draft SET name=:name,description=:description,
+              construction_run_id=:construction_run_id,status=:status,
               submitted_by=:submitted_by,reviewed_by=:reviewed_by,updated_at=:updated_at,
               submitted_at=:submitted_at,reviewed_at=:reviewed_at,
               validation_report=CAST(:validation_report AS jsonb),
@@ -664,6 +667,7 @@ class PostgresOntologyManagerRepository:
             description=row["description"],
             base_version_id=row["base_version_id"],
             source_snapshot_id=row["source_snapshot_id"],
+            construction_run_id=row.get("construction_run_id"),
             status=row["status"],
             created_by=row["created_by"],
             submitted_by=row["submitted_by"],
@@ -943,13 +947,15 @@ class PostgresOntologyManagerRepository:
                       source_resource_hash,compiler_name,compiler_version,compiler_source_hash,
                       status,bundle_hash,bundle_json,property_bindings,
                       metric_compilation_evidence,dimension_compilation_evidence,
-                      join_compilation_evidence,created_at,error_message
+                      join_compilation_evidence,construction_run_id,
+                      construction_evidence_summary,created_at,error_message
                     ) VALUES (
                       :artifact_id,:ontology_version_id,:source_draft_id,:source_revision,
                       :source_resource_hash,:compiler_name,:compiler_version,
                       :compiler_source_hash,:status,:bundle_hash,CAST(:bundle_json AS jsonb),
                       CAST(:property_bindings AS jsonb),CAST(:metric_evidence AS jsonb),
                       CAST(:dimension_evidence AS jsonb),CAST(:join_evidence AS jsonb),
+                      :construction_run_id,CAST(:construction_evidence_summary AS jsonb),
                       :created_at,:error_message
                     )
                     """),
@@ -963,6 +969,9 @@ class PostgresOntologyManagerRepository:
                             artifact.dimension_compilation_evidence
                         ),
                         "join_evidence": _json(artifact.join_compilation_evidence),
+                        "construction_evidence_summary": _json(
+                            artifact.construction_evidence_summary
+                        ),
                     },
                 )
                 groups = [

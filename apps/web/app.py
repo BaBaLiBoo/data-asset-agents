@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import difflib
+import json
 import os
 from typing import Any
 
@@ -584,6 +585,166 @@ def evaluation_page() -> None:
     )
 
 
+def ontology_construction_page() -> None:
+    st.title("Ontology Construction Workbench")
+    st.caption("固定物理证据 → 系统候选 → 人工审核 → 统一 OntologyDraft")
+
+    controls = st.columns(3)
+    if controls[0].button("创建 RAW_METADATA 快照", use_container_width=True):
+        build = api_request(
+            "POST",
+            "/api/v1/ontology/metadata-snapshots/raw",
+            json={"schema_name": "public", "sample_limit": 5, "top_value_limit": 5},
+            timeout=180,
+        )
+        st.session_state["construction_snapshot"] = build["snapshot"]["id"]
+    snapshot_id = controls[1].text_input(
+        "Snapshot", st.session_state.get("construction_snapshot", "")
+    )
+    evidence_mode = controls[2].selectbox("消融组", ["O-A", "O-B", "O-C", "O-D"], index=2)
+    catalog_mode = st.selectbox(
+        "表资产模式", ["RAW_METADATA", "GOVERNED_CATALOG"], horizontal=True
+    )
+    if st.button("创建 Construction Run", disabled=not snapshot_id):
+        run = api_request(
+            "POST",
+            "/api/v1/ontology/construction-runs",
+            json={
+                "source_snapshot_id": snapshot_id,
+                "catalog_mode": catalog_mode,
+                "construction_mode": "STRICT_CONSTRUCTION",
+                "evidence_mode": evidence_mode,
+                "llm_mode": "mock",
+                "provider": "mock",
+                "model": "deterministic-rules-v1",
+                "temperature": 0,
+                "random_seed": 20260715,
+                "created_by": "streamlit-reviewer",
+            },
+        )
+        st.session_state["construction_run"] = run["run_id"]
+        st.rerun()
+
+    runs = api_request("GET", "/api/v1/ontology/construction-runs")
+    if not runs:
+        st.info("尚无构建运行。")
+        return
+    labels = {
+        f"{item['run_id']} · {item['evidence_mode']} · {item['status']}": item["run_id"]
+        for item in runs
+    }
+    selected = st.selectbox("构建运行", list(labels))
+    run_id = labels[selected]
+    run = api_request("GET", f"/api/v1/ontology/construction-runs/{run_id}")
+    summary = st.columns(6)
+    for column, (label, value) in zip(
+        summary,
+        (
+            ("状态", run["status"]),
+            ("Catalog", run["catalog_mode"]),
+            ("消融组", run["evidence_mode"]),
+            ("seed", run["seed_accessed"]),
+            ("fallback", run["fallback_used"]),
+            ("legacy", run["legacy_ontology_accessed"]),
+        ),
+        strict=True,
+    ):
+        column.metric(label, value)
+    if run["status"] == "CREATED":
+        if st.button("生成候选", type="primary", use_container_width=True):
+            api_request(
+                "POST",
+                f"/api/v1/ontology/construction-runs/{run_id}/generate",
+                timeout=180,
+            )
+            st.rerun()
+        return
+    if run["status"] == "FAILED":
+        st.error("\n".join(run["errors"]))
+        return
+    candidates = api_request(
+        "GET", f"/api/v1/ontology/construction-runs/{run_id}/candidates"
+    )
+    if not candidates:
+        st.warning("没有候选。")
+        return
+
+    evidence_col, candidate_col, preview_col = st.columns([1, 1.35, 1])
+    with candidate_col:
+        st.subheader("系统候选")
+        kinds = ["全部", *sorted({item["resource_type"] for item in candidates})]
+        kind = st.selectbox("资源类型", kinds)
+        filtered = [
+            item
+            for item in candidates
+            if kind == "全部" or item["resource_type"] == kind
+        ]
+        options = {
+            f"{item['resource_type']} · {item['current_resource']['id']} · "
+            f"{item['status']}": item
+            for item in filtered
+        }
+        candidate = options[st.selectbox("候选项", list(options))]
+        st.json(candidate["current_resource"])
+        decision = st.selectbox(
+            "决定", ["ACCEPT", "MODIFY", "REJECT", "MERGE", "DEFER"]
+        )
+        modified = st.text_area(
+            "修改后的 JSON",
+            json.dumps(candidate["current_resource"], ensure_ascii=False, indent=2),
+            height=220,
+            disabled=decision != "MODIFY",
+        )
+        merge_target = st.text_input("合并目标 candidate_id", disabled=decision != "MERGE")
+        comment = st.text_input("审核说明")
+        final = {"ACCEPTED", "MODIFIED", "REJECTED", "MERGED"}
+        if st.button("提交审核", disabled=candidate["status"] in final):
+            api_request(
+                "POST",
+                (
+                    f"/api/v1/ontology/construction-runs/{run_id}/candidates/"
+                    f"{candidate['candidate_id']}/review"
+                ),
+                json={
+                    "decision": decision,
+                    "reviewer": "streamlit-reviewer",
+                    "modified_resource": json.loads(modified)
+                    if decision == "MODIFY"
+                    else None,
+                    "comment": comment,
+                    "merge_target_candidate_id": merge_target or None,
+                },
+            )
+            st.rerun()
+    with evidence_col:
+        st.subheader("物理证据")
+        for evidence in candidate["evidence"]:
+            with st.expander(str(evidence["source_type"])):
+                st.json(evidence)
+    with preview_col:
+        st.subheader("草稿预览")
+        counts: dict[str, int] = {}
+        for item in candidates:
+            counts[item["status"]] = counts.get(item["status"], 0) + 1
+        st.json(counts)
+        unresolved = sum(
+            item["status"] in {"PENDING", "DEFERRED"} for item in candidates
+        )
+        st.metric("待处理候选", unresolved)
+        if run.get("promoted_draft_id"):
+            st.success(f"已提升至 {run['promoted_draft_id']}")
+        elif st.button("提升到 OntologyDraft", disabled=unresolved > 0):
+            api_request(
+                "POST",
+                f"/api/v1/ontology/construction-runs/{run_id}/promote-to-draft",
+                json={
+                    "draft_name": f"Reviewed {run['evidence_mode']} ontology",
+                    "actor": "streamlit-reviewer",
+                },
+            )
+            st.rerun()
+
+
 def ontology_manager_page() -> None:
     """Object-first editor backed by isolated Draft APIs."""
 
@@ -1070,6 +1231,8 @@ def ontology_manager_page() -> None:
                 ("Binding", "bindings", "binding"),
                 ("LinkType", "link_types", "link_type"),
                 ("PhysicalJoin", "physical_joins", "physical_join"),
+                ("Dimension", "dimensions", "dimension"),
+                ("Metric", "metrics", "metric"),
             )
             for kind, group_name, payload_name in candidate_groups:
                 for item in candidates[group_name]:
@@ -1295,6 +1458,7 @@ page = st.sidebar.radio(
     "工作台",
     [
         "Text-to-SQL",
+        "Ontology Construction",
         "Ontology Manager",
         "模式对比与评测",
         "认证 SQL 资产",
@@ -1303,6 +1467,8 @@ page = st.sidebar.radio(
 )
 if page == "Text-to-SQL":
     text_to_sql_page()
+elif page == "Ontology Construction":
+    ontology_construction_page()
 elif page == "Ontology Manager":
     ontology_manager_page()
 elif page == "模式对比与评测":

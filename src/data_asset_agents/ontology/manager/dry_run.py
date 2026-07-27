@@ -12,7 +12,7 @@ from data_asset_agents.text2sql.graph import build_text2sql_graph
 
 from .compiler import ObjectSemanticCompiler
 from .governance_models import DraftSemanticDryRunCase
-from .models import DraftResources
+from .models import ConstructionMode, DraftResources
 
 CORE_CASES = (
     ("core-branch-card", "查询近30天各分行信用卡交易金额和交易笔数。"),
@@ -29,11 +29,22 @@ class DraftSemanticDryRun:
         self.executor = executor
 
     def run(
-        self, resources: DraftResources, fallback: OntologyBundle
+        self,
+        resources: DraftResources,
+        fallback: OntologyBundle | None,
+        *,
+        construction_mode: ConstructionMode = ConstructionMode.LEGACY_COMPAT,
     ) -> list[DraftSemanticDryRunCase]:
-        compilation = ObjectSemanticCompiler(fallback).compile(resources)
+        compilation = ObjectSemanticCompiler(
+            fallback, construction_mode=construction_mode
+        ).compile(resources)
+        repository = (
+            _FixedBundleRepository(compilation.bundle)
+            if construction_mode == ConstructionMode.STRICT_CONSTRUCTION
+            else YamlOntologyRepository(self.executor.settings.ontology_path)
+        )
         ontology = OntologyService(
-            YamlOntologyRepository(self.executor.settings.ontology_path),
+            repository,  # type: ignore[arg-type]
             settings=self.executor.settings,
             bundle_override=compilation.bundle,
         )
@@ -89,3 +100,13 @@ class DraftSemanticDryRun:
                 report.errors.append(str(exc))
             reports.append(report)
         return reports
+
+
+class _FixedBundleRepository:
+    """Strict-mode repository that never touches YAML or another ontology."""
+
+    def __init__(self, bundle: OntologyBundle) -> None:
+        self.bundle = bundle
+
+    def load(self) -> OntologyBundle:
+        return self.bundle

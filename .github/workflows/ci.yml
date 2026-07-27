@@ -48,6 +48,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f data/ddl/007_ontology_runtime_governance.sql
           psql -v ON_ERROR_STOP=1 -f data/ddl/008_ontology_analysis_semantics.sql
           psql -v ON_ERROR_STOP=1 -f data/ddl/009_ontology_release_governance.sql
+          psql -v ON_ERROR_STOP=1 -f data/ddl/010_ontology_construction.sql
           psql -v ON_ERROR_STOP=1 -f data/seed/002_seed.sql
       - run: python -m pip install -e ".[dev]"
       - name: Print reproducibility identity
