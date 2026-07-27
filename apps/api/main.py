@@ -729,6 +729,26 @@ def get_construction_evaluation(
     return ConstructionEvaluationReport.model_validate(run.evaluation)
 
 
+@app.get(
+    "/api/v1/ontology/construction-runs/{run_id}/evaluation/raw",
+    response_model=ConstructionEvaluationReport,
+)
+def get_raw_construction_evaluation(
+    run_id: str, request: Request
+) -> ConstructionEvaluationReport:
+    return request.app.state.ontology_construction.evaluate_raw(run_id)
+
+
+@app.get(
+    "/api/v1/ontology/construction-runs/{run_id}/evaluation/reviewed",
+    response_model=ConstructionEvaluationReport,
+)
+def get_reviewed_construction_evaluation(
+    run_id: str, request: Request
+) -> ConstructionEvaluationReport:
+    return request.app.state.ontology_construction.get_reviewed_evaluation(run_id)
+
+
 @app.post("/api/v1/ontology/drafts", response_model=OntologyDraftAggregate)
 def create_ontology_draft(payload: CreateDraftRequest, request: Request) -> OntologyDraftAggregate:
     return request.app.state.ontology_manager.create_draft(payload)

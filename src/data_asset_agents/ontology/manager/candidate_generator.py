@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from collections import Counter
 from datetime import datetime
 
@@ -44,6 +45,7 @@ from .models import (
     DraftResources,
     EvidenceSourceType,
     LifecycleStatus,
+    LinkCandidateLLMOutput,
     LinkType,
     MetricDefinition,
     MetricFilterSupport,
@@ -125,11 +127,12 @@ class ObjectFirstCandidateGenerator:
             eligible_tables.append((table, role, evidence))
             object_id = table_to_object.get(table.table_name, infer_object_id(table.table_name))
             table_to_object[table.table_name] = object_id
-            llm_output = (
-                self._live_output(object_id, table.model_dump(mode="json"))
-                if self.settings.llm_mode != "mock"
-                else None
-            )
+            llm_output = None
+            if self.settings.llm_mode != "mock":
+                llm_output, invocation = self._live_output(
+                    object_id, table.model_dump(mode="json")
+                )
+                result.llm_invocations.append(invocation)
             properties, column_bindings = self._properties(
                 snapshot.id,
                 table,
@@ -195,7 +198,13 @@ class ObjectFirstCandidateGenerator:
             snapshot.captured_at,
         )
         result.physical_joins.extend(item[0] for item in joins)
-        result.link_types.extend(item[1] for item in joins)
+        result.link_types.extend(item[1] for item in joins if item[1] is not None)
+        if self.settings.llm_mode != "mock" and result.link_types:
+            link_output, invocation = self._live_link_output(result.link_types)
+            result.link_types = self._apply_link_enrichment(
+                result.link_types, link_output
+            )
+            result.llm_invocations.append(invocation)
         result.dimensions.extend(
             self._dimension_candidates(snapshot.id, result.properties, historical_sql)
         )
@@ -390,32 +399,13 @@ class ObjectFirstCandidateGenerator:
             if 0 <= index < len(output.property_names) and output.property_names[index]:
                 updates["name"] = output.property_names[index]
             suggested_role = output.property_roles.get(column_name)
-            if suggested_role is not None:
-                compatible = (
-                    suggested_role == candidate.property.semantic_role
-                    or suggested_role
-                    in {
-                        SemanticRole.ATTRIBUTE,
-                        SemanticRole.STATUS,
-                        SemanticRole.DIMENSION,
-                    }
-                    and candidate.property.data_type.value == "STRING"
-                    or suggested_role == SemanticRole.TIME
-                    and candidate.property.data_type.value in {"DATE", "DATETIME"}
-                    or suggested_role == SemanticRole.MEASURE
-                    and candidate.property.data_type.value in {"INTEGER", "DECIMAL"}
+            if (
+                suggested_role is not None
+                and suggested_role != candidate.property.semantic_role
+            ):
+                warnings.append(
+                    f"LLM role {suggested_role} ignored; deterministic role is authoritative"
                 )
-                if compatible:
-                    updates["semantic_role"] = suggested_role
-                    updates["groupable"] = suggested_role in {
-                        SemanticRole.DIMENSION,
-                        SemanticRole.STATUS,
-                        SemanticRole.TIME,
-                    }
-                else:
-                    warnings.append(
-                        f"LLM role {suggested_role} conflicts with deterministic type"
-                    )
             evidence = [
                 *candidate.evidence,
                 CandidateEvidence(
@@ -480,7 +470,7 @@ class ObjectFirstCandidateGenerator:
         existing_links: set[str],
         existing_joins: set[str],
         captured_at: datetime,
-    ) -> list[tuple[CandidatePhysicalJoin, CandidateLinkType]]:
+    ) -> list[tuple[CandidatePhysicalJoin, CandidateLinkType | None]]:
         evidence_rows: dict[tuple[str, str, str, str], list[CandidateEvidence]] = {}
         for table, _, _ in eligible_tables:
             for foreign_key in table.foreign_keys:
@@ -504,7 +494,10 @@ class ObjectFirstCandidateGenerator:
                     CandidateEvidence(source="historical-sql", detail=analysis.id)
                 )
 
-        result: list[tuple[CandidatePhysicalJoin, CandidateLinkType]] = []
+        table_roles = {table.table_name: role for table, role, _ in eligible_tables}
+        result: list[tuple[CandidatePhysicalJoin, CandidateLinkType | None]] = []
+        generated_join_ids: set[str] = set()
+        generated_links: dict[str, CandidateLinkType] = {}
         for (left_table, left_column, right_table, right_column), evidence in sorted(
             evidence_rows.items()
         ):
@@ -513,9 +506,25 @@ class ObjectFirstCandidateGenerator:
             if not left_object or not right_object or left_object == right_object:
                 continue
             join_id = stable_resource_id(left_object, right_object, "join")
-            link_id = stable_resource_id(left_object, "to", right_object)
-            if join_id in existing_joins or link_id in existing_links:
+            if join_id in generated_join_ids:
+                join_id = stable_resource_id(
+                    left_object,
+                    left_column,
+                    right_object,
+                    right_column,
+                    "join",
+                )
+            business_link = self._business_link(
+                left_object,
+                right_object,
+                table_roles[left_table],
+                join_id,
+                captured_at,
+            )
+            link_id = business_link.id if business_link is not None else ""
+            if join_id in existing_joins:
                 continue
+            generated_join_ids.add(join_id)
             physical_join = PhysicalJoinDefinition(
                 id=join_id,
                 name=f"{left_object} to {right_object} join",
@@ -529,20 +538,35 @@ class ObjectFirstCandidateGenerator:
                 evidence=[f"{item.source}: {item.detail}" for item in evidence],
                 lifecycle_status=LifecycleStatus.DRAFT,
             )
-            link = LinkType(
-                id=link_id,
-                name=f"{left_object} relates to {right_object}",
-                description="Business Link candidate; physical evidence remains separate",
-                source_object_type_id=left_object,
-                target_object_type_id=right_object,
-                source_role_name=right_object,
-                target_role_name=f"{left_object}_items",
-                cardinality=Cardinality.MANY_TO_ONE,
-                physical_join_ids=[join_id],
-                lifecycle_status=LifecycleStatus.DRAFT,
-                created_at=captured_at,
-                updated_at=captured_at,
+            # SQL co-occurrence alone is insufficient. A certified SQL join may
+            # support a business Link only when it has an FK-shaped event-to-entity
+            # endpoint whose column names identify the referenced object key.
+            has_foreign_key = any(item.source == "foreign-key" for item in evidence)
+            certified_event_reference = (
+                table_roles[left_table] == TableRole.EVENT
+                and table_roles[right_table] == TableRole.CANONICAL_OBJECT
+                and left_column.lower()
+                in {
+                    f"{right_object}_id",
+                    right_column.lower(),
+                }
             )
+            link = (
+                business_link
+                if (has_foreign_key or certified_event_reference)
+                and link_id not in existing_links
+                else None
+            )
+            if link is not None and link.id in generated_links:
+                previous = generated_links[link.id]
+                previous.link_type.physical_join_ids = sorted(
+                    {
+                        *previous.link_type.physical_join_ids,
+                        *link.physical_join_ids,
+                    }
+                )
+                previous.evidence.extend(evidence)
+                link = None
             result.append(
                 (
                     CandidatePhysicalJoin(
@@ -551,15 +575,72 @@ class ObjectFirstCandidateGenerator:
                         confidence=physical_join.confidence,
                         evidence=evidence,
                     ),
-                    CandidateLinkType(
-                        candidate_id=f"candidate-link-{snapshot_id}-{link_id}",
-                        link_type=link,
-                        confidence=physical_join.confidence,
-                        evidence=evidence,
+                    (
+                        CandidateLinkType(
+                            candidate_id=f"candidate-link-{snapshot_id}-{link_id}",
+                            link_type=link,
+                            confidence=physical_join.confidence,
+                            evidence=evidence,
+                        )
+                        if link is not None
+                        else None
                     ),
                 )
             )
+            if result[-1][1] is not None:
+                generated_links[result[-1][1].link_type.id] = result[-1][1]
         return result
+
+    @staticmethod
+    def _business_link(
+        child_object: str,
+        parent_object: str,
+        child_role: TableRole,
+        join_id: str,
+        captured_at: datetime,
+    ) -> LinkType:
+        """Infer conservative business semantics while keeping FK coordinates fixed."""
+
+        parent_tokens = set(parent_object.lower().split("_"))
+        location_tokens = {"branch", "location", "site", "office"}
+        counterparty_tokens = {"merchant", "vendor", "store", "channel"}
+        owner_tokens = {"customer", "user", "member", "owner", "party"}
+        if child_role == TableRole.EVENT and parent_tokens & location_tokens:
+            source, relationship, target = child_object, "belongs_to", parent_object
+        elif child_role == TableRole.EVENT and parent_tokens & counterparty_tokens:
+            source, relationship, target = child_object, "occurs_at", parent_object
+        elif child_role == TableRole.EVENT:
+            source, relationship, target = parent_object, "generates", child_object
+        elif parent_tokens & owner_tokens:
+            source, relationship, target = parent_object, "owns", child_object
+        else:
+            source, relationship, target = parent_object, "has", child_object
+        reversed_direction = source == parent_object
+        cardinality = (
+            Cardinality.ONE_TO_MANY
+            if reversed_direction
+            else Cardinality.MANY_TO_ONE
+        )
+        source_role = source if reversed_direction else target
+        inverse_role = f"{target}s" if reversed_direction else f"{source}s"
+        link_id = stable_resource_id(source, relationship, target)
+        return LinkType(
+            id=link_id,
+            name=f"{source} {relationship.replace('_', ' ')} {target}",
+            description=(
+                "Business Link inferred from a declared foreign key and object roles; "
+                "physical coordinates remain in the referenced join."
+            ),
+            source_object_type_id=source,
+            target_object_type_id=target,
+            source_role_name=source_role,
+            target_role_name=inverse_role,
+            cardinality=cardinality,
+            physical_join_ids=[join_id],
+            lifecycle_status=LifecycleStatus.DRAFT,
+            created_at=captured_at,
+            updated_at=captured_at,
+        )
 
     @staticmethod
     def _dimension_candidates(
@@ -847,15 +928,145 @@ class ObjectFirstCandidateGenerator:
                 )
         return result
 
-    def _live_output(self, object_id: str, table: dict[str, object]) -> ObjectCandidateLLMOutput:
+    def _live_output(
+        self, object_id: str, table: dict[str, object]
+    ) -> tuple[ObjectCandidateLLMOutput, dict[str, object]]:
+        prompt_version = "ontology-construction-semantic-v2"
+        input_payload = {"object_hint": object_id, "metadata": table}
         prompt = (
             "Generate review-only business names and descriptions from masked metadata. "
             "Never output physical bindings, joins, lifecycle, policies, SQL, "
             "or publication state.\n"
-            + json.dumps({"object_hint": object_id, "metadata": table}, ensure_ascii=False)
+            + json.dumps(input_payload, ensure_ascii=False)
         )
         model = self.factory.chat_model().with_structured_output(
             ObjectCandidateLLMOutput,
             method="function_calling",
+            include_raw=True,
         )
-        return ObjectCandidateLLMOutput.model_validate(model.invoke(prompt))
+        started = time.perf_counter()
+        response = model.invoke(prompt)
+        latency_ms = round((time.perf_counter() - started) * 1000, 3)
+        parsed = response.get("parsed") if isinstance(response, dict) else None
+        parsing_error = (
+            response.get("parsing_error") if isinstance(response, dict) else None
+        )
+        if parsing_error is not None or parsed is None:
+            raise ValueError(f"Invalid LLM structured output: {parsing_error}")
+        output = ObjectCandidateLLMOutput.model_validate(parsed)
+        raw = response.get("raw") if isinstance(response, dict) else None
+        usage = getattr(raw, "usage_metadata", None) or {}
+        provenance: dict[str, object] = {
+            "provider": self.settings.llm_provider,
+            "model": self.settings.llm_model,
+            "temperature": 0,
+            "max_tokens": self.settings.llm_max_output_tokens,
+            "prompt_version": prompt_version,
+            "input_evidence_hash": hashlib.sha256(
+                json.dumps(input_payload, sort_keys=True, default=str).encode()
+            ).hexdigest(),
+            "output_hash": hashlib.sha256(
+                output.model_dump_json().encode()
+            ).hexdigest(),
+            "retry_count": 0,
+            "latency_ms": latency_ms,
+            "token_usage": dict(usage),
+            "invalid_output_count": 0,
+        }
+        return output, provenance
+
+    def _live_link_output(
+        self, candidates: list[CandidateLinkType]
+    ) -> tuple[LinkCandidateLLMOutput, dict[str, object]]:
+        prompt_version = "ontology-construction-link-semantics-v2"
+        input_payload = {
+            "links": [
+                {
+                    "link_id": item.link_type.id,
+                    "source_object_type_id": item.link_type.source_object_type_id,
+                    "target_object_type_id": item.link_type.target_object_type_id,
+                    "cardinality": item.link_type.cardinality,
+                }
+                for item in candidates
+            ]
+        }
+        prompt = (
+            "Suggest concise business-facing names and inverse role names for every "
+            "listed Link. Return each link_id exactly as supplied. Never change IDs, "
+            "endpoints, direction, cardinality, physical joins, or lifecycle.\n"
+            + json.dumps(input_payload, ensure_ascii=False)
+        )
+        model = self.factory.chat_model().with_structured_output(
+            LinkCandidateLLMOutput,
+            method="function_calling",
+            include_raw=True,
+        )
+        started = time.perf_counter()
+        response = model.invoke(prompt)
+        latency_ms = round((time.perf_counter() - started) * 1000, 3)
+        parsed = response.get("parsed") if isinstance(response, dict) else None
+        parsing_error = (
+            response.get("parsing_error") if isinstance(response, dict) else None
+        )
+        if parsing_error is not None or parsed is None:
+            raise ValueError(f"Invalid Link LLM structured output: {parsing_error}")
+        output = LinkCandidateLLMOutput.model_validate(parsed)
+        allowed = {item.link_type.id for item in candidates}
+        returned = [item.link_id for item in output.suggestions]
+        if set(returned) - allowed or len(returned) != len(set(returned)):
+            raise ValueError("Link LLM output changed or duplicated a stable ID")
+        raw = response.get("raw") if isinstance(response, dict) else None
+        usage = getattr(raw, "usage_metadata", None) or {}
+        provenance: dict[str, object] = {
+            "provider": self.settings.llm_provider,
+            "model": self.settings.llm_model,
+            "temperature": 0,
+            "max_tokens": self.settings.llm_max_output_tokens,
+            "prompt_version": prompt_version,
+            "input_evidence_hash": hashlib.sha256(
+                json.dumps(input_payload, sort_keys=True, default=str).encode()
+            ).hexdigest(),
+            "output_hash": hashlib.sha256(output.model_dump_json().encode()).hexdigest(),
+            "retry_count": 0,
+            "latency_ms": latency_ms,
+            "token_usage": dict(usage),
+            "invalid_output_count": 0,
+        }
+        return output, provenance
+
+    @staticmethod
+    def _apply_link_enrichment(
+        candidates: list[CandidateLinkType],
+        output: LinkCandidateLLMOutput,
+    ) -> list[CandidateLinkType]:
+        suggestions = {item.link_id: item for item in output.suggestions}
+        enriched: list[CandidateLinkType] = []
+        for candidate in candidates:
+            suggestion = suggestions.get(candidate.link_type.id)
+            if suggestion is None:
+                enriched.append(candidate)
+                continue
+            link = candidate.link_type.model_copy(
+                update={
+                    "name": suggestion.business_name,
+                    "target_role_name": suggestion.inverse_name,
+                }
+            )
+            enriched.append(
+                candidate.model_copy(
+                    update={
+                        "link_type": link,
+                        "evidence": [
+                            *candidate.evidence,
+                            CandidateEvidence(
+                                source_type=EvidenceSourceType.LLM_SEMANTIC_SUGGESTION,
+                                extracted_fact="business Link name/inverse name suggestion",
+                                confidence=candidate.confidence,
+                                deterministic=False,
+                                llm_generated=True,
+                            ),
+                        ],
+                    }
+                )
+            )
+        return enriched

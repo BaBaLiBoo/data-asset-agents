@@ -24,6 +24,7 @@ from data_asset_agents.ontology.manager.candidate_generator import (
     ObjectFirstCandidateGenerator,
 )
 from data_asset_agents.ontology.manager.compiler import ObjectSemanticCompiler
+from data_asset_agents.ontology.manager.construction import OntologyConstructionService
 from data_asset_agents.ontology.manager.governed_catalog import load_governed_catalog
 from data_asset_agents.ontology.manager.models import (
     CatalogMode,
@@ -47,7 +48,7 @@ from data_asset_agents.ontology.models import (
 from data_asset_agents.sql_assets import HistoricalSQLParser
 
 ROOT = Path(__file__).parents[1]
-OUTPUT = ROOT / "reports/ontology_construction"
+OUTPUT = ROOT / "reports/ontology_construction_v2"
 
 
 def _file_hash(path: Path) -> str:
@@ -310,16 +311,14 @@ def run() -> list[dict[str, Any]]:
     historical_sql = HistoricalSQLParser().parse_file(
         ROOT / "data/historical_sql/examples.json"
     )
-    gold, gold_hash = GoldOntologyLoader(
-        ROOT / "ontology/retail_banking/object_model"
-    ).load()
     catalog = load_governed_catalog(
         ROOT / "data/governed_catalog/minibank_tables.json"
     )
     experiments = [
-        (mode, CatalogMode.RAW_METADATA)
+        (mode, catalog_mode)
+        for catalog_mode in CatalogMode
         for mode in ConstructionEvidenceMode
-    ] + [(ConstructionEvidenceMode.O_C_SCHEMA_PROFILING_SQL, CatalogMode.GOVERNED_CATALOG)]
+    ]
     reports: list[dict[str, Any]] = []
     for mode, catalog_mode in experiments:
         include_profiles = mode != ConstructionEvidenceMode.O_A_SCHEMA_ONLY
@@ -347,6 +346,34 @@ def run() -> list[dict[str, Any]]:
             historical_sql if include_sql else [],
             catalog_mode=catalog_mode,
         )
+        # Gold enters only after generation. First it is a read-only scoring target;
+        # only after raw scoring does the test reviewer use it for decisions.
+        gold, gold_hash = GoldOntologyLoader(
+            ROOT / "ontology/retail_banking/object_model"
+        ).load()
+        raw_candidates = OntologyConstructionService._flatten(run_id, generated)
+        construction_run = OntologyConstructionRun(
+            run_id=run_id,
+            status="EVALUATED",
+            source_snapshot_id=snapshot.id,
+            source_snapshot_hash=metadata_snapshot_hash,
+            profiling_snapshot_hash=profiling_snapshot_hash,
+            historical_sql_snapshot_hash=historical_sql_hash,
+            catalog_mode=catalog_mode,
+            construction_mode=ConstructionMode.STRICT_CONSTRUCTION,
+            evidence_mode=mode,
+            llm_mode="mock",
+            provider="mock",
+            model="deterministic-rules-v1",
+            temperature=0,
+            random_seed=20260715,
+            git_sha=git_sha,
+            created_by="mock-report-script",
+        )
+        evaluator = OntologyConstructionEvaluator()
+        raw_report = evaluator.evaluate_raw(
+            construction_run, raw_candidates, gold, gold_hash
+        )
         resources, reviews = _candidate_resources(generated, gold, run_id)
         try:
             compilation = ObjectSemanticCompiler(
@@ -371,30 +398,21 @@ def run() -> list[dict[str, Any]]:
             or fallback_used
             or legacy_ontology_accessed
         )
-        construction_run = OntologyConstructionRun(
-            run_id=run_id,
-            status="EVALUATED",
-            source_snapshot_id=snapshot.id,
-            source_snapshot_hash=metadata_snapshot_hash,
-            profiling_snapshot_hash=profiling_snapshot_hash,
-            historical_sql_snapshot_hash=historical_sql_hash,
-            catalog_mode=catalog_mode,
-            construction_mode=ConstructionMode.STRICT_CONSTRUCTION,
-            evidence_mode=mode,
-            llm_mode="mock",
-            provider="mock",
-            model="deterministic-rules-v1",
-            temperature=0,
-            random_seed=20260715,
-            git_sha=git_sha,
-            created_by="mock-report-script",
-            strict_validation_passed=strict_validation_passed,
-            seed_accessed=seed_accessed,
-            fallback_used=fallback_used,
-            legacy_ontology_accessed=legacy_ontology_accessed,
+        construction_run = construction_run.model_copy(
+            update={
+                "strict_validation_passed": strict_validation_passed,
+                "seed_accessed": seed_accessed,
+                "fallback_used": fallback_used,
+                "legacy_ontology_accessed": legacy_ontology_accessed,
+            }
         )
-        report = OntologyConstructionEvaluator().evaluate(
-            construction_run, resources, reviews, gold, gold_hash
+        report = evaluator.evaluate(
+            construction_run,
+            resources,
+            reviews,
+            gold,
+            gold_hash,
+            raw_report=raw_report,
         )
         payload = report.model_dump(mode="json")
         payload["candidate_counts"] = {
@@ -561,5 +579,176 @@ def write_reports(reports: list[dict[str, Any]]) -> None:
     )
 
 
+def _display(value: Any) -> str:
+    if value is None:
+        return "—"
+    return f"{value:.3f}" if isinstance(value, float) else str(value)
+
+
+def write_v2_reports(reports: list[dict[str, Any]]) -> None:
+    """Write stage-separated machine-readable reports and an honest summary."""
+
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    (OUTPUT / "mock_ablation_v2.json").write_text(
+        json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    for filename, field in (
+        ("raw_candidate_metrics.json", "raw_candidate_metrics"),
+        ("reviewed_draft_metrics.json", "reviewed_draft_metrics"),
+        ("review_cost.json", "review_cost"),
+        ("review_delta.json", "review_delta"),
+        ("link_error_analysis.json", "error_analysis"),
+    ):
+        (OUTPUT / filename).write_text(
+            json.dumps(
+                [
+                    {
+                        "run_id": report["run_id"],
+                        "provenance": report["provenance"],
+                        field: report[field],
+                    }
+                    for report in reports
+                ],
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+    columns = [
+        "run_id",
+        "evidence_mode",
+        "catalog_mode",
+        "raw_object_f1",
+        "raw_link_endpoint_pair_f1",
+        "raw_directed_link_f1",
+        "raw_semantic_link_f1",
+        "raw_metric_f1",
+        "reviewed_object_f1",
+        "reviewed_link_f1",
+        "reviewed_metric_f1",
+        "acceptance_rate",
+        "modification_rate",
+        "rejection_rate",
+        "edited_fields",
+        "review_saving_rate",
+        "strict_validation_passed",
+        "publication_succeeded",
+        "runtime_activation_succeeded",
+    ]
+    with (OUTPUT / "mock_ablation_v2.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns, lineterminator="\n")
+        writer.writeheader()
+        for report in reports:
+            raw = report["raw_candidate_metrics"]
+            reviewed = report["reviewed_draft_metrics"]
+            cost = report["review_cost"]
+            writer.writerow(
+                {
+                    "run_id": report["run_id"],
+                    "evidence_mode": report["provenance"]["evidence_mode"],
+                    "catalog_mode": report["provenance"]["catalog_mode"],
+                    "raw_object_f1": raw.get("object_f1"),
+                    "raw_link_endpoint_pair_f1": raw.get("link_endpoint_pair_f1"),
+                    "raw_directed_link_f1": raw.get("directed_link_f1"),
+                    "raw_semantic_link_f1": raw.get("semantic_link_f1"),
+                    "raw_metric_f1": raw.get("metric_f1"),
+                    "reviewed_object_f1": reviewed.get("object_f1"),
+                    "reviewed_link_f1": reviewed.get("link_f1"),
+                    "reviewed_metric_f1": reviewed.get("metric_f1"),
+                    "acceptance_rate": cost.get("direct_acceptance_rate"),
+                    "modification_rate": cost.get("modification_rate"),
+                    "rejection_rate": cost.get("rejection_rate"),
+                    "edited_fields": cost.get("total_edited_field_count"),
+                    "review_saving_rate": cost.get("review_saving_rate"),
+                    "strict_validation_passed": reviewed.get(
+                        "strict_validation_passed"
+                    ),
+                    "publication_succeeded": reviewed.get("publication_succeeded"),
+                    "runtime_activation_succeeded": reviewed.get(
+                        "runtime_activation_succeeded"
+                    ),
+                }
+            )
+
+    lines = [
+        "# Ontology Construction Quality Evaluation V2 — Mock Ablation",
+        "",
+        "Generated from the public fictional MiniBank DDL, seed rows, and certified "
+        "historical SQL. Raw scores are computed from immutable generated candidates "
+        "before the Gold-backed test reviewer changes any resource.",
+        "",
+        "| Run | Raw Object F1 | Raw Endpoint Link F1 | Raw Directed Link F1 | "
+        "Raw Semantic Link F1 | Raw Metric F1 | Reviewed F1 | Accept | Modify | "
+        "Reject | Edit Fields | Saving Rate |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for report in reports:
+        raw = report["raw_candidate_metrics"]
+        reviewed = report["reviewed_draft_metrics"]
+        cost = report["review_cost"]
+        values = [
+            reviewed.get(name)
+            for name in (
+                "object_f1",
+                "property_f1",
+                "binding_f1",
+                "link_f1",
+                "physical_join_f1",
+                "dimension_f1",
+                "metric_f1",
+            )
+            if reviewed.get(name) is not None
+        ]
+        reviewed_f1 = sum(values) / len(values) if values else None
+        lines.append(
+            f"| {report['run_id']} | {_display(raw.get('object_f1'))} | "
+            f"{_display(raw.get('link_endpoint_pair_f1'))} | "
+            f"{_display(raw.get('directed_link_f1'))} | "
+            f"{_display(raw.get('semantic_link_f1'))} | "
+            f"{_display(raw.get('metric_f1'))} | {_display(reviewed_f1)} | "
+            f"{_display(cost.get('direct_acceptance_rate'))} | "
+            f"{_display(cost.get('modification_rate'))} | "
+            f"{_display(cost.get('rejection_rate'))} | "
+            f"{_display(cost.get('total_edited_field_count'))} | "
+            f"{_display(cost.get('review_saving_rate'))} |"
+        )
+    first = reports[0]
+    lines.extend(
+        [
+            "",
+            "## Correct interpretation",
+            "",
+            "- Raw candidate F1 measures automation quality. Reviewed Draft F1 measures "
+            "the result after a Gold-backed test reviewer; it is not automation F1.",
+            "- `null` in JSON, an empty CSV cell, and `—` here mean not applicable. "
+            "An empty comparison is never reported as 100%.",
+            "- Review saving rate is an engineering operation estimate, not human time. "
+            "It counts decisions and changed fields against resource creation and "
+            "populated Gold fields.",
+            "- O-D is mock semantic enrichment here and makes no live-model gain claim.",
+            "- File-only mock runs do not publish or activate versions. Docker acceptance "
+            "covers strict publication and runtime activation.",
+            "",
+            "## Provenance",
+            "",
+            f"- Git SHA: `{first['provenance']['git_sha']}`",
+            f"- Database snapshot hash: "
+            f"`{first['provenance']['database_snapshot_hash']}`",
+            f"- Metadata snapshot hash: "
+            f"`{first['provenance']['metadata_snapshot_hash']}`",
+            f"- Historical SQL hash: "
+            f"`{first['provenance']['historical_sql_snapshot_hash']}`",
+            f"- Gold hash: `{first['gold_hash']}`",
+            "- Catalog mode and evidence mode are independent. Both RAW_METADATA and "
+            "GOVERNED_CATALOG run across O-A through O-D.",
+        ]
+    )
+    (OUTPUT / "mock_ablation_v2.md").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8"
+    )
+
+
 if __name__ == "__main__":
-    write_reports(run())
+    write_v2_reports(run())

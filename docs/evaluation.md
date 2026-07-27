@@ -1,5 +1,19 @@
 # Text-to-SQL 对照实验设计
 
+## Reviewed ontology V2 experiment isolation
+
+Ontology Construction Quality Evaluation V2 treats ontology source and SQLAsset
+enablement as independent factors. T-A through T-H are Schema, Physical RAG,
+reviewed O-C off/on, reviewed live O-D off/on, and Gold off/on. Reviewed O-C,
+reviewed O-D, and Gold require different ontology version, bundle/artifact hash,
+and version-bound SQLAsset build. No ontology may change while cases run.
+
+Construction reports separate immutable raw candidates, reviewed Draft quality,
+review delta, and field-level engineering review cost. Mock O-D is not evidence
+of live-model gain. Without a usable live key and all isolated versions, live O-D
+and its dependent 80-case groups are recorded as not run rather than filled with
+mock or historical results.
+
 ## 四个严格隔离实验组
 
 | 组别 | 可见知识 | 禁止访问 | 生成方式 |

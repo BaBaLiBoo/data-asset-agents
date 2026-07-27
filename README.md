@@ -15,6 +15,16 @@ approve, publish, and Dry Run. Its report and READY artifact must record
 `seed_accessed=false`, `fallback_used=false`, and
 `legacy_ontology_accessed=false`.
 
+Construction Evaluation V2 keeps automatic quality and reviewed quality
+separate. `RAW_CANDIDATE` scores immutable generated candidates before any Gold
+test-review modification; `REVIEWED_DRAFT` scores the promoted result and reports
+review delta, field-level review cost, and an explicit manual-from-zero operation
+baseline. Empty comparisons are `null`, never a synthetic 1.0. Business Link
+endpoint, direction, semantics, cardinality, and Physical Join consistency are
+reported independently. See
+[`docs/ontology-construction-evaluation.md`](docs/ontology-construction-evaluation.md)
+and [`reports/ontology_construction_v2/`](reports/ontology_construction_v2/).
+
 Fresh isolated database acceptance:
 
 ```powershell

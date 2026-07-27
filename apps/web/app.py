@@ -589,7 +589,7 @@ def ontology_construction_page() -> None:
     st.title("Ontology Construction Workbench")
     st.caption("固定物理证据 → 系统候选 → 人工审核 → 统一 OntologyDraft")
 
-    controls = st.columns(3)
+    controls = st.columns(4)
     if controls[0].button("创建 RAW_METADATA 快照", use_container_width=True):
         build = api_request(
             "POST",
@@ -602,6 +602,12 @@ def ontology_construction_page() -> None:
         "Snapshot", st.session_state.get("construction_snapshot", "")
     )
     evidence_mode = controls[2].selectbox("消融组", ["O-A", "O-B", "O-C", "O-D"], index=2)
+    llm_mode = controls[3].selectbox(
+        "Semantic enrichment",
+        ["mock", "live"],
+        disabled=evidence_mode != "O-D",
+        help="Live is used only by O-D and requires the server-side API key.",
+    )
     catalog_mode = st.radio(
         "表资产模式", ["RAW_METADATA", "GOVERNED_CATALOG"], horizontal=True
     )
@@ -614,9 +620,11 @@ def ontology_construction_page() -> None:
                 "catalog_mode": catalog_mode,
                 "construction_mode": "STRICT_CONSTRUCTION",
                 "evidence_mode": evidence_mode,
-                "llm_mode": "mock",
-                "provider": "mock",
-                "model": "deterministic-rules-v1",
+                "llm_mode": llm_mode if evidence_mode == "O-D" else "mock",
+                "provider": "configured-live" if llm_mode == "live" else "mock",
+                "model": "configured-live"
+                if llm_mode == "live"
+                else "deterministic-rules-v1",
                 "temperature": 0,
                 "random_seed": 20260715,
                 "created_by": "streamlit-reviewer",
@@ -669,6 +677,53 @@ def ontology_construction_page() -> None:
         st.warning("没有候选。")
         return
 
+    raw_evaluation = api_request(
+        "GET", f"/api/v1/ontology/construction-runs/{run_id}/evaluation/raw"
+    )
+    raw_metrics = raw_evaluation.get("raw_candidate_metrics", {})
+    quality = st.columns(5)
+    quality[0].metric("Raw Object F1", raw_metrics.get("object_f1") or 0)
+    quality[1].metric(
+        "Link endpoint F1", raw_metrics.get("link_endpoint_pair_f1") or 0
+    )
+    quality[2].metric("Directed Link F1", raw_metrics.get("directed_link_f1") or 0)
+    quality[3].metric("Semantic Link F1", raw_metrics.get("semantic_link_f1") or 0)
+    quality[4].metric("Raw Metric F1", raw_metrics.get("metric_f1") or 0)
+
+    progress_rows = []
+    for resource_type in sorted({item["resource_type"] for item in candidates}):
+        typed = [item for item in candidates if item["resource_type"] == resource_type]
+        progress_rows.append(
+            {
+                "resource_type": resource_type,
+                **{
+                    status.lower(): sum(item["status"] == status for item in typed)
+                    for status in (
+                        "PENDING",
+                        "ACCEPTED",
+                        "MODIFIED",
+                        "REJECTED",
+                        "MERGED",
+                        "DEFERRED",
+                    )
+                },
+            }
+        )
+    with st.expander("Raw quality and review progress", expanded=True):
+        st.dataframe(progress_rows, use_container_width=True, hide_index=True)
+        link_diagnostics = {
+            key: value
+            for key, value in raw_metrics.items()
+            if key.startswith("link_")
+            or key in {"directed_link_f1", "semantic_link_f1"}
+        }
+        metric_diagnostics = {
+            key: value for key, value in raw_metrics.items() if key.startswith("metric_")
+        }
+        link_tab, metric_tab = st.tabs(["Link diagnostics", "Metric diagnostics"])
+        link_tab.json(link_diagnostics)
+        metric_tab.json(metric_diagnostics)
+
     evidence_col, candidate_col, preview_col = st.columns([1, 1.35, 1])
     with candidate_col:
         st.subheader("系统候选")
@@ -686,6 +741,27 @@ def ontology_construction_page() -> None:
         }
         candidate = options[st.selectbox("候选项", list(options))]
         st.json(candidate["current_resource"])
+        original_resource = next(
+            (
+                value
+                for value in candidate["original_candidate"].values()
+                if isinstance(value, dict) and "id" in value
+            ),
+            {},
+        )
+        diff = "\n".join(
+            difflib.unified_diff(
+                json.dumps(original_resource, ensure_ascii=False, indent=2).splitlines(),
+                json.dumps(
+                    candidate["current_resource"], ensure_ascii=False, indent=2
+                ).splitlines(),
+                fromfile="raw-candidate.json",
+                tofile="reviewed-resource.json",
+                lineterm="",
+            )
+        )
+        with st.expander("Raw candidate → reviewed resource Diff"):
+            st.code(diff or "No reviewed changes.", language="diff")
         decision = st.selectbox(
             "决定", ["ACCEPT", "MODIFY", "REJECT", "MERGE", "DEFER"]
         )
@@ -733,6 +809,21 @@ def ontology_construction_page() -> None:
         st.metric("待处理候选", unresolved)
         if run.get("promoted_draft_id"):
             st.success(f"已提升至 {run['promoted_draft_id']}")
+            if st.button("Evaluate reviewed Draft"):
+                api_request(
+                    "POST",
+                    f"/api/v1/ontology/construction-runs/{run_id}/evaluate",
+                    json={},
+                )
+                st.rerun()
+            if run.get("evaluation"):
+                st.json(
+                    {
+                        "review_delta": run["evaluation"].get("review_delta", {}),
+                        "review_cost": run["evaluation"].get("review_cost", {}),
+                        "published_version_id": run.get("published_version_id"),
+                    }
+                )
         elif st.button("提升到 OntologyDraft", disabled=unresolved > 0):
             api_request(
                 "POST",

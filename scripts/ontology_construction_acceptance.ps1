@@ -108,6 +108,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 $review = ($reviewOutput | Select-Object -Last 1) | ConvertFrom-Json
 if (-not $review.gold_loaded_after_generation -or
+    -not $review.raw_evaluated_before_gold_review -or
     $review.reviewer_kind -ne "POST_GENERATION_GOLD_TEST_REVIEWER" -or
     [int]$review.decisions.ACCEPT -le 0 -or
     [int]$review.decisions.MODIFY -le 0 -or
@@ -352,6 +353,15 @@ if (-not $evaluation.metrics.strict_validation_passed -or
     $evaluation.metrics.fallback_used -or
     $evaluation.metrics.legacy_ontology_accessed) {
     throw "Construction Evaluation does not reflect the completed strict lifecycle"
+}
+if ($evaluation.evaluation_schema_version -ne "2.0" -or
+    $null -eq $evaluation.raw_candidate_metrics -or
+    $null -eq $evaluation.reviewed_draft_metrics -or
+    $null -eq $evaluation.review_delta -or
+    $null -eq $evaluation.review_cost -or
+    $evaluation.raw_candidate_metrics.link_endpoint_pair_f1 -le 0 -or
+    $evaluation.raw_candidate_metrics.directed_link_f1 -le 0) {
+    throw "Construction Evaluation V2 lacks separated raw/reviewed quality or Link diagnostics"
 }
 
 Write-Host (

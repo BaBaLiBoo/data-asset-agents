@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from data_asset_agents.ontology.models import MetricAggregation, PropertyFilterPredicate
 
@@ -632,6 +632,7 @@ class ObjectCandidateSet(BaseModel):
     dimensions: list[CandidateDimension] = Field(default_factory=list)
     metrics: list[CandidateMetric] = Field(default_factory=list)
     excluded_tables: dict[str, str] = Field(default_factory=dict)
+    llm_invocations: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class CreateConstructionRunRequest(BaseModel):
@@ -684,6 +685,8 @@ class OntologyConstructionRun(BaseModel):
     created_by: str
     promoted_draft_id: str | None = None
     evaluation: dict[str, Any] | None = None
+    raw_evaluation: dict[str, Any] | None = None
+    llm_invocations: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ConstructionCandidate(BaseModel):
@@ -724,11 +727,17 @@ class PromoteConstructionRunRequest(BaseModel):
 
 
 class ConstructionEvaluationReport(BaseModel):
+    evaluation_schema_version: str = "2.0"
     run_id: str
     gold_hash: str
     valid_run: bool
-    metrics: dict[str, float | int | bool | str | None]
-    provenance: dict[str, Any]
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    raw_candidate_metrics: dict[str, Any] = Field(default_factory=dict)
+    reviewed_draft_metrics: dict[str, Any] = Field(default_factory=dict)
+    review_delta: dict[str, Any] = Field(default_factory=dict)
+    review_cost: dict[str, Any] = Field(default_factory=dict)
+    error_analysis: dict[str, Any] = Field(default_factory=dict)
+    provenance: dict[str, Any] = Field(default_factory=dict)
     generated_at: datetime = Field(default_factory=utc_now)
 
 
@@ -740,13 +749,34 @@ class ImportObjectCandidatesRequest(BaseModel):
 class ObjectCandidateLLMOutput(BaseModel):
     """Provider-neutral Structured Output; never a publishable resource by itself."""
 
+    model_config = ConfigDict(extra="forbid")
+
     object_name: str
     boundary_description: str
     property_names: list[str]
-    property_roles: dict[str, SemanticRole]
+    property_roles: dict[str, SemanticRole] = Field(
+        default_factory=dict,
+        description="Compatibility-only suggestions; deterministic roles remain authoritative.",
+    )
     link_business_names: list[str] = Field(default_factory=list)
     confidence: float = Field(ge=0, le=1)
     evidence: list[str] = Field(default_factory=list)
+
+
+class LinkSemanticSuggestion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    link_id: ResourceId
+    business_name: str = Field(min_length=1, max_length=160)
+    inverse_name: str = Field(min_length=1, max_length=160)
+
+
+class LinkCandidateLLMOutput(BaseModel):
+    """Semantic-only Link suggestions keyed by deterministic stable IDs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    suggestions: list[LinkSemanticSuggestion] = Field(default_factory=list)
 
 
 class DataSourceInspection(BaseModel):

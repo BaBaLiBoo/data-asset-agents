@@ -31,12 +31,23 @@ asset catalog.
   fixed filters, time properties, supported dimensions, and evidence hashes must
   be traceable to certified SQL AST evidence.
 - O-D: all evidence plus semantic enrichment. In `LLM_MODE=mock` this is mock
-  deterministic enrichment and makes no live-model gain claim.
+  deterministic enrichment and makes no live-model gain claim. In live mode,
+  Pydantic Structured Output can suggest display names, descriptions, synonyms,
+  and business Link wording only. Stable IDs, bindings, primary keys, Physical
+  Joins, Metric aggregation/filters/dimensions, lifecycle, and publication state
+  remain deterministic.
 
 Uncertified SQL and incidental WHERE predicates cannot become high-confidence
 fixed business definitions. Business Links and Physical Joins remain distinct.
 Every candidate evidence item records source type, source snapshot ID, extracted
 fact, and evidence hash.
+
+A Physical Join proves how two approved tables can be connected; it does not
+prove that a user-facing relationship should exist. Construction creates a
+business Link from a declared foreign key, or from a certified FK-shaped
+event-to-entity SQL join. Object role and a deterministic vocabulary establish
+direction, cardinality, stable ID, and inverse role. Repeated evidence for the
+same Link is merged, while physical joins remain separately reviewable.
 
 ## Strict construction
 
@@ -104,6 +115,9 @@ docker compose up --build -d
 - Swagger: <http://localhost:8000/docs>
 - Streamlit: <http://localhost:8501>
 
-The Streamlit workbench supports run creation, catalog/evidence selection,
-candidate evidence expansion, all review decisions, and promotion only after all
-candidates have a terminal review decision. API errors are displayed on the page.
+The Streamlit workbench supports run creation, catalog/evidence and mock/live
+O-D selection, immutable raw-quality and Link/Metric diagnostics, per-resource
+review progress, raw-to-reviewed JSON Diff, candidate evidence expansion, all
+review decisions, and promotion only after all candidates have a terminal review
+decision. Review delta/cost and the final version association are shown after
+evaluation. API errors are displayed on the page.

@@ -187,6 +187,10 @@ class OntologyConstructionService:
                 for resource_type in RESOURCE_MODELS
             }
             run.excluded_tables = generated.excluded_tables
+            run.llm_invocations = [
+                {**item, "random_seed": run.random_seed}
+                for item in generated.llm_invocations
+            ]
             run.status = ConstructionRunStatus.CANDIDATES_READY
         except Exception as exc:
             run.status = ConstructionRunStatus.FAILED
@@ -362,17 +366,60 @@ class OntologyConstructionService:
         if aggregate is None:
             raise OntologyError("Promoted Draft no longer exists")
         gold, gold_hash = self.gold_loader.load()
+        raw_report = (
+            ConstructionEvaluationReport.model_validate(run.raw_evaluation)
+            if run.raw_evaluation is not None
+            else self.evaluator.evaluate_raw(
+                run,
+                self.repository.list_candidates(run_id),
+                gold,
+                gold_hash,
+            )
+        )
         report = self.evaluator.evaluate(
             run,
             aggregate.resources,
             self.repository.list_candidates(run_id),
             gold,
             gold_hash,
+            raw_report=raw_report,
         )
+        run.raw_evaluation = raw_report.model_dump(mode="json")
         run.evaluation = report.model_dump(mode="json")
         run.status = ConstructionRunStatus.EVALUATED
         self.repository.save_run(run)
         return report
+
+    def evaluate_raw(self, run_id: str) -> ConstructionEvaluationReport:
+        """Score the immutable generation snapshot before any review mutation."""
+
+        run = self.get_run(run_id)
+        if self.gold_loader is None:
+            raise OntologyError("Gold ontology loader is not configured")
+        if run.status in {
+            ConstructionRunStatus.CREATED,
+            ConstructionRunStatus.RUNNING,
+            ConstructionRunStatus.FAILED,
+        }:
+            raise OntologyConflictError("Generate candidates before raw evaluation")
+        if run.raw_evaluation is not None:
+            return ConstructionEvaluationReport.model_validate(run.raw_evaluation)
+        gold, gold_hash = self.gold_loader.load()
+        report = self.evaluator.evaluate_raw(
+            run,
+            self.repository.list_candidates(run_id),
+            gold,
+            gold_hash,
+        )
+        run.raw_evaluation = report.model_dump(mode="json")
+        self.repository.save_run(run)
+        return report
+
+    def get_reviewed_evaluation(self, run_id: str) -> ConstructionEvaluationReport:
+        run = self.get_run(run_id)
+        if run.evaluation is None:
+            raise OntologyError("Reviewed construction evaluation not found")
+        return ConstructionEvaluationReport.model_validate(run.evaluation)
 
     def record_publication(
         self,

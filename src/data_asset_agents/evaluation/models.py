@@ -128,8 +128,12 @@ class EvaluationRun(BaseModel):
     ontology_version_id: str | None = None
     bundle_hash: str | None = None
     sql_asset_build_id: str | None = None
-    experiment_group: Literal["T-A", "T-B", "T-C", "T-D", "T-E"] | None = None
-    ontology_source: Literal["NONE", "REVIEWED_AUTO_SCAFFOLD", "GOLD"] = "NONE"
+    experiment_group: Literal[
+        "T-A", "T-B", "T-C", "T-D", "T-E", "T-F", "T-G", "T-H"
+    ] | None = None
+    ontology_source: Literal[
+        "NONE", "REVIEWED_AUTO_SCAFFOLD", "REVIEWED_O_C", "REVIEWED_O_D", "GOLD"
+    ] = "NONE"
     construction_run_id: str | None = None
     benchmark_version: str
     benchmark_path: str = "data/benchmark/text2sql_v1.json"
@@ -172,6 +176,14 @@ class EvaluationRun(BaseModel):
                 raise ValueError("ontology full requires ontology and SQLAsset builds")
             if not self.sql_asset_enabled:
                 raise ValueError("ontology full must enable SQLAsset")
+        if self.ontology_source in {
+            "REVIEWED_AUTO_SCAFFOLD",
+            "REVIEWED_O_C",
+            "REVIEWED_O_D",
+        } and not self.construction_run_id:
+            raise ValueError("reviewed ontology runs require construction_run_id")
+        if self.ontology_source == "GOLD" and self.construction_run_id:
+            raise ValueError("Gold ontology runs cannot carry construction_run_id")
         return self
 
     def mark_running(self) -> EvaluationRun:
@@ -247,8 +259,12 @@ class EvaluationRunRequest(BaseModel):
     concurrency: int = Field(default=1, ge=1, le=16)
     model_provider: str | None = None
     model_name: str | None = None
-    experiment_group: Literal["T-A", "T-B", "T-C", "T-D", "T-E"] | None = None
-    ontology_source: Literal["NONE", "REVIEWED_AUTO_SCAFFOLD", "GOLD"] = "NONE"
+    experiment_group: Literal[
+        "T-A", "T-B", "T-C", "T-D", "T-E", "T-F", "T-G", "T-H"
+    ] | None = None
+    ontology_source: Literal[
+        "NONE", "REVIEWED_AUTO_SCAFFOLD", "REVIEWED_O_C", "REVIEWED_O_D", "GOLD"
+    ] = "NONE"
     construction_run_id: str | None = None
 
 

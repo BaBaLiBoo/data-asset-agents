@@ -1,9 +1,14 @@
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from data_asset_agents.core.config import Settings
 from data_asset_agents.core.errors import OntologyError
+from data_asset_agents.evaluation.ontology_construction import (
+    GoldOntologyLoader,
+    OntologyConstructionEvaluator,
+)
 from data_asset_agents.ontology.manager.candidate_generator import (
     ObjectFirstCandidateGenerator,
 )
@@ -14,16 +19,27 @@ from data_asset_agents.ontology.manager.construction_repository import (
 )
 from data_asset_agents.ontology.manager.models import (
     ActorRequest,
+    CandidateLinkType,
     CandidateReviewDecision,
     CatalogMode,
+    ConstructionCandidate,
+    ConstructionCandidateStatus,
     ConstructionEvidenceMode,
     ConstructionMode,
     ConstructionRunStatus,
     CreateConstructionRunRequest,
     DraftResources,
+    LinkCandidateLLMOutput,
+    LinkSemanticSuggestion,
+    MetricDefinition,
+    ObjectCandidateLLMOutput,
+    ObjectType,
     PromoteConstructionRunRequest,
+    PropertyDataType,
+    PropertyDefinition,
     PublishDraftRequest,
     ReviewConstructionCandidateRequest,
+    SemanticRole,
     TableRole,
 )
 from data_asset_agents.ontology.manager.repository import (
@@ -38,6 +54,7 @@ from data_asset_agents.ontology.models import (
     ColumnMetadata,
     ColumnProfile,
     ColumnReference,
+    ForeignKeyMetadata,
     HistoricalSQLAnalysis,
     MetadataSnapshot,
     ParsedAggregate,
@@ -445,3 +462,283 @@ def test_construction_draft_missing_metric_cannot_use_fallback_or_publish() -> N
             draft_id,
             PublishDraftRequest(actor="reviewer", version="must-not-publish"),
         )
+
+
+def test_empty_comparisons_are_not_reported_as_perfect() -> None:
+    evaluator = OntologyConstructionEvaluator()
+    metrics, _ = evaluator._quality_metrics(DraftResources(), DraftResources())
+    assert metrics["metric_precision"] is None
+    assert metrics["metric_recall"] is None
+    assert metrics["metric_f1"] is None
+    assert metrics["metric_measure_property_accuracy"] is None
+    assert metrics["link_endpoint_accuracy"] is None
+
+    gold = DraftResources(
+        metrics=[
+            MetricDefinition(
+                id="transaction_amount",
+                name="Transaction amount",
+                measure_property_id="transaction.amount",
+                aggregation="SUM",
+            )
+        ]
+    )
+    missing, _ = evaluator._quality_metrics(DraftResources(), gold)
+    assert missing["metric_recall"] == 0
+    assert missing["metric_f1"] == 0
+    assert missing["metric_measure_property_accuracy"] is None
+
+    extra, _ = evaluator._quality_metrics(gold, DraftResources())
+    assert extra["metric_precision"] == 0
+    assert extra["metric_recall"] is None
+    assert extra["metric_measure_property_accuracy"] is None
+
+
+def test_raw_evaluation_is_frozen_before_gold_review_mutation() -> None:
+    repository = MemoryConstructionRepository()
+    service = OntologyConstructionService(
+        repository,
+        MemoryOntologyManagerRepository(),
+        EvidenceRepository(),
+        ObjectFirstCandidateGenerator(Settings(llm_mode="mock"), table_assets=[]),
+        gold_loader=GoldOntologyLoader(Path("ontology/retail_banking/object_model")),
+    )
+    run = service.create_run(
+        CreateConstructionRunRequest(source_snapshot_id=_snapshot().id)
+    )
+    service.generate(run.run_id)
+    raw_before = service.evaluate_raw(run.run_id)
+    candidate = service.list_candidates(run.run_id, resource_type="object_type")[0]
+    service.review(
+        run.run_id,
+        candidate.candidate_id,
+        ReviewConstructionCandidateRequest(
+            decision=CandidateReviewDecision.MODIFY,
+            reviewer="test-reviewer",
+            modified_resource={**candidate.current_resource, "name": "Human name"},
+        ),
+    )
+    raw_after = service.evaluate_raw(run.run_id)
+    assert raw_after.raw_candidate_metrics == raw_before.raw_candidate_metrics
+    persisted = repository.get_candidate(run.run_id, candidate.candidate_id)
+    assert persisted is not None
+    assert persisted.current_resource["name"] == "Human name"
+    assert (
+        persisted.original_candidate["object_type"]["name"]
+        != persisted.current_resource["name"]
+    )
+
+
+def test_review_cost_classifies_fields_and_estimates_manual_baseline() -> None:
+    prop = PropertyDefinition(
+        id="transaction.amount",
+        object_type_id="transaction",
+        name="Amount",
+        data_type=PropertyDataType.DECIMAL,
+        semantic_role=SemanticRole.MEASURE,
+    )
+    candidate = ConstructionCandidate(
+        candidate_id="candidate-property-1",
+        run_id="run-1",
+        resource_type="property",
+        status=ConstructionCandidateStatus.MODIFIED,
+        original_candidate={"property": prop.model_dump(mode="json")},
+        current_resource={
+            **prop.model_dump(mode="json"),
+            "name": "Transaction amount",
+            "semantic_role": "ATTRIBUTE",
+        },
+    )
+    gold = DraftResources(
+        object_types=[
+            ObjectType(
+                id="transaction",
+                name="Transaction",
+                plural_name="Transactions",
+                property_ids=[prop.id],
+            )
+        ],
+        properties=[prop],
+    )
+    cost = OntologyConstructionEvaluator()._review_cost([candidate], gold)
+    assert cost["modified_candidate_count"] == 1
+    assert cost["semantic_edit_count"] == 1
+    assert cost["structural_edit_count"] == 1
+    assert cost["total_edited_field_count"] == 2
+    assert cost["manual_creation_field_fill_count"] > 2
+    assert cost["review_saving_rate"] is not None
+
+
+def test_foreign_key_business_link_has_stable_semantics_and_direction() -> None:
+    snapshot = MetadataSnapshot(
+        id="snapshot-link",
+        schema_name="public",
+        tables=[
+            TableMetadata(
+                schema_name="public",
+                table_name="dim_customer",
+                columns=[
+                    ColumnMetadata(
+                        name="customer_id", data_type="BIGINT", nullable=False
+                    )
+                ],
+                primary_key=["customer_id"],
+            ),
+            TableMetadata(
+                schema_name="public",
+                table_name="dim_account",
+                columns=[
+                    ColumnMetadata(
+                        name="account_id", data_type="BIGINT", nullable=False
+                    ),
+                    ColumnMetadata(
+                        name="customer_id", data_type="BIGINT", nullable=False
+                    ),
+                    ColumnMetadata(
+                        name="owner_customer_id", data_type="BIGINT", nullable=False
+                    ),
+                ],
+                primary_key=["account_id"],
+                foreign_keys=[
+                    ForeignKeyMetadata(
+                        constrained_columns=["customer_id"],
+                        referred_table="dim_customer",
+                        referred_columns=["customer_id"],
+                    ),
+                    ForeignKeyMetadata(
+                        constrained_columns=["owner_customer_id"],
+                        referred_table="dim_customer",
+                        referred_columns=["customer_id"],
+                    ),
+                ],
+            ),
+        ],
+    )
+    generated = ObjectFirstCandidateGenerator(
+        Settings(llm_mode="mock"), table_assets=[]
+    ).generate(snapshot, catalog_mode=CatalogMode.RAW_METADATA)
+    assert len(generated.physical_joins) == 2
+    assert len(generated.link_types) == 1
+    link = generated.link_types[0].link_type
+    assert link.id == "customer_owns_account"
+    assert link.source_object_type_id == "customer"
+    assert link.target_object_type_id == "account"
+    assert link.cardinality == "ONE_TO_MANY"
+    assert link.target_role_name == "accounts"
+    assert len(link.physical_join_ids) == 2
+
+
+def test_link_endpoint_pair_and_direction_are_scored_separately() -> None:
+    generated = ObjectFirstCandidateGenerator._business_link(
+        "account",
+        "customer",
+        TableRole.CANONICAL_OBJECT,
+        "account_customer_join",
+        _snapshot().captured_at,
+    )
+    reversed_link = generated.model_copy(
+        update={
+            "source_object_type_id": generated.target_object_type_id,
+            "target_object_type_id": generated.source_object_type_id,
+        }
+    )
+    metrics, _ = OntologyConstructionEvaluator()._quality_metrics(
+        DraftResources(link_types=[reversed_link]),
+        DraftResources(link_types=[generated]),
+    )
+    assert metrics["link_endpoint_pair_f1"] == 1
+    assert metrics["directed_link_f1"] == 0
+
+
+def test_live_semantic_output_cannot_change_deterministic_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generator = ObjectFirstCandidateGenerator(
+        Settings(llm_mode="live", llm_api_key="test-only"), table_assets=[]
+    )
+    semantic = ObjectCandidateLLMOutput(
+        object_name="Semantic transaction",
+        boundary_description="A reviewed event boundary suggestion.",
+        property_names=[
+            "Identifier",
+            "Amount",
+            "Status",
+            "Date",
+            "Card type",
+        ],
+        property_roles={"txn_amount_cny": "ATTRIBUTE"},
+        confidence=0.8,
+    )
+    monkeypatch.setattr(
+        generator,
+        "_live_output",
+        lambda _object_id, _table: (
+            semantic,
+            {
+                "provider": "test",
+                "model": "structured-test",
+                "invalid_output_count": 0,
+            },
+        ),
+    )
+    generated = generator.generate(
+        _snapshot(), [_sql()], catalog_mode=CatalogMode.RAW_METADATA
+    )
+    amount = next(
+        item.property
+        for item in generated.properties
+        if item.property.id == "transaction.amount"
+    )
+    binding = generated.bindings[0].binding
+    assert amount.name == "Amount"
+    assert amount.semantic_role == SemanticRole.MEASURE
+    assert binding.table_name == "dwd_card_transaction"
+    assert binding.property_bindings["transaction.amount"] == "txn_amount_cny"
+    assert generated.llm_invocations[0]["invalid_output_count"] == 0
+
+
+def test_live_structured_output_rejects_physical_coordinates() -> None:
+    with pytest.raises(ValidationError):
+        ObjectCandidateLLMOutput.model_validate(
+            {
+                "object_name": "Transaction",
+                "boundary_description": "Event",
+                "property_names": [],
+                "confidence": 0.8,
+                "table_name": "forbidden_physical_table",
+            }
+        )
+
+
+def test_link_semantic_enrichment_preserves_structural_fields() -> None:
+    link = ObjectFirstCandidateGenerator._business_link(
+        "account",
+        "customer",
+        TableRole.CANONICAL_OBJECT,
+        "account_customer_join",
+        _snapshot().captured_at,
+    )
+    wrapped = CandidateLinkType(
+        candidate_id="candidate-link-1",
+        link_type=link,
+        confidence=0.9,
+    )
+    output = LinkCandidateLLMOutput(
+        suggestions=[
+            LinkSemanticSuggestion(
+                link_id=link.id,
+                business_name="Customer owns account",
+                inverse_name="accounts",
+            )
+        ]
+    )
+    enriched = ObjectFirstCandidateGenerator._apply_link_enrichment(
+        [wrapped], output
+    )[0].link_type
+    assert enriched.name == "Customer owns account"
+    assert enriched.target_role_name == "accounts"
+    assert enriched.id == link.id
+    assert enriched.source_object_type_id == link.source_object_type_id
+    assert enriched.target_object_type_id == link.target_object_type_id
+    assert enriched.cardinality == link.cardinality
+    assert enriched.physical_join_ids == link.physical_join_ids

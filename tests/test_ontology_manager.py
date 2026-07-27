@@ -253,7 +253,9 @@ def test_metadata_fk_generates_separate_link_and_physical_join_candidates(bundle
     )
 
 
-def test_live_llm_output_cannot_choose_physical_binding_or_publish_state(bundle) -> None:
+def test_live_llm_output_with_physical_binding_or_publish_state_is_rejected(
+    bundle,
+) -> None:
     class StructuredModel:
         @staticmethod
         def invoke(prompt):
@@ -295,16 +297,12 @@ def test_live_llm_output_cannot_choose_physical_binding_or_publish_state(bundle)
             )
         ],
     )
-    result = ObjectFirstCandidateGenerator(
-        Settings(llm_mode="live", llm_api_key="test-placeholder"),
-        bundle.tables,
-        Factory(),  # type: ignore[arg-type]
-    ).generate(snapshot)
-    assert result.object_types[0].object_type.lifecycle_status == LifecycleStatus.DRAFT
-    assert result.bindings[0].binding.table_name == "dim_customer"
-    assert result.bindings[0].binding.property_bindings == {
-        "customer.customer_id": "customer_id"
-    }
+    with pytest.raises(ValueError, match="Invalid LLM structured output"):
+        ObjectFirstCandidateGenerator(
+            Settings(llm_mode="live", llm_api_key="test-placeholder"),
+            bundle.tables,
+            Factory(),  # type: ignore[arg-type]
+        ).generate(snapshot)
 
 
 def test_draft_validator_covers_object_property_link_binding_and_lifecycle(

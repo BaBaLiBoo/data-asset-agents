@@ -81,7 +81,12 @@ def review(base_url: str, run_id: str, gold_path: Path) -> dict[str, Any]:
         base_url, f"/api/v1/ontology/construction-runs/{run_id}/candidates"
     )
 
-    # Gold is deliberately loaded only after the API proves generation completed.
+    # Freeze and score the immutable raw snapshot before this reviewer loads Gold.
+    raw_evaluation = _request(
+        base_url,
+        f"/api/v1/ontology/construction-runs/{run_id}/evaluation/raw",
+    )
+    # Gold is deliberately loaded only after generation and raw scoring completed.
     gold, gold_hash = GoldOntologyLoader(gold_path).load()
     gold_maps = {
         resource_type: {
@@ -138,6 +143,10 @@ def review(base_url: str, run_id: str, gold_path: Path) -> dict[str, Any]:
         "reviewer_kind": "POST_GENERATION_GOLD_TEST_REVIEWER",
         "gold_hash": gold_hash,
         "gold_loaded_after_generation": True,
+        "raw_evaluated_before_gold_review": (
+            raw_evaluation.get("provenance", {}).get("evaluation_stage")
+            == "RAW_CANDIDATE"
+        ),
         "decisions": counts,
     }
 
