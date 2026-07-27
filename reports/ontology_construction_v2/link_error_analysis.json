@@ -1,0 +1,334 @@
+[
+  {
+    "run_id": "mock-O-A-raw_metadata",
+    "provenance": {
+      "evaluation_stage": "REVIEWED_DRAFT",
+      "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
+      "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
+      "historical_sql_snapshot_hash": "74b8ec78b01f2b3f6901a488b0fc95e1f82250bc95ad60979d41f03e6f5d374c",
+      "provider": "mock",
+      "model": "deterministic-rules-v1",
+      "temperature": 0.0,
+      "random_seed": 20260715,
+      "construction_mode": "STRICT_CONSTRUCTION",
+      "evidence_mode": "O-A",
+      "catalog_mode": "RAW_METADATA",
+      "llm_mode": "mock",
+      "llm_invocations": [],
+      "database_snapshot_hash": "f8f9a4f295e290e4764daa7a3babca446470f9b153aa87a88ce6b9d12303204f",
+      "metadata_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "gold_hash": "80dd1d48d4b3361d15e579a08081501b10adbe8c5c636ca83c0d096131b3a88f",
+      "result_mode": "mock deterministic construction; no live LLM claim"
+    },
+    "error_analysis": {
+      "raw_candidate_errors": {
+        "object_extra": 2,
+        "property_extra": 13,
+        "binding_extra": 2,
+        "physical_join_extra": 5,
+        "link_extra": 5,
+        "dimension_extra": 9,
+        "metric_missing": 6,
+        "binding_wrong": 1,
+        "link_name_wrong": 5,
+        "dimension_wrong": 1
+      },
+      "reviewed_draft_errors": {
+        "metric_missing": 6
+      }
+    }
+  },
+  {
+    "run_id": "mock-O-B-raw_metadata",
+    "provenance": {
+      "evaluation_stage": "REVIEWED_DRAFT",
+      "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
+      "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
+      "historical_sql_snapshot_hash": "74b8ec78b01f2b3f6901a488b0fc95e1f82250bc95ad60979d41f03e6f5d374c",
+      "provider": "mock",
+      "model": "deterministic-rules-v1",
+      "temperature": 0.0,
+      "random_seed": 20260715,
+      "construction_mode": "STRICT_CONSTRUCTION",
+      "evidence_mode": "O-B",
+      "catalog_mode": "RAW_METADATA",
+      "llm_mode": "mock",
+      "llm_invocations": [],
+      "database_snapshot_hash": "f8f9a4f295e290e4764daa7a3babca446470f9b153aa87a88ce6b9d12303204f",
+      "metadata_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "gold_hash": "80dd1d48d4b3361d15e579a08081501b10adbe8c5c636ca83c0d096131b3a88f",
+      "result_mode": "mock deterministic construction; no live LLM claim"
+    },
+    "error_analysis": {
+      "raw_candidate_errors": {
+        "object_extra": 2,
+        "property_extra": 13,
+        "binding_extra": 2,
+        "physical_join_extra": 5,
+        "link_extra": 5,
+        "dimension_extra": 9,
+        "metric_missing": 6,
+        "binding_wrong": 1,
+        "link_name_wrong": 5,
+        "dimension_wrong": 1
+      },
+      "reviewed_draft_errors": {
+        "metric_missing": 6
+      }
+    }
+  },
+  {
+    "run_id": "mock-O-C-raw_metadata",
+    "provenance": {
+      "evaluation_stage": "REVIEWED_DRAFT",
+      "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
+      "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
+      "historical_sql_snapshot_hash": "74b8ec78b01f2b3f6901a488b0fc95e1f82250bc95ad60979d41f03e6f5d374c",
+      "provider": "mock",
+      "model": "deterministic-rules-v1",
+      "temperature": 0.0,
+      "random_seed": 20260715,
+      "construction_mode": "STRICT_CONSTRUCTION",
+      "evidence_mode": "O-C",
+      "catalog_mode": "RAW_METADATA",
+      "llm_mode": "mock",
+      "llm_invocations": [],
+      "database_snapshot_hash": "f8f9a4f295e290e4764daa7a3babca446470f9b153aa87a88ce6b9d12303204f",
+      "metadata_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "gold_hash": "80dd1d48d4b3361d15e579a08081501b10adbe8c5c636ca83c0d096131b3a88f",
+      "result_mode": "mock deterministic construction; no live LLM claim"
+    },
+    "error_analysis": {
+      "raw_candidate_errors": {
+        "object_extra": 2,
+        "property_extra": 13,
+        "binding_extra": 2,
+        "physical_join_extra": 5,
+        "link_extra": 5,
+        "dimension_extra": 9,
+        "metric_missing": 1,
+        "metric_extra": 1,
+        "binding_wrong": 1,
+        "link_name_wrong": 5,
+        "dimension_wrong": 1,
+        "supported_dimension_wrong": 5,
+        "metric_time_wrong": 3
+      },
+      "reviewed_draft_errors": {
+        "metric_missing": 1
+      }
+    }
+  },
+  {
+    "run_id": "mock-O-D-raw_metadata",
+    "provenance": {
+      "evaluation_stage": "REVIEWED_DRAFT",
+      "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
+      "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
+      "historical_sql_snapshot_hash": "74b8ec78b01f2b3f6901a488b0fc95e1f82250bc95ad60979d41f03e6f5d374c",
+      "provider": "mock",
+      "model": "deterministic-rules-v1",
+      "temperature": 0.0,
+      "random_seed": 20260715,
+      "construction_mode": "STRICT_CONSTRUCTION",
+      "evidence_mode": "O-D",
+      "catalog_mode": "RAW_METADATA",
+      "llm_mode": "mock",
+      "llm_invocations": [],
+      "database_snapshot_hash": "f8f9a4f295e290e4764daa7a3babca446470f9b153aa87a88ce6b9d12303204f",
+      "metadata_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "gold_hash": "80dd1d48d4b3361d15e579a08081501b10adbe8c5c636ca83c0d096131b3a88f",
+      "result_mode": "mock deterministic construction; no live LLM claim"
+    },
+    "error_analysis": {
+      "raw_candidate_errors": {
+        "object_extra": 2,
+        "property_extra": 13,
+        "binding_extra": 2,
+        "physical_join_extra": 5,
+        "link_extra": 5,
+        "dimension_extra": 9,
+        "metric_missing": 1,
+        "metric_extra": 1,
+        "binding_wrong": 1,
+        "link_name_wrong": 5,
+        "dimension_wrong": 1,
+        "supported_dimension_wrong": 5,
+        "metric_time_wrong": 3
+      },
+      "reviewed_draft_errors": {
+        "metric_missing": 1
+      }
+    }
+  },
+  {
+    "run_id": "mock-O-A-governed_catalog",
+    "provenance": {
+      "evaluation_stage": "REVIEWED_DRAFT",
+      "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
+      "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
+      "historical_sql_snapshot_hash": "74b8ec78b01f2b3f6901a488b0fc95e1f82250bc95ad60979d41f03e6f5d374c",
+      "provider": "mock",
+      "model": "deterministic-rules-v1",
+      "temperature": 0.0,
+      "random_seed": 20260715,
+      "construction_mode": "STRICT_CONSTRUCTION",
+      "evidence_mode": "O-A",
+      "catalog_mode": "GOVERNED_CATALOG",
+      "llm_mode": "mock",
+      "llm_invocations": [],
+      "database_snapshot_hash": "f8f9a4f295e290e4764daa7a3babca446470f9b153aa87a88ce6b9d12303204f",
+      "metadata_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "gold_hash": "80dd1d48d4b3361d15e579a08081501b10adbe8c5c636ca83c0d096131b3a88f",
+      "result_mode": "mock deterministic construction; no live LLM claim"
+    },
+    "error_analysis": {
+      "raw_candidate_errors": {
+        "object_extra": 2,
+        "property_extra": 13,
+        "binding_extra": 2,
+        "physical_join_extra": 5,
+        "link_extra": 5,
+        "dimension_extra": 9,
+        "metric_missing": 6,
+        "binding_wrong": 1,
+        "link_name_wrong": 5,
+        "dimension_wrong": 1
+      },
+      "reviewed_draft_errors": {
+        "metric_missing": 6
+      }
+    }
+  },
+  {
+    "run_id": "mock-O-B-governed_catalog",
+    "provenance": {
+      "evaluation_stage": "REVIEWED_DRAFT",
+      "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
+      "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
+      "historical_sql_snapshot_hash": "74b8ec78b01f2b3f6901a488b0fc95e1f82250bc95ad60979d41f03e6f5d374c",
+      "provider": "mock",
+      "model": "deterministic-rules-v1",
+      "temperature": 0.0,
+      "random_seed": 20260715,
+      "construction_mode": "STRICT_CONSTRUCTION",
+      "evidence_mode": "O-B",
+      "catalog_mode": "GOVERNED_CATALOG",
+      "llm_mode": "mock",
+      "llm_invocations": [],
+      "database_snapshot_hash": "f8f9a4f295e290e4764daa7a3babca446470f9b153aa87a88ce6b9d12303204f",
+      "metadata_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "gold_hash": "80dd1d48d4b3361d15e579a08081501b10adbe8c5c636ca83c0d096131b3a88f",
+      "result_mode": "mock deterministic construction; no live LLM claim"
+    },
+    "error_analysis": {
+      "raw_candidate_errors": {
+        "object_extra": 2,
+        "property_extra": 13,
+        "binding_extra": 2,
+        "physical_join_extra": 5,
+        "link_extra": 5,
+        "dimension_extra": 9,
+        "metric_missing": 6,
+        "binding_wrong": 1,
+        "link_name_wrong": 5,
+        "dimension_wrong": 1
+      },
+      "reviewed_draft_errors": {
+        "metric_missing": 6
+      }
+    }
+  },
+  {
+    "run_id": "mock-O-C-governed_catalog",
+    "provenance": {
+      "evaluation_stage": "REVIEWED_DRAFT",
+      "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
+      "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
+      "historical_sql_snapshot_hash": "74b8ec78b01f2b3f6901a488b0fc95e1f82250bc95ad60979d41f03e6f5d374c",
+      "provider": "mock",
+      "model": "deterministic-rules-v1",
+      "temperature": 0.0,
+      "random_seed": 20260715,
+      "construction_mode": "STRICT_CONSTRUCTION",
+      "evidence_mode": "O-C",
+      "catalog_mode": "GOVERNED_CATALOG",
+      "llm_mode": "mock",
+      "llm_invocations": [],
+      "database_snapshot_hash": "f8f9a4f295e290e4764daa7a3babca446470f9b153aa87a88ce6b9d12303204f",
+      "metadata_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "gold_hash": "80dd1d48d4b3361d15e579a08081501b10adbe8c5c636ca83c0d096131b3a88f",
+      "result_mode": "mock deterministic construction; no live LLM claim"
+    },
+    "error_analysis": {
+      "raw_candidate_errors": {
+        "object_extra": 2,
+        "property_extra": 13,
+        "binding_extra": 2,
+        "physical_join_extra": 5,
+        "link_extra": 5,
+        "dimension_extra": 9,
+        "metric_missing": 1,
+        "metric_extra": 1,
+        "binding_wrong": 1,
+        "link_name_wrong": 5,
+        "dimension_wrong": 1,
+        "supported_dimension_wrong": 5,
+        "metric_time_wrong": 3
+      },
+      "reviewed_draft_errors": {
+        "metric_missing": 1
+      }
+    }
+  },
+  {
+    "run_id": "mock-O-D-governed_catalog",
+    "provenance": {
+      "evaluation_stage": "REVIEWED_DRAFT",
+      "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
+      "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
+      "historical_sql_snapshot_hash": "74b8ec78b01f2b3f6901a488b0fc95e1f82250bc95ad60979d41f03e6f5d374c",
+      "provider": "mock",
+      "model": "deterministic-rules-v1",
+      "temperature": 0.0,
+      "random_seed": 20260715,
+      "construction_mode": "STRICT_CONSTRUCTION",
+      "evidence_mode": "O-D",
+      "catalog_mode": "GOVERNED_CATALOG",
+      "llm_mode": "mock",
+      "llm_invocations": [],
+      "database_snapshot_hash": "f8f9a4f295e290e4764daa7a3babca446470f9b153aa87a88ce6b9d12303204f",
+      "metadata_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
+      "gold_hash": "80dd1d48d4b3361d15e579a08081501b10adbe8c5c636ca83c0d096131b3a88f",
+      "result_mode": "mock deterministic construction; no live LLM claim"
+    },
+    "error_analysis": {
+      "raw_candidate_errors": {
+        "object_extra": 2,
+        "property_extra": 13,
+        "binding_extra": 2,
+        "physical_join_extra": 5,
+        "link_extra": 5,
+        "dimension_extra": 9,
+        "metric_missing": 1,
+        "metric_extra": 1,
+        "binding_wrong": 1,
+        "link_name_wrong": 5,
+        "dimension_wrong": 1,
+        "supported_dimension_wrong": 5,
+        "metric_time_wrong": 3
+      },
+      "reviewed_draft_errors": {
+        "metric_missing": 1
+      }
+    }
+  }
+]

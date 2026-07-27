@@ -114,7 +114,14 @@ O-C with SQLAsset off/on, reviewed O-D with SQLAsset off/on, and Gold with
 SQLAsset off/on. All groups require fixed provider settings and distinct O-C,
 O-D, and Gold ontology versions and SQLAsset builds.
 
-As of the report timestamp in this repository, the V2 mock ablation was run.
-Live O-D and the dependent T-A through T-H 80-case experiment must be marked
-`not run` unless a usable live API key and all three isolated published versions
-are present. Mock results must not substitute for them.
+As of the report timestamp in this repository, both the V2 mock ablation and a
+file-based live O-C/O-D ablation were run at Git SHA
+`126a4e1c208b6affae5fbc247fdf6edae4a92f7b`. Live O-D made nine structured calls
+per Catalog mode. It did not improve raw F1 and increased edited fields from 214
+to 219, so this run provides no evidence that the configured model reduced
+review work.
+
+The dependent T-A through T-H 80-case experiment was not run: independently
+published reviewed O-C, reviewed O-D, and Gold versions with version-bound
+SQLAsset builds were not created. Mock, historical, and file-only construction
+results were not substituted for downstream case results.

@@ -1,0 +1,9 @@
+{
+  "experiment": "text2sql-reviewed-ontology-v2",
+  "status": "NOT_RUN",
+  "groups": ["T-A", "T-B", "T-C", "T-D", "T-E", "T-F", "T-G", "T-H"],
+  "required_case_count_per_group": 80,
+  "completed_groups": [],
+  "reason": "The live O-C/O-D file-based construction ablation ran, but three isolated published O-C, O-D, and Gold ontology versions with version-bound SQLAsset builds were not created in this run. File-only construction reports cannot be substituted for the formal downstream experiment.",
+  "result_claims": false
+}

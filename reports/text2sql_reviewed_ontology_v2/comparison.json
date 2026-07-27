@@ -1,0 +1,8 @@
+{
+  "status": "NOT_RUN",
+  "runs": [],
+  "warnings": [
+    "No T-A through T-H case results were generated.",
+    "No historical or mock results were copied into this V2 comparison."
+  ]
+}

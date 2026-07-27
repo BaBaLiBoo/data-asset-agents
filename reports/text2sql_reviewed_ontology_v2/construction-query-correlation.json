@@ -1,0 +1,10 @@
+{
+  "status": "NOT_RUN",
+  "links": [],
+  "schema": {
+    "construction_candidate_error": null,
+    "reviewed_ontology_change": null,
+    "text2sql_case_error": null
+  },
+  "reason": "No formal T-A through T-H case results were generated."
+}
