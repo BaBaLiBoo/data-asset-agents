@@ -25,6 +25,7 @@ from .models import (
     ConstructionCandidateStatus,
     ConstructionEvaluationReport,
     ConstructionEvidenceMode,
+    ConstructionMode,
     ConstructionRunStatus,
     CreateConstructionRunRequest,
     DimensionDefinition,
@@ -372,6 +373,44 @@ class OntologyConstructionService:
         run.status = ConstructionRunStatus.EVALUATED
         self.repository.save_run(run)
         return report
+
+    def record_publication(
+        self,
+        run_id: str,
+        version_id: str,
+        *,
+        runtime_activation_succeeded: bool,
+    ) -> OntologyConstructionRun:
+        run = self.get_run(run_id)
+        if not run.promoted_draft_id:
+            raise OntologyConflictError("Construction run has no promoted Draft")
+        aggregate = self.ontology_repository.get_draft(run.promoted_draft_id)
+        if aggregate is None:
+            raise OntologyError("Promoted construction Draft no longer exists")
+        report = aggregate.draft.validation_report
+        artifact = self.ontology_repository.get_compiled_artifact(version_id)
+        run.strict_validation_passed = bool(
+            report
+            and report.valid
+            and report.construction_mode == ConstructionMode.STRICT_CONSTRUCTION
+        )
+        if report is not None:
+            run.seed_accessed = report.seed_accessed
+            run.fallback_used = report.fallback_used
+            run.legacy_ontology_accessed = report.legacy_ontology_accessed
+        if artifact is not None:
+            run.seed_accessed = run.seed_accessed or artifact.seed_accessed
+            run.fallback_used = run.fallback_used or artifact.fallback_used
+            run.legacy_ontology_accessed = (
+                run.legacy_ontology_accessed
+                or artifact.legacy_ontology_accessed
+            )
+            run.compiled_artifact_hash = artifact.bundle_hash
+        run.publication_succeeded = artifact is not None
+        run.runtime_activation_succeeded = runtime_activation_succeeded
+        run.published_version_id = version_id
+        self.repository.save_run(run)
+        return run
 
     @staticmethod
     def _validate_candidate_dependencies(resources: DraftResources) -> None:

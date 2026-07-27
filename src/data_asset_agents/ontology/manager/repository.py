@@ -947,7 +947,8 @@ class PostgresOntologyManagerRepository:
                       source_resource_hash,compiler_name,compiler_version,compiler_source_hash,
                       status,bundle_hash,bundle_json,property_bindings,
                       metric_compilation_evidence,dimension_compilation_evidence,
-                      join_compilation_evidence,construction_run_id,
+                      join_compilation_evidence,construction_run_id,construction_mode,
+                      seed_accessed,fallback_used,legacy_ontology_accessed,
                       construction_evidence_summary,created_at,error_message
                     ) VALUES (
                       :artifact_id,:ontology_version_id,:source_draft_id,:source_revision,
@@ -955,13 +956,16 @@ class PostgresOntologyManagerRepository:
                       :compiler_source_hash,:status,:bundle_hash,CAST(:bundle_json AS jsonb),
                       CAST(:property_bindings AS jsonb),CAST(:metric_evidence AS jsonb),
                       CAST(:dimension_evidence AS jsonb),CAST(:join_evidence AS jsonb),
-                      :construction_run_id,CAST(:construction_evidence_summary AS jsonb),
+                      :construction_run_id,:construction_mode,:seed_accessed,:fallback_used,
+                      :legacy_ontology_accessed,
+                      CAST(:construction_evidence_summary AS jsonb),
                       :created_at,:error_message
                     )
                     """),
                     {
                         **artifact.model_dump(mode="python"),
                         "status": artifact.status.value,
+                        "construction_mode": artifact.construction_mode.value,
                         "bundle_json": _json(artifact.bundle_json),
                         "property_bindings": _json(artifact.property_bindings),
                         "metric_evidence": _json(artifact.metric_compilation_evidence),

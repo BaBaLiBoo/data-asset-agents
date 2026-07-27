@@ -396,6 +396,10 @@ class CompiledOntologyArtifact(BaseModel):
     source_revision: int
     source_resource_hash: str
     construction_run_id: str | None = None
+    construction_mode: ConstructionMode = ConstructionMode.LEGACY_COMPAT
+    seed_accessed: bool = False
+    fallback_used: bool = False
+    legacy_ontology_accessed: bool = False
     compiler_name: str
     compiler_version: str
     compiler_source_hash: str
@@ -416,6 +420,11 @@ class CompiledArtifactSummary(BaseModel):
     ontology_version_id: str
     source_revision: int
     source_resource_hash: str
+    construction_run_id: str | None = None
+    construction_mode: ConstructionMode = ConstructionMode.LEGACY_COMPAT
+    seed_accessed: bool = False
+    fallback_used: bool = False
+    legacy_ontology_accessed: bool = False
     compiler_version: str
     bundle_hash: str
     status: CompiledArtifactStatus
@@ -667,6 +676,11 @@ class OntologyConstructionRun(BaseModel):
     seed_accessed: bool = False
     fallback_used: bool = False
     legacy_ontology_accessed: bool = False
+    strict_validation_passed: bool = False
+    publication_succeeded: bool = False
+    runtime_activation_succeeded: bool = False
+    published_version_id: str | None = None
+    compiled_artifact_hash: str | None = None
     created_by: str
     promoted_draft_id: str | None = None
     evaluation: dict[str, Any] | None = None

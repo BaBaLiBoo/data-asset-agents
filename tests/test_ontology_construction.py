@@ -13,6 +13,7 @@ from data_asset_agents.ontology.manager.construction_repository import (
     MemoryConstructionRepository,
 )
 from data_asset_agents.ontology.manager.models import (
+    ActorRequest,
     CandidateReviewDecision,
     CatalogMode,
     ConstructionEvidenceMode,
@@ -21,6 +22,7 @@ from data_asset_agents.ontology.manager.models import (
     CreateConstructionRunRequest,
     DraftResources,
     PromoteConstructionRunRequest,
+    PublishDraftRequest,
     ReviewConstructionCandidateRequest,
     TableRole,
 )
@@ -30,6 +32,8 @@ from data_asset_agents.ontology.manager.repository import (
 from data_asset_agents.ontology.manager.seed_repository import (
     ObjectOntologySeedRepository,
 )
+from data_asset_agents.ontology.manager.service import OntologyManagerService
+from data_asset_agents.ontology.manager.validator import OntologyDraftValidator
 from data_asset_agents.ontology.models import (
     ColumnMetadata,
     ColumnProfile,
@@ -40,6 +44,7 @@ from data_asset_agents.ontology.models import (
     TableMetadata,
 )
 from data_asset_agents.ontology.repository import YamlOntologyRepository
+from data_asset_agents.text2sql.semantic_parser import SemanticQueryParser
 
 
 def _snapshot() -> MetadataSnapshot:
@@ -75,6 +80,9 @@ def _snapshot() -> MetadataSnapshot:
                     ),
                     ColumnMetadata(
                         name="transaction_date", data_type="DATE", nullable=False
+                    ),
+                    ColumnMetadata(
+                        name="card_type", data_type="VARCHAR", nullable=False
                     ),
                 ],
                 primary_key=["transaction_id"],
@@ -148,6 +156,47 @@ class EvidenceRepository:
     ) -> list[HistoricalSQLAnalysis]:
         assert snapshot_id == self.snapshot.id
         return self.sql
+
+
+def _promoted_construction_draft() -> tuple[
+    OntologyManagerService, str, str
+]:
+    fallback = YamlOntologyRepository("ontology/retail_banking").load()
+    run_repository = MemoryConstructionRepository()
+    ontology_repository = MemoryOntologyManagerRepository()
+    construction = OntologyConstructionService(
+        run_repository,
+        ontology_repository,
+        EvidenceRepository(),
+        ObjectFirstCandidateGenerator(Settings(llm_mode="mock"), table_assets=[]),
+    )
+    run = construction.create_run(
+        CreateConstructionRunRequest(
+            source_snapshot_id=_snapshot().id,
+            catalog_mode=CatalogMode.RAW_METADATA,
+            construction_mode=ConstructionMode.STRICT_CONSTRUCTION,
+            evidence_mode=ConstructionEvidenceMode.O_C_SCHEMA_PROFILING_SQL,
+        )
+    )
+    construction.generate(run.run_id)
+    for candidate in construction.list_candidates(run.run_id):
+        construction.review(
+            run.run_id,
+            candidate.candidate_id,
+            ReviewConstructionCandidateRequest(
+                decision=CandidateReviewDecision.ACCEPT,
+                reviewer="test-reviewer",
+            ),
+        )
+    aggregate = construction.promote_to_draft(
+        run.run_id, PromoteConstructionRunRequest(actor="test-reviewer")
+    )
+    manager = OntologyManagerService(
+        ontology_repository,
+        fallback,
+        OntologyDraftValidator(fallback),
+    )
+    return manager, aggregate.draft.id, run.run_id
 
 
 def test_raw_metadata_generates_complete_review_candidates_without_gold() -> None:
@@ -283,9 +332,116 @@ def test_schema_only_ablation_removes_profile_and_sql_candidates() -> None:
     )
 
 
+def test_certified_sql_keeps_distinct_metric_ids_for_the_same_measure() -> None:
+    credit_sql = _sql().model_copy(
+        update={
+            "id": "sql-certified-credit-amount",
+            "sql_text": (
+                "SELECT SUM(txn_amount_cny) AS credit_card_transaction_amount "
+                "FROM dwd_card_transaction "
+                "WHERE transaction_status = 'POSTED' AND card_type = 'CREDIT'"
+            ),
+        }
+    )
+    result = ObjectFirstCandidateGenerator(
+        Settings(llm_mode="mock"), table_assets=[]
+    ).generate(
+        _snapshot(),
+        [_sql(), credit_sql],
+        catalog_mode=CatalogMode.RAW_METADATA,
+    )
+    metric_ids = {item.metric.id for item in result.metrics}
+    assert {"transaction_amount", "credit_card_transaction_amount"} <= metric_ids
+
+
 def test_empty_strict_resources_fail_instead_of_returning_fallback() -> None:
     fallback = YamlOntologyRepository("ontology/retail_banking").load()
     with pytest.raises(OntologyError, match="ObjectType"):
         ObjectSemanticCompiler(
             fallback, construction_mode=ConstructionMode.STRICT_CONSTRUCTION
         ).compile(DraftResources())
+
+
+def test_credit_context_recovers_count_without_legacy_transaction_count() -> None:
+    resources = ObjectOntologySeedRepository(
+        {"gold": Path("ontology/retail_banking/object_model")}
+    ).load("gold")
+    resources.metrics = [
+        item for item in resources.metrics if item.id != "transaction_count"
+    ]
+    bundle = ObjectSemanticCompiler(
+        None, construction_mode=ConstructionMode.STRICT_CONSTRUCTION
+    ).compile(resources).bundle
+    parsed = SemanticQueryParser(Settings(llm_mode="mock")).parse(
+        "\u67e5\u8be2\u8fd130\u5929\u5404\u5206\u884c\u4fe1\u7528\u5361"
+        "\u4ea4\u6613\u91d1\u989d\u548c\u4ea4\u6613\u7b14\u6570",
+        bundle,
+    )
+    assert parsed.metric_ids == [
+        "credit_card_transaction_amount",
+        "credit_card_transaction_count",
+    ]
+
+
+def test_construction_draft_remains_strict_through_review_and_publish() -> None:
+    manager, draft_id, run_id = _promoted_construction_draft()
+
+    validated = manager.validate(draft_id)
+    initial_report = validated.draft.validation_report
+    assert initial_report is not None
+    assert initial_report.valid
+    assert initial_report.construction_mode == ConstructionMode.STRICT_CONSTRUCTION
+    assert not initial_report.seed_accessed
+    assert not initial_report.fallback_used
+    assert not initial_report.legacy_ontology_accessed
+
+    manager.submit(draft_id, ActorRequest(actor="author"))
+    approved = manager.approve(draft_id, ActorRequest(actor="reviewer"))
+    review_report = approved.draft.validation_report
+    assert review_report is not None
+    assert review_report.construction_mode == ConstructionMode.STRICT_CONSTRUCTION
+    assert not review_report.seed_accessed
+    assert not review_report.fallback_used
+    assert not review_report.legacy_ontology_accessed
+
+    version = manager.publish(
+        draft_id,
+        PublishDraftRequest(actor="reviewer", version="strict-construction-v1"),
+    )
+    artifact = manager.compiled_artifact(version.id)
+    assert artifact is not None
+    assert artifact.construction_run_id == run_id
+    assert artifact.construction_mode == ConstructionMode.STRICT_CONSTRUCTION
+    assert not artifact.seed_accessed
+    assert not artifact.fallback_used
+    assert not artifact.legacy_ontology_accessed
+
+
+def test_construction_draft_missing_metric_cannot_use_fallback_or_publish() -> None:
+    manager, draft_id, _ = _promoted_construction_draft()
+    draft = manager.get_draft(draft_id)
+    assert draft.resources.metrics
+    manager.delete_resource(draft_id, "metric", draft.resources.metrics[0].id)
+
+    failed = manager.validate(draft_id)
+    report = failed.draft.validation_report
+    assert report is not None
+    assert not report.valid
+    assert report.construction_mode == ConstructionMode.STRICT_CONSTRUCTION
+    assert not report.seed_accessed
+    assert not report.fallback_used
+    assert not report.legacy_ontology_accessed
+    assert any(
+        "MetricDefinition" in issue.message
+        for issue in report.issues
+        if issue.code == "OBJECT_SEMANTIC_COMPILATION_FAILED"
+    )
+    with pytest.raises(OntologyError):
+        manager.submit(draft_id, ActorRequest(actor="author"))
+    with pytest.raises(OntologyError):
+        manager.approve(draft_id, ActorRequest(actor="reviewer"))
+    with pytest.raises(OntologyError):
+        manager.publish(
+            draft_id,
+            PublishDraftRequest(actor="reviewer", version="must-not-publish"),
+        )

@@ -238,18 +238,26 @@ class MetadataInspector:
     ) -> ColumnProfile:
         self._validate_identifier(column_name, "column")
         column = table.c[column_name]
-        null_count, distinct_count = connection.execute(
-            select(
-                func.count().filter(column.is_(None)),
-                func.count(func.distinct(column)),
-            ).select_from(table)
-        ).one()
+        null_count = connection.execute(
+            select(func.count().filter(column.is_(None))).select_from(table)
+        ).scalar_one()
+        distinct_count: int | None = None
+        try:
+            with connection.begin_nested():
+                distinct_count = connection.execute(
+                    select(func.count(func.distinct(column))).select_from(table)
+                ).scalar_one()
+        except SQLAlchemyError:
+            # Roll back only the unsupported aggregate, not the full snapshot
+            # transaction. Extension types such as pgvector may lack equality.
+            distinct_count = None
         minimum: str | None = None
         maximum: str | None = None
         try:
-            minimum_value, maximum_value = connection.execute(
-                select(func.min(column), func.max(column)).select_from(table)
-            ).one()
+            with connection.begin_nested():
+                minimum_value, maximum_value = connection.execute(
+                    select(func.min(column), func.max(column)).select_from(table)
+                ).one()
             minimum = _stringify(minimum_value)
             maximum = _stringify(maximum_value)
         except SQLAlchemyError:
@@ -257,14 +265,18 @@ class MetadataInspector:
             minimum = None
             maximum = None
         count_label = func.count().label("frequency")
-        top_rows = connection.execute(
-            select(column, count_label)
-            .select_from(table)
-            .where(column.is_not(None))
-            .group_by(column)
-            .order_by(desc(count_label), cast(column, String))
-            .limit(top_value_limit)
-        ).all()
+        try:
+            with connection.begin_nested():
+                top_rows = connection.execute(
+                    select(column, count_label)
+                    .select_from(table)
+                    .where(column.is_not(None))
+                    .group_by(column)
+                    .order_by(desc(count_label), cast(column, String))
+                    .limit(top_value_limit)
+                ).all()
+        except SQLAlchemyError:
+            top_rows = []
         # PostgreSQL requires every ORDER BY expression to appear in a DISTINCT
         # select list.  Isolating de-duplication in a subquery keeps sampling
         # deterministic without relying on database-specific DISTINCT rules.
@@ -275,11 +287,17 @@ class MetadataInspector:
             .distinct()
             .subquery()
         )
-        sample_rows = connection.execute(
-            select(distinct_values.c.sample_value)
-            .order_by(cast(distinct_values.c.sample_value, String))
-            .limit(sample_limit)
-        ).scalars()
+        try:
+            with connection.begin_nested():
+                sample_rows = list(
+                    connection.execute(
+                        select(distinct_values.c.sample_value)
+                        .order_by(cast(distinct_values.c.sample_value, String))
+                        .limit(sample_limit)
+                    ).scalars()
+                )
+        except SQLAlchemyError:
+            sample_rows = []
         denominator = row_count or 1
         return ColumnProfile(
             table_name=table.name,

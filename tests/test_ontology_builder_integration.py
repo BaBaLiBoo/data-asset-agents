@@ -22,10 +22,13 @@ from data_asset_agents.ontology.service import OntologyService
 from data_asset_agents.sql_assets import HistoricalSQLParser
 from data_asset_agents.text2sql.graph import build_text2sql_graph
 
-pytestmark = pytest.mark.skipif(
-    os.getenv("RUN_POSTGRES_INTEGRATION") != "1",
-    reason="set RUN_POSTGRES_INTEGRATION=1 with an initialized PostgreSQL database",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        os.getenv("RUN_POSTGRES_INTEGRATION") != "1",
+        reason="set RUN_POSTGRES_INTEGRATION=1 with an initialized PostgreSQL database",
+    ),
+]
 
 
 def test_reviewed_publication_is_versioned_and_candidate_isolated() -> None:

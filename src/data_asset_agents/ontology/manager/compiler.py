@@ -120,6 +120,7 @@ class ObjectSemanticCompiler:
                 raise OntologyError("Legacy fallback bundle is not configured")
             return SemanticCompilation(
                 bundle=deepcopy(self.fallback_bundle),
+                seed_accessed=True,
                 fallback_used=True,
                 legacy_ontology_accessed=True,
             )
@@ -458,24 +459,6 @@ class ObjectSemanticCompiler:
                     synonyms=item.synonyms,
                 )
                 for item in active_objects.values()
-            ] + [
-                BusinessConcept(
-                    id=item.id,
-                    name=item.name,
-                    kind="dimension",
-                    description=item.description,
-                    synonyms=item.synonyms,
-                )
-                for item in compiled_dimensions
-            ] + [
-                BusinessConcept(
-                    id=item.id,
-                    name=item.name,
-                    kind="metric",
-                    description=item.description,
-                    synonyms=item.synonyms,
-                )
-                for item in compiled_metrics
             ]
         return SemanticCompilation(
             bundle=bundle,
@@ -487,7 +470,7 @@ class ObjectSemanticCompiler:
             metric_evidence=metric_evidence,
             dimension_evidence=dimension_evidence,
             join_evidence=join_evidence,
-            seed_accessed=False,
+            seed_accessed=not strict,
             fallback_used=not strict and not draft_owns_analytical_semantics,
             legacy_ontology_accessed=not strict,
         )

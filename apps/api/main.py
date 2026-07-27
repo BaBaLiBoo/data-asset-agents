@@ -1209,6 +1209,9 @@ def publish_object_draft(
     draft_id: str, payload: PublishDraftRequest, request: Request
 ) -> OntologyVersion:
     previous = request.app.state.ontology_repository.get_current_version()
+    construction_run_id = request.app.state.ontology_manager.get_draft(
+        draft_id
+    ).draft.construction_run_id
     version = request.app.state.ontology_manager.publish(
         draft_id, payload, expected_revision=_draft_revision(request)
     )
@@ -1217,6 +1220,12 @@ def publish_object_draft(
         request.app.state.ontology_manager.record_runtime_event(
             OntologyAuditAction.ACTIVATED, version.id, payload.actor
         )
+        if construction_run_id:
+            request.app.state.ontology_construction.record_publication(
+                construction_run_id,
+                version.id,
+                runtime_activation_succeeded=True,
+            )
     except Exception as exc:
         request.app.state.ontology_manager.record_runtime_event(
             OntologyAuditAction.ACTIVATION_FAILED,
@@ -1224,6 +1233,12 @@ def publish_object_draft(
             payload.actor,
             metadata={"error_type": type(exc).__name__},
         )
+        if construction_run_id:
+            request.app.state.ontology_construction.record_publication(
+                construction_run_id,
+                version.id,
+                runtime_activation_succeeded=False,
+            )
         if previous is not None:
             request.app.state.ontology_repository.activate_version(previous.version)
             _activate_runtime(request.app, previous)

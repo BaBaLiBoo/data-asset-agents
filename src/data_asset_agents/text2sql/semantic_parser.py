@@ -54,6 +54,14 @@ class SemanticQueryParser:
         }
         if credit_context:
             metrics = [replacements.get(metric_id, metric_id) for metric_id in metrics]
+            if (
+                "\u4ea4\u6613\u7b14\u6570" in question
+                and any(
+                    item.id == "credit_card_transaction_count"
+                    for item in bundle.metrics
+                )
+            ):
+                metrics.append("credit_card_transaction_count")
         metrics = list(dict.fromkeys(metrics))
         if "credit_card_transaction_amount" in metrics:
             metrics = [item for item in metrics if item != "transaction_amount"]

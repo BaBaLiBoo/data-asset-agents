@@ -3,8 +3,17 @@ ALTER TABLE ontology_draft
 ALTER TABLE ontology_compiled_artifact
     ADD COLUMN IF NOT EXISTS construction_run_id VARCHAR(160);
 ALTER TABLE ontology_compiled_artifact
-    ADD COLUMN IF NOT EXISTS construction_evidence_summary JSONB NOT NULL
-    DEFAULT '{}'::jsonb;
+ADD COLUMN IF NOT EXISTS construction_evidence_summary JSONB NOT NULL
+DEFAULT '{}'::jsonb;
+ALTER TABLE ontology_compiled_artifact
+ADD COLUMN IF NOT EXISTS construction_mode VARCHAR(40) NOT NULL
+DEFAULT 'LEGACY_COMPAT';
+ALTER TABLE ontology_compiled_artifact
+ADD COLUMN IF NOT EXISTS seed_accessed BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE ontology_compiled_artifact
+ADD COLUMN IF NOT EXISTS fallback_used BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE ontology_compiled_artifact
+ADD COLUMN IF NOT EXISTS legacy_ontology_accessed BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS ontology_construction_run (
     run_id VARCHAR(160) PRIMARY KEY,

@@ -645,7 +645,7 @@ class ObjectFirstCandidateGenerator:
         properties_by_id = {item.id: item for item in properties}
         dimensions_by_property = {item.property_id: item.id for item in dimensions}
         result: list[CandidateMetric] = []
-        seen: set[tuple[str, str, str]] = set()
+        seen_metric_ids: set[str] = set()
         filter_occurrences: Counter[tuple[str, str, str]] = Counter()
         certified = [
             item for item in historical_sql if _certified_construction_evidence(item)
@@ -699,10 +699,6 @@ class ObjectFirstCandidateGenerator:
                     aggregation = MetricAggregation(aggregation_name)
                 except ValueError:
                     continue
-                key = (table, aggregation.value, property_id)
-                if key in seen:
-                    continue
-                seen.add(key)
                 alias = (
                     aggregate.parent.alias
                     if isinstance(aggregate.parent, exp.Alias)
@@ -713,6 +709,9 @@ class ObjectFirstCandidateGenerator:
                     if alias
                     else stable_resource_id(aggregation.value, prop.id)
                 )
+                if metric_id in seen_metric_ids:
+                    continue
+                seen_metric_ids.add(metric_id)
                 predicates: list[PropertyFilterPredicate] = []
                 supports: list[MetricFilterSupport] = []
                 evidence = [

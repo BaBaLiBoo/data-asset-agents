@@ -631,6 +631,12 @@ class OntologyManagerService:
                 current_hash=aggregate.draft.resource_hash,
             )
 
+    @staticmethod
+    def _resolve_construction_mode(draft: OntologyDraft) -> ConstructionMode:
+        if draft.construction_run_id:
+            return ConstructionMode.STRICT_CONSTRUCTION
+        return ConstructionMode.LEGACY_COMPAT
+
     def validate(
         self,
         draft_id: str,
@@ -638,11 +644,9 @@ class OntologyManagerService:
         expected_revision: int | None = None,
         actor: str = "ontology-validator",
         request_id: str | None = None,
-        construction_mode: ConstructionMode = ConstructionMode.LEGACY_COMPAT,
     ) -> OntologyDraftAggregate:
         aggregate = self.get_draft(draft_id)
-        if aggregate.draft.construction_run_id:
-            construction_mode = ConstructionMode.STRICT_CONSTRUCTION
+        construction_mode = self._resolve_construction_mode(aggregate.draft)
         self._check_expected_revision(aggregate, expected_revision)
         if aggregate.draft.status in {DraftStatus.PUBLISHED, DraftStatus.REJECTED}:
             raise OntologyConflictError(f"Cannot validate a {aggregate.draft.status} Draft")
@@ -686,6 +690,7 @@ class OntologyManagerService:
         except Exception as exc:
             report = DraftValidationReport(
                 valid=False,
+                construction_mode=construction_mode,
                 issues=[
                     ValidationIssue(
                         code="VALIDATION_EXECUTION_FAILED",
@@ -809,13 +814,17 @@ class OntologyManagerService:
                 current_hash=aggregate.draft.resource_hash,
             )
         review_validation_started = datetime.now(UTC)
+        construction_mode = self._resolve_construction_mode(aggregate.draft)
         try:
             report = self.validator.validate(
-                aggregate.resources, aggregate.draft.source_snapshot_id
+                aggregate.resources,
+                aggregate.draft.source_snapshot_id,
+                construction_mode=construction_mode,
             )
         except Exception as exc:
             report = DraftValidationReport(
                 valid=False,
+                construction_mode=construction_mode,
                 issues=[
                     ValidationIssue(
                         code="VALIDATION_EXECUTION_FAILED",
@@ -941,7 +950,14 @@ class OntologyManagerService:
             and self.drift_service.has_breaking_drift(aggregate.draft.base_version_id)
         ):
             raise OntologyError("Breaking metadata drift blocks publication")
-        mode = report.construction_mode
+        mode = self._resolve_construction_mode(aggregate.draft)
+        if report.construction_mode != mode:
+            raise OntologyGovernanceError(
+                "Publish validation mode does not match the Draft construction origin",
+                "DRAFT_VALIDATION_MODE_MISMATCH",
+                current_revision=aggregate.draft.resource_revision,
+                current_hash=aggregate.draft.resource_hash,
+            )
         compilation = ObjectSemanticCompiler(
             None if mode == ConstructionMode.STRICT_CONSTRUCTION else self.base_bundle,
             construction_mode=mode,
@@ -977,6 +993,10 @@ class OntologyManagerService:
             source_revision=aggregate.draft.resource_revision,
             source_resource_hash=aggregate.draft.resource_hash,
             construction_run_id=aggregate.draft.construction_run_id,
+            construction_mode=mode,
+            seed_accessed=compilation.seed_accessed,
+            fallback_used=compilation.fallback_used,
+            legacy_ontology_accessed=compilation.legacy_ontology_accessed,
             compiler_name=COMPILER_NAME,
             compiler_version=COMPILER_VERSION,
             compiler_source_hash=compiler_source_hash(),
@@ -1053,6 +1073,11 @@ class OntologyManagerService:
             ontology_version_id=artifact.ontology_version_id,
             source_revision=artifact.source_revision,
             source_resource_hash=artifact.source_resource_hash,
+            construction_run_id=artifact.construction_run_id,
+            construction_mode=artifact.construction_mode,
+            seed_accessed=artifact.seed_accessed,
+            fallback_used=artifact.fallback_used,
+            legacy_ontology_accessed=artifact.legacy_ontology_accessed,
             compiler_version=artifact.compiler_version,
             bundle_hash=artifact.bundle_hash,
             status=artifact.status,

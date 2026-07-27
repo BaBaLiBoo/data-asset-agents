@@ -181,9 +181,11 @@ class OntologyConstructionEvaluator:
             for item in reviewed
             if item.status == ConstructionCandidateStatus.MODIFIED
         )
-        metrics["strict_validation_passed"] = False
-        metrics["publication_succeeded"] = False
-        metrics["runtime_activation_succeeded"] = False
+        metrics["strict_validation_passed"] = run.strict_validation_passed
+        metrics["publication_succeeded"] = run.publication_succeeded
+        metrics["runtime_activation_succeeded"] = (
+            run.runtime_activation_succeeded
+        )
         metrics["fallback_used"] = run.fallback_used
         metrics["seed_accessed"] = run.seed_accessed
         metrics["legacy_ontology_accessed"] = run.legacy_ontology_accessed

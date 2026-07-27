@@ -9,10 +9,13 @@ from data_asset_agents.sql_assets.repository import PostgresSQLAssetRepository
 from data_asset_agents.sql_assets.service import SQLAssetService
 from data_asset_agents.text2sql.graph import build_text2sql_graph
 
-pytestmark = pytest.mark.skipif(
-    os.getenv("RUN_POSTGRES_INTEGRATION") != "1",
-    reason="set RUN_POSTGRES_INTEGRATION=1 with an initialized PostgreSQL database",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        os.getenv("RUN_POSTGRES_INTEGRATION") != "1",
+        reason="set RUN_POSTGRES_INTEGRATION=1 with an initialized PostgreSQL database",
+    ),
+]
 
 
 def test_real_postgres_query_explains_and_returns_rows(

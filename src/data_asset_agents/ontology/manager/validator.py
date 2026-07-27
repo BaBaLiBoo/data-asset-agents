@@ -582,6 +582,7 @@ class OntologyDraftValidator:
                         "physical_join_ids",
                     )
 
+        seed_accessed = False
         fallback_used = False
         legacy_ontology_accessed = False
         try:
@@ -589,6 +590,7 @@ class OntologyDraftValidator:
                 None if strict else self.bundle,
                 construction_mode=construction_mode,
             ).compile(resources)
+            seed_accessed = compilation.seed_accessed
             fallback_used = compilation.fallback_used
             legacy_ontology_accessed = compilation.legacy_ontology_accessed
             for conflict in compilation.conflicts:
@@ -676,9 +678,7 @@ class OntologyDraftValidator:
             explain_passed=explain_passed,
             dry_run_cases=dry_run_cases,
             construction_mode=construction_mode,
-            seed_accessed=False,
-            fallback_used=False if strict else fallback_used,
-            legacy_ontology_accessed=False
-            if strict
-            else legacy_ontology_accessed,
+            seed_accessed=seed_accessed,
+            fallback_used=fallback_used,
+            legacy_ontology_accessed=legacy_ontology_accessed,
         )

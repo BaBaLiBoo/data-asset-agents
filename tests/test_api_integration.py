@@ -11,10 +11,13 @@ from sqlalchemy.exc import DBAPIError
 
 from apps.api.main import app
 
-pytestmark = pytest.mark.skipif(
-    os.getenv("RUN_POSTGRES_INTEGRATION") != "1",
-    reason="set RUN_POSTGRES_INTEGRATION=1 with an initialized PostgreSQL database",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        os.getenv("RUN_POSTGRES_INTEGRATION") != "1",
+        reason="set RUN_POSTGRES_INTEGRATION=1 with an initialized PostgreSQL database",
+    ),
+]
 
 
 def test_fastapi_health_query_parse_resolve_and_unsupported() -> None:
@@ -638,7 +641,12 @@ def test_compiled_artifact_insert_failure_rolls_back_postgres_publication() -> N
                 )
             failed = client.post(
                 f"/api/v1/ontology/drafts/{draft_id}/publish",
-                json={"actor": "api-reviewer", "version": version_name},
+                json={
+                    "actor": "api-reviewer",
+                    "version": version_name,
+                    "acknowledge_breaking_changes": True,
+                    "change_ticket": "INTEGRATION-ROLLBACK",
+                },
                 headers=headers,
             )
             assert failed.status_code == 422, failed.text
