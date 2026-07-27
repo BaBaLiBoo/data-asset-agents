@@ -602,7 +602,7 @@ def ontology_construction_page() -> None:
         "Snapshot", st.session_state.get("construction_snapshot", "")
     )
     evidence_mode = controls[2].selectbox("消融组", ["O-A", "O-B", "O-C", "O-D"], index=2)
-    catalog_mode = st.selectbox(
+    catalog_mode = st.radio(
         "表资产模式", ["RAW_METADATA", "GOVERNED_CATALOG"], horizontal=True
     )
     if st.button("创建 Construction Run", disabled=not snapshot_id):
