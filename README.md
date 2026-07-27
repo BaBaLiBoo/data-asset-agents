@@ -1,5 +1,44 @@
 # Data Asset Agents
 
+## Data-source-driven ontology construction
+
+Reviewed YAML remains the Gold ontology, demonstration seed, and compatibility
+entry point. The recommended construction path captures `RAW_METADATA` from the
+configured PostgreSQL source, generates isolated candidates, requires explicit
+human review, promotes a fully reviewed run to an OntologyDraft, and then performs
+strict validation, approval, publication, and runtime activation.
+
+`RAW_METADATA` cannot read governed-catalog answers or Gold.
+`GOVERNED_CATALOG` additionally permits the independent governed asset catalog.
+A Draft carrying `construction_run_id` uses `STRICT_CONSTRUCTION` for validate,
+approve, publish, and Dry Run. Its report and READY artifact must record
+`seed_accessed=false`, `fallback_used=false`, and
+`legacy_ontology_accessed=false`.
+
+Fresh isolated database acceptance:
+
+```powershell
+$env:GIT_COMMIT_SHA = (git rev-parse HEAD).Trim()
+.\scripts\acceptance.ps1 -TimeoutSeconds 600 `
+  -ComposeProject "data-asset-agents-local-closure"
+```
+
+Existing-Volume upgrade validation preserves legacy data and applies the
+repository-allowlisted DDL 009/010 idempotently:
+
+```powershell
+$env:GIT_COMMIT_SHA = (git rev-parse HEAD).Trim()
+.\scripts\upgrade_acceptance.ps1 -TimeoutSeconds 300 `
+  -ComposeProject "data-asset-agents-upgrade-010"
+```
+
+For interactive development, run `docker compose up --build -d`; API, Swagger,
+and Streamlit are available at <http://localhost:8000>,
+<http://localhost:8000/docs>, and <http://localhost:8501>. See
+`docs/ontology-construction.md` and
+`docs/ontology-construction-evaluation.md` for trust boundaries, reproduction
+steps, and the distinction between mock results and unrun live experiments.
+
 Data Asset Agents 是一个面向企业数据资产研发场景的多智能体项目。本分支在稳定的 Text-to-SQL、本体离线构建与安全发布链路上，新增了**认证历史 SQL 资产的结构化管理、混合检索、重排与 SQLGlot AST 模板改写**。当前发布本体仍是在线语义事实源，历史 SQL 只能作为通过安全门槛后的结构模板，不能绕过物理映射、Validator 或 PostgreSQL `EXPLAIN`。
 
 > 安全声明：仓库中的 MiniBank、表结构、业务概念、SQL 和数据均为公开演示目的自行构造，与任何真实机构无关。禁止向本仓库提交真实数据、非公开表结构、非公开 SQL、非公开规则或 API Key。

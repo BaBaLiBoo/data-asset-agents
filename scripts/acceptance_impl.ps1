@@ -1,7 +1,9 @@
 # Loaded explicitly as UTF-8 by acceptance.ps1 for Windows PowerShell 5.1.
 param(
     [int]$TimeoutSeconds = 300,
-    [string]$ComposeProject = "data-asset-agents-acceptance"
+    [string]$ComposeProject = "data-asset-agents-acceptance",
+    [Parameter(Mandatory = $true)]
+    [string]$ScriptsRoot
 )
 
 Set-StrictMode -Version Latest
@@ -791,6 +793,17 @@ try {
         -TimeoutSec 30
     if ($comparison.runs.Count -ne 4 -or $comparison.warnings.Count -ne 0) {
         throw "Smoke comparison did not return four fair runs"
+    }
+
+    Write-Host "[14a/15] Running data-source-driven Ontology Construction acceptance..."
+    $constructionPath = Join-Path $ScriptsRoot "ontology_construction_acceptance.ps1"
+    $constructionSource = Get-Content -LiteralPath $constructionPath -Raw -Encoding UTF8
+    $constructionScript = [ScriptBlock]::Create($constructionSource)
+    & $constructionScript `
+        -ComposeProject $ComposeProject -TimeoutSeconds $TimeoutSeconds `
+        -GoldVersion $publishedBase.version
+    if ($LASTEXITCODE -ne 0) {
+        throw "Ontology Construction acceptance failed"
     }
 
     Write-Host "[15/15] Container status..."

@@ -13,7 +13,8 @@ if ($env:GIT_COMMIT_SHA -notmatch "^[0-9a-f]{40}$") {
 $implementation = Join-Path $PSScriptRoot "acceptance_impl.ps1"
 $source = Get-Content -LiteralPath $implementation -Raw -Encoding UTF8
 $script = [ScriptBlock]::Create($source)
-& $script -TimeoutSeconds $TimeoutSeconds -ComposeProject $ComposeProject
+& $script -TimeoutSeconds $TimeoutSeconds -ComposeProject $ComposeProject `
+    -ScriptsRoot $PSScriptRoot
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
+import subprocess
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -12,6 +14,7 @@ import sqlglot
 from sqlglot import exp
 
 from data_asset_agents.core.config import Settings
+from data_asset_agents.core.errors import OntologyError
 from data_asset_agents.evaluation.ontology_construction import (
     GoldOntologyLoader,
     OntologyConstructionEvaluator,
@@ -20,6 +23,7 @@ from data_asset_agents.metadata.inspector import mask_sample_value
 from data_asset_agents.ontology.manager.candidate_generator import (
     ObjectFirstCandidateGenerator,
 )
+from data_asset_agents.ontology.manager.compiler import ObjectSemanticCompiler
 from data_asset_agents.ontology.manager.governed_catalog import load_governed_catalog
 from data_asset_agents.ontology.manager.models import (
     CatalogMode,
@@ -44,6 +48,30 @@ from data_asset_agents.sql_assets import HistoricalSQLParser
 
 ROOT = Path(__file__).parents[1]
 OUTPUT = ROOT / "reports/ontology_construction"
+
+
+def _file_hash(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _payload_hash(payload: Any) -> str:
+    serialized = json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _git_sha() -> str:
+    return subprocess.run(
+        ["git", "-c", f"safe.directory={ROOT.as_posix()}", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
 
 
 def _literal(node: exp.Expression) -> str | None:
@@ -262,6 +290,23 @@ def _candidate_resources(
 
 def run() -> list[dict[str, Any]]:
     snapshot = build_snapshot()
+    metadata_snapshot_hash = _payload_hash(snapshot.model_dump(mode="json"))
+    profiling_snapshot_hash = _payload_hash(
+        {
+            table.table_name: [
+                profile.model_dump(mode="json") for profile in table.profiles
+            ]
+            for table in snapshot.tables
+        }
+    )
+    database_snapshot_hash = _payload_hash(
+        {
+            "ddl_sha256": _file_hash(ROOT / "data/ddl/001_schema.sql"),
+            "seed_sha256": _file_hash(ROOT / "data/seed/002_seed.sql"),
+        }
+    )
+    historical_sql_hash = _file_hash(ROOT / "data/historical_sql/examples.json")
+    git_sha = _git_sha()
     historical_sql = HistoricalSQLParser().parse_file(
         ROOT / "data/historical_sql/examples.json"
     )
@@ -303,13 +348,36 @@ def run() -> list[dict[str, Any]]:
             catalog_mode=catalog_mode,
         )
         resources, reviews = _candidate_resources(generated, gold, run_id)
+        try:
+            compilation = ObjectSemanticCompiler(
+                fallback_bundle=None,
+                construction_mode=ConstructionMode.STRICT_CONSTRUCTION,
+            ).compile(
+                resources,
+                construction_mode=ConstructionMode.STRICT_CONSTRUCTION,
+            )
+            compilation_conflicts = compilation.conflicts
+            seed_accessed = compilation.seed_accessed
+            fallback_used = compilation.fallback_used
+            legacy_ontology_accessed = compilation.legacy_ontology_accessed
+        except OntologyError as exc:
+            compilation_conflicts = [str(exc)]
+            seed_accessed = False
+            fallback_used = False
+            legacy_ontology_accessed = False
+        strict_validation_passed = not (
+            compilation_conflicts
+            or seed_accessed
+            or fallback_used
+            or legacy_ontology_accessed
+        )
         construction_run = OntologyConstructionRun(
             run_id=run_id,
             status="EVALUATED",
             source_snapshot_id=snapshot.id,
-            source_snapshot_hash="generated-by-script",
-            profiling_snapshot_hash="generated-by-script",
-            historical_sql_snapshot_hash="generated-by-script",
+            source_snapshot_hash=metadata_snapshot_hash,
+            profiling_snapshot_hash=profiling_snapshot_hash,
+            historical_sql_snapshot_hash=historical_sql_hash,
             catalog_mode=catalog_mode,
             construction_mode=ConstructionMode.STRICT_CONSTRUCTION,
             evidence_mode=mode,
@@ -318,8 +386,12 @@ def run() -> list[dict[str, Any]]:
             model="deterministic-rules-v1",
             temperature=0,
             random_seed=20260715,
-            git_sha="working-tree",
+            git_sha=git_sha,
             created_by="mock-report-script",
+            strict_validation_passed=strict_validation_passed,
+            seed_accessed=seed_accessed,
+            fallback_used=fallback_used,
+            legacy_ontology_accessed=legacy_ontology_accessed,
         )
         report = OntologyConstructionEvaluator().evaluate(
             construction_run, resources, reviews, gold, gold_hash
@@ -338,19 +410,31 @@ def run() -> list[dict[str, Any]]:
             )
         }
         payload["excluded_tables"] = generated.excluded_tables
+        payload["decision_counts"] = dict(
+            Counter(candidate.decision for candidate in reviews)
+        )
+        payload["strict_compilation_conflicts"] = compilation_conflicts
+        payload["provenance"]["database_snapshot_hash"] = database_snapshot_hash
+        payload["provenance"]["metadata_snapshot_hash"] = metadata_snapshot_hash
+        payload["provenance"]["gold_hash"] = gold_hash
+        payload["provenance"]["result_mode"] = (
+            "mock deterministic construction; no live LLM claim"
+        )
         reports.append(payload)
     return reports
 
 
 def write_reports(reports: list[dict[str, Any]]) -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    (OUTPUT / "mock_ablation.json").write_text(
+    (OUTPUT / "local_mock_ablation.json").write_text(
         json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     metric_names = sorted(
         {name for report in reports for name in report["metrics"]}
     )
-    with (OUTPUT / "mock_ablation.csv").open("w", encoding="utf-8", newline="") as handle:
+    with (OUTPUT / "local_mock_ablation.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
         writer = csv.DictWriter(
             handle,
             fieldnames=["run_id", "evidence_mode", "catalog_mode", *metric_names],
@@ -395,7 +479,86 @@ def write_reports(reports: list[dict[str, Any]]) -> None:
             "- 对象边界、Link 业务命名、冲突过滤和指标口径仍需人工确认。",
         ]
     )
-    (OUTPUT / "mock_ablation.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    lines = [
+        "# Ontology Construction Mock Ablation",
+        "",
+        "本报告由公开 MiniBank DDL、虚构 seed 和认证历史 SQL 确定性生成；"
+        "Gold 仅在候选生成完成后用于模拟审核和评分。",
+        "",
+        "| Run | Catalog | Object F1 | Dimension F1 | Metric F1 | 接受率 | 修改率 | 拒绝率 |",
+        "|---|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for report in reports:
+        metrics = report["metrics"]
+        lines.append(
+            f"| {report['run_id']} | {report['provenance']['catalog_mode']} | "
+            f"{metrics['object_f1']:.3f} | {metrics['dimension_f1']:.3f} | "
+            f"{metrics['metric_f1']:.3f} | {metrics['direct_acceptance_rate']:.3f} | "
+            f"{metrics['modification_rate']:.3f} | {metrics['rejection_rate']:.3f} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## 解释",
+            "",
+            "- O-A 只验证 schema 对对象、属性和绑定骨架的贡献。",
+            "- O-B 加入画像，当前规则主要改善枚举/敏感性建议；不会凭画像创造业务指标。",
+            "- O-C 的认证 SQL AST 才能提出聚合、固定过滤、时间字段和支持维度。",
+            "- O-D 在本报告中使用 mock 确定性语义增强，因此不声称存在 live LLM 增益。",
+            "- 对象边界、Link 业务命名、冲突过滤和指标口径仍需人工确认。",
+        ]
+    )
+    lines = [
+        "# Ontology Construction Local Mock Ablation",
+        "",
+        "Generated deterministically from the public MiniBank DDL, fictional seed "
+        "data, and certified historical SQL. Gold is loaded only after candidate "
+        "generation to simulate human review and independent scoring.",
+        "",
+        "| Run | Catalog | Object F1 | Dimension F1 | Metric F1 | Accept | Modify | Reject |",
+        "|---|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for report in reports:
+        metrics = report["metrics"]
+        lines.append(
+            f"| {report['run_id']} | {report['provenance']['catalog_mode']} | "
+            f"{metrics['object_f1']:.3f} | {metrics['dimension_f1']:.3f} | "
+            f"{metrics['metric_f1']:.3f} | {metrics['direct_acceptance_rate']:.3f} | "
+            f"{metrics['modification_rate']:.3f} | {metrics['rejection_rate']:.3f} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Interpretation",
+            "",
+            "- O-A measures the schema-only object, property, and binding scaffold.",
+            "- O-B adds profiling; profiling does not invent business metrics.",
+            "- O-C may derive aggregation, fixed filters, time properties, and "
+            "supported dimensions only from certified SQL AST evidence.",
+            "- O-D uses mock semantic enrichment and makes no live-LLM gain claim.",
+            "- Object boundaries, business Link names, conflicts, and metric "
+            "definitions still require human review.",
+            "",
+            "## Provenance and validation",
+            "",
+            f"- Git SHA: `{reports[0]['provenance']['git_sha']}`",
+            f"- Database snapshot hash: "
+            f"`{reports[0]['provenance']['database_snapshot_hash']}`",
+            f"- Metadata snapshot hash: "
+            f"`{reports[0]['provenance']['metadata_snapshot_hash']}`",
+            f"- Historical SQL hash: "
+            f"`{reports[0]['provenance']['historical_sql_snapshot_hash']}`",
+            f"- Gold hash: `{reports[0]['gold_hash']}`",
+            "- `strict_validation_passed` in this report means deterministic strict "
+            "compilation completed without conflicts or seed/fallback/legacy access. "
+            "It is not a PostgreSQL EXPLAIN or live-model result.",
+            "- Publication and runtime activation are intentionally false in this "
+            "file-only ablation; those gates are covered by Docker acceptance.",
+        ]
+    )
+    (OUTPUT / "local_mock_ablation.md").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8"
+    )
 
 
 if __name__ == "__main__":

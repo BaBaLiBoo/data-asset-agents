@@ -159,10 +159,13 @@ try {
     Assert-LastExitCode "Could not start PostgreSQL from the populated old volume"
     Wait-Postgres $TimeoutSeconds
 
-    Write-Host "[4/10] Applying DDL 009 twice to prove upgrade idempotency..."
-    $migration = Get-Content data/ddl/009_ontology_release_governance.sql -Raw
-    Invoke-DatabaseSql $migration
-    Invoke-DatabaseSql $migration
+    Write-Host "[4/10] Applying DDL 009 and 010 twice to prove upgrade idempotency..."
+    $releaseMigration = Get-Content data/ddl/009_ontology_release_governance.sql -Raw
+    $constructionMigration = Get-Content data/ddl/010_ontology_construction.sql -Raw
+    Invoke-DatabaseSql $releaseMigration
+    Invoke-DatabaseSql $releaseMigration
+    Invoke-DatabaseSql $constructionMigration
+    Invoke-DatabaseSql $constructionMigration
     $migrationState = docker compose -p $ComposeProject exec -T postgres `
         psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB -tAc `
         "SELECT resource_hash || '|' || validation_state FROM ontology_draft WHERE draft_id='legacy-upgrade-draft'"
@@ -170,6 +173,31 @@ try {
     $parts = $migrationState.Trim().Split('|')
     if ($parts.Count -ne 2 -or $parts[0].Length -ne 64 -or $parts[1] -ne "STALE") {
         throw "Legacy Draft did not receive a compatibility hash and STALE validation state"
+    }
+    $constructionState = docker compose -p $ComposeProject exec -T postgres `
+        psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB -tAc `
+        ("SELECT concat_ws('|'," +
+        "(SELECT count(*) FROM information_schema.tables WHERE table_name=" +
+        "'ontology_construction_run')," +
+        "(SELECT count(*) FROM information_schema.tables WHERE table_name=" +
+        "'ontology_construction_candidate')," +
+        "(SELECT count(*) FROM information_schema.tables WHERE table_name=" +
+        "'ontology_construction_candidate_review')," +
+        "(SELECT count(*) FROM information_schema.columns WHERE table_name=" +
+        "'ontology_draft' AND column_name='construction_run_id')," +
+        "(SELECT count(*) FROM information_schema.columns WHERE table_name=" +
+        "'ontology_compiled_artifact' AND column_name IN (" +
+        "'construction_run_id','construction_mode','construction_evidence_summary'," +
+        "'seed_accessed','fallback_used','legacy_ontology_accessed')))")
+    Assert-LastExitCode "Could not inspect DDL 010 upgrade state"
+    $constructionParts = $constructionState.Trim().Split('|')
+    if ($constructionParts.Count -ne 5 -or
+        [int]$constructionParts[0] -ne 1 -or
+        [int]$constructionParts[1] -ne 1 -or
+        [int]$constructionParts[2] -ne 1 -or
+        [int]$constructionParts[3] -ne 1 -or
+        [int]$constructionParts[4] -ne 6) {
+        throw "DDL 010 tables or strict construction artifact columns are incomplete"
     }
 
     Write-Host "[5/10] Starting the current API against the upgraded volume..."
