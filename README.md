@@ -416,6 +416,10 @@ Copy-Item .env.example .env
 .\scripts\upgrade_acceptance.ps1
 ```
 
+Fresh 与 Upgrade 验收默认使用独立宿主端口（分别为
+`15432/18000/18501` 和 `25432/28000`），因此可以与普通开发环境的
+`5432/8000/8501` 同时运行；也可通过脚本端口参数覆盖。
+
 手工执行等价步骤：
 
 ```powershell
@@ -547,6 +551,22 @@ Template Adoption Rate 为 22.22%；同时平均延迟比 No SQLAsset 增加 440
 - 自动修复仅支持补齐校验器明确指出的必要指标过滤条件；字段错误、未审核 Join、禁用表和数据库执行错误不会被猜测性修改。
 - 已实现版本激活、回滚和可复现评测；尚未实现细粒度权限、多人审批、版本签名和分布式评测队列。
 - 本轮已实现 schema/rag/ontology 四组严格隔离对照；尚不实现多事实表 SQL、历史 SQL 自由 AST 合成、复杂 LLM SQL 修复、OWL/RDF/SPARQL/Neo4j 或其他 Agent。
+## Ontology Construction Quality V2
+
+原始候选质量和审核后 Draft 质量现已分开评测，并单独统计审核增益、字段级审核成本和人工从零建模成本估算。空集合不再显示虚假的 100%；业务 Link 同时报告无向端点、方向、语义名称/稳定 ID 和 Physical Join 一致性。
+
+真实 PostgreSQL 中已发布三个相互隔离的版本：
+
+- O-C Reviewed：`version_9792e7e2f4fa4db9b27cb26a3c076f2c`
+- O-D Reviewed：`version_23aa2974a54a460694a92024b3d0b1a9`
+- Gold：`version_3a17072aa48949f185d167da1e1892e8`
+
+三者的 bundle、artifact source hash 和 READY SQLAsset Build 均不同。O-C/O-D 通过严格构建且三个泄漏标志均为 `false`。第一次保留全部允许语义字段的 O-D Draft 被 PostgreSQL Dry Run 拒绝，没有发布；正式 O-D 对照版本只保留模型生成的对象边界说明，并明确记录为查询安全的测试审核策略。
+
+T-A 至 T-H 共 640 Case 的正式 live 实验尚未运行。它需要把虚构 MiniBank 问题、本体语义和检索文本发送到配置的 DeepSeek 与 DashScope 服务；本次执行未获得该外发载荷的明确授权，因此没有生成或伪造 Case 结果。完整版本、Hash、构建 ID 和未运行原因见 `reports/ontology_construction_v2/published_versions_v2.json` 与 `reports/text2sql_reviewed_ontology_v2/manifest.json`。
+
+本地 Fresh Acceptance 和 Existing-Volume Upgrade Acceptance 均已实际通过。随后在最终 SHA 上复跑 Fresh 时，Docker Desktop 本地内容存储读取 `pgvector` 镜像 blob 出现 I/O 错误；验收脚本已按预期立即失败并清理临时项目，但 Docker Linux Engine 重启未恢复。该外部故障没有记作通过，详情见 `reports/ontology_construction_v2/local_runtime_verification_v2.json`。
+
 - Ontology Manager 当前只连接应用已经配置的 PostgreSQL Engine；`connection_ref` 仅保存环境变量名，不支持 API 任意新增主机。
 - `account.status` 与 `card.status` 已作为对象属性保留，但当前虚构物理表没有对应字段，因此不会伪造物理绑定或进入运行时投影。
 - Object Explorer 仅支持单对象白名单筛选和审核 Link 导航，不提供自由查询语言、任意排序、导出、写回或细粒度用户权限。

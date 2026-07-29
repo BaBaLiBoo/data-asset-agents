@@ -125,3 +125,58 @@ The dependent T-A through T-H 80-case experiment was not run: independently
 published reviewed O-C, reviewed O-D, and Gold versions with version-bound
 SQLAsset builds were not created. Mock, historical, and file-only construction
 results were not substituted for downstream case results.
+
+## PostgreSQL publication closure
+
+The later local PostgreSQL closure supersedes only the last prerequisite
+statement above; it does not replace the file-based O-C/O-D ablation. Three
+independent versions and READY SQLAsset builds now exist:
+
+| Source | Construction Run | Ontology Version | SQLAsset Build |
+|---|---|---|---|
+| Reviewed O-C | `construction-0de800c044194393a9317150c2cde05e` | `version_9792e7e2f4fa4db9b27cb26a3c076f2c` | `sqlbuild-8d5ebe518fc14e76a2646e52cc767145` |
+| Reviewed live O-D | `construction-24a6784bc1524aae8242c174d829201f` | `version_23aa2974a54a460694a92024b3d0b1a9` | `sqlbuild-551264a4ab16456ebc67fef848cf88ce` |
+| Gold | — | `version_3a17072aa48949f185d167da1e1892e8` | `sqlbuild-6c61de9c015a41f8b0a010555738b8de` |
+
+Version IDs, bundle hashes, artifact source hashes, and build IDs are pairwise
+distinct. O-C and O-D artifacts passed `STRICT_CONSTRUCTION` with
+`seed_accessed=false`, `fallback_used=false`, and
+`legacy_ontology_accessed=false`.
+
+The first O-D review retained every model-suggested semantic field allowed by
+the structured schema. Strict PostgreSQL Dry Run rejected it because query
+resolution treated `relative_days_30` as a date literal. It was not published.
+A second, query-safe review retained only model-authored object boundary
+descriptions; query-sensitive names and synonyms remained human-reviewed. That
+version passed strict validation and was published. This is evidence that the
+publication gate worked, not evidence that arbitrary semantic suggestions are
+safe.
+
+The formal 640-case runner is:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_text2sql_reviewed_ontology_v2.py `
+  --o-c-version quality-v2-reviewed-o-c `
+  --o-c-run construction-0de800c044194393a9317150c2cde05e `
+  --o-d-version quality-v2-reviewed-o-d-live-safe `
+  --o-d-run construction-24a6784bc1524aae8242c174d829201f `
+  --gold-version quality-v2-gold-independent
+```
+
+It writes 80 persisted Case rows and one CSV per T-A through T-H group, then
+checks ontology/bundle/artifact/build isolation before comparison. The run was
+not started because the environment did not grant explicit approval to send
+the fictional MiniBank questions, ontology semantics, and retrieval text to
+DeepSeek and DashScope. No earlier result was substituted. Exact hashes and the
+not-run evidence are in `reports/ontology_construction_v2/published_versions_v2.json`
+and `reports/text2sql_reviewed_ontology_v2/manifest.json`.
+
+The isolated Fresh Acceptance passed with 97 construction candidates and review
+decisions 12 ACCEPT / 60 MODIFY / 25 REJECT. Existing-Volume Upgrade Acceptance
+also passed after applying DDL 009 and 010 twice. A later final-SHA Fresh retry
+was blocked by a Docker Desktop content-store I/O error while reading the
+locally cached `pgvector` image; the acceptance script correctly failed
+immediately and removed its temporary project. Restarting Docker Desktop did
+not recover its Linux engine. This external failure is not reported as a
+repository pass. Exact successful and blocked attempts are recorded in
+`reports/ontology_construction_v2/local_runtime_verification_v2.json`.

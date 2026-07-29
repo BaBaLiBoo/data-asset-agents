@@ -90,7 +90,10 @@ $env:GIT_COMMIT_SHA = (git rev-parse HEAD).Trim()
 ```
 
 This uses a new Compose project and Volume, runs DDL 001 through 010, and removes
-only that isolated Volume when finished.
+only that isolated Volume when finished. Its default host ports are PostgreSQL
+`15432`, API `18000`, and Streamlit `18501`, so an ordinary development stack
+can remain on `5432`, `8000`, and `8501`. Override them with
+`-PostgresPort`, `-ApiPort`, and `-WebPort` when needed.
 
 Existing Volume upgrade:
 
@@ -102,8 +105,8 @@ $env:GIT_COMMIT_SHA = (git rev-parse HEAD).Trim()
 
 The upgrade acceptance creates a disposable pre-009 database, preserves fictional
 legacy rows, applies allowlisted DDL 009 and 010 twice, verifies new tables and
-columns, and starts the current API. Normal user Volumes are not automatically
-deleted.
+columns, and starts the current API. It defaults to PostgreSQL `25432` and API
+`28000`; normal user containers and Volumes are not stopped or deleted.
 
 Interactive services:
 
@@ -121,3 +124,19 @@ review progress, raw-to-reviewed JSON Diff, candidate evidence expansion, all
 review decisions, and promotion only after all candidates have a terminal review
 decision. Review delta/cost and the final version association are shown after
 evaluation. API errors are displayed on the page.
+
+## Live semantic review boundary
+
+Structured output prevents the model from changing stable IDs, bindings,
+Physical Joins, aggregation, fixed filters, and supported dimensions. It does
+not by itself prove that every allowed name or synonym is query-safe. In the
+local Quality V2 closure, retaining all allowed O-D semantic suggestions caused
+strict Dry Run to reject a relative-time synonym as an invalid date literal.
+That Draft was not published.
+
+The published O-D comparison version therefore uses an explicit query-safe
+test-review policy: only object boundary descriptions retain live-model text;
+all query-sensitive names, synonyms, and structural/physical fields use the
+human-reviewed result. Reports label this policy and do not claim that live O-D
+reduced review effort. Production reviewers must inspect semantic changes just
+as they inspect structural changes.

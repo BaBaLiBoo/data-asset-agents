@@ -1,10 +1,15 @@
 {
-  "status": "NOT_RUN",
+  "evaluation_schema_version": "2.0",
+  "status": "NOT_RUN_EXTERNAL_APPROVAL_REQUIRED",
   "links": [],
   "schema": {
     "construction_candidate_error": null,
     "reviewed_ontology_change": null,
     "text2sql_case_error": null
   },
-  "reason": "No formal T-A through T-H case results were generated."
+  "construction_runs": {
+    "REVIEWED_O_C": "construction-0de800c044194393a9317150c2cde05e",
+    "REVIEWED_O_D": "construction-24a6784bc1524aae8242c174d829201f"
+  },
+  "reason": "No formal T-A through T-H Case results were generated because external provider payload approval was not granted."
 }

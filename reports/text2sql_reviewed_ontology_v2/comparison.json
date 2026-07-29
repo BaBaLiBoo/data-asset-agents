@@ -1,8 +1,11 @@
 {
-  "status": "NOT_RUN",
+  "evaluation_schema_version": "2.0",
+  "status": "NOT_RUN_EXTERNAL_APPROVAL_REQUIRED",
   "runs": [],
   "warnings": [
     "No T-A through T-H case results were generated.",
-    "No historical or mock results were copied into this V2 comparison."
+    "The three isolated published ontology versions and READY SQLAsset builds exist.",
+    "No historical or mock results were copied into this V2 comparison.",
+    "External provider payload approval was not granted."
   ]
 }

@@ -1,0 +1,109 @@
+{
+  "report_schema_version": "2.0",
+  "date": "2026-07-29",
+  "branch": "feature/text2sql-mvp",
+  "runtime_code_commit_sha": "868123c139e48d0b5d7202f0519820b097f46116",
+  "python_verification_commit_sha": "b6a8a680a03057559fbba2343e7ba6d6aa8f25d3",
+  "python": {
+    "ruff": "PASSED",
+    "collected_tests": 208,
+    "unit_and_local_tests": {
+      "passed": 203,
+      "skipped_integration": 5,
+      "failed": 0
+    },
+    "ontology_construction_and_evaluation_specialty": "PASSED"
+  },
+  "postgres_integration": {
+    "status": "PASSED",
+    "passed": 5,
+    "failed": 0,
+    "database": "fresh isolated pgvector PostgreSQL 16",
+    "host_port": 55432,
+    "git_sha_injected": true,
+    "llm_mode": "mock",
+    "notes": [
+      "A first attempt against the existing development database was invalid because prior fixed test versions changed the baseline.",
+      "The first isolated attempt exposed missing Git SHA provenance in the test invocation.",
+      "The final run recreated the database, applied DDL 001-010 and the fictional seed, injected the 40-character SHA, and passed all five integration tests."
+    ]
+  },
+  "docker": {
+    "image_build": "PASSED",
+    "fresh_acceptance": {
+      "status": "PASSED",
+      "injected_git_commit_sha": "ddab98d69691546472ad6005a4077413e3dbdb60",
+      "working_tree_included_runtime_port_isolation": true,
+      "compose_project": "data-asset-agents-quality-v2",
+      "ports": {
+        "postgres": 15432,
+        "api": 18000,
+        "streamlit": 18501
+      },
+      "construction_run_id": "construction-90b7532dc5fd476e9557acf3cf9bb608",
+      "candidate_count": 97,
+      "review_decisions": {
+        "ACCEPT": 12,
+        "MODIFY": 60,
+        "REJECT": 25
+      },
+      "draft_id": "draft-construction-7670cfe48b45487cb45f0a6f0122a3d6",
+      "ontology_version_id": "version_bccd42175d844014863c0a212ea82a57",
+      "bundle_hash": "fa5379703607c84ff1f3a82a3621356afc238b9bbf5fe3c612e2afc21acf3580",
+      "isolated_volume_removed": true
+    },
+    "final_sha_fresh_acceptance_retry": {
+      "status": "BLOCKED_DOCKER_DESKTOP_STORAGE_FAILURE",
+      "injected_git_commit_sha": "b6a8a680a03057559fbba2343e7ba6d6aa8f25d3",
+      "repository_failure": false,
+      "failure": "Docker Desktop could not read the cached pgvector image blob and returned input/output error.",
+      "acceptance_failed_fast": true,
+      "temporary_project_resources_removed": true,
+      "docker_desktop_restart_attempted": true,
+      "docker_engine_recovered": false
+    },
+    "upgrade_acceptance": {
+      "status": "PASSED",
+      "compose_project": "data-asset-agents-quality-upgrade",
+      "ports": {
+        "postgres": 25432,
+        "api": 28000
+      },
+      "ddl_009_and_010_applied_twice": true,
+      "legacy_rows_preserved": true,
+      "ready_artifact_published": true,
+      "isolated_volume_removed": true
+    },
+    "ordinary_development_services": {
+      "last_verified_before_docker_storage_failure": {
+        "postgres": "HEALTHY",
+        "api": "HEALTHY",
+        "streamlit": "HEALTHY"
+      },
+      "api_health_body": {
+        "status": "ok",
+        "database": "up"
+      },
+      "streamlit_health_body": "ok",
+      "final_state": "UNAVAILABLE_AFTER_DOCKER_DESKTOP_RESTART_FAILED"
+    }
+  },
+  "streamlit_workbench": {
+    "status": "PASSED",
+    "run_id": "construction-aa64f4a454e44b579076df76ecefc9f3",
+    "page_exceptions": 0,
+    "accepted_candidate_id": "candidate-binding-snapshot_405b418b2ccc47288f0d33896c08baa2-account_primary_binding",
+    "accepted_candidate_persisted": true,
+    "reviewer": "streamlit-reviewer",
+    "stable_id_mutation_attempt": {
+      "blocked": true,
+      "message": "Stable resource ID cannot be modified.",
+      "candidate_remained_pending": true
+    }
+  },
+  "formal_text2sql_v2": {
+    "status": "NOT_RUN_EXTERNAL_APPROVAL_REQUIRED",
+    "persisted_case_count": 0,
+    "reason": "Explicit approval was not granted to send fictional MiniBank questions, reviewed ontology semantics, and retrieval text to DeepSeek and DashScope."
+  }
+}

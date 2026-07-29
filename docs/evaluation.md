@@ -14,6 +14,27 @@ of live-model gain. Without a usable live key and all isolated versions, live O-
 and its dependent 80-case groups are recorded as not run rather than filled with
 mock or historical results.
 
+The formal V2 runner is
+`scripts/run_text2sql_reviewed_ontology_v2.py`. It requires explicit O-C, O-D,
+and Gold version names plus the two construction Run IDs, creates T-A through
+T-H sequentially, requires exactly 80 persisted Cases per group, exports one
+Case CSV per group, and asks the API to perform the final fairness comparison.
+It also rejects reused ontology version IDs, bundle/artifact hashes, and
+SQLAsset build IDs.
+
+V2 metrics add semantic parse, Metric, Dimension, table, column, Join, business
+rule, SQL validity, EXPLAIN, execution, Result Hash, clarification, lifecycle
+rejection, template rewrite, latency, and token usage measures.
+`sql_asset_selection_accuracy` remains `null` because the benchmark does not
+define a Gold SQLAsset ID for each Case; it is not inferred from template use.
+
+The PostgreSQL publication prerequisite is complete for the three independent
+versions recorded in
+`reports/ontology_construction_v2/published_versions_v2.json`. The 640-case
+external-provider run remains not run until the fictional benchmark and
+ontology payload is explicitly approved for transmission to DeepSeek and
+DashScope.
+
 ## 四个严格隔离实验组
 
 | 组别 | 可见知识 | 禁止访问 | 生成方式 |

@@ -1,0 +1,84 @@
+{
+  "report_schema_version": "2.0",
+  "snapshot_id": "snapshot_405b418b2ccc47288f0d33896c08baa2",
+  "snapshot_hash": "f2cb51e9890d25003c095f8248d25a0a6b81b45e81d3a3d780805d69bbaec93c",
+  "git_commit_sha_at_publication": "52c834be2bb9891df87f8111a45252698b76f6b4",
+  "runner_commit_sha": "ddab98d69691546472ad6005a4077413e3dbdb60",
+  "reviewed_o_c": {
+    "construction_run_id": "construction-0de800c044194393a9317150c2cde05e",
+    "candidate_counts": {
+      "object": 8,
+      "property": 39,
+      "binding": 8,
+      "link": 10,
+      "physical_join": 11,
+      "dimension": 15,
+      "metric": 6,
+      "total": 97
+    },
+    "review_decisions": {
+      "ACCEPT": 12,
+      "MODIFY": 60,
+      "REJECT": 25
+    },
+    "total_edited_field_count": 197,
+    "review_saving_rate": 0.5172413793,
+    "draft_id": "draft-construction-0ca87d47cf36428bba92cc95b883b4b7",
+    "ontology_version_id": "version_9792e7e2f4fa4db9b27cb26a3c076f2c",
+    "artifact_id": "artifact-version_9792e7e2f4fa4db9b27cb26a3c076f2c",
+    "artifact_hash": "a660a316a9bdb2a26403eee190d4dee6c4118c9af017acf1574ce8abb2609540",
+    "bundle_hash": "4544739e14bdebc0ea2e0248153d9387cfd38e5761e992f172819933eb4a0616",
+    "sql_asset_build_id": "sqlbuild-8d5ebe518fc14e76a2646e52cc767145",
+    "strict_validation": true,
+    "seed_accessed": false,
+    "fallback_used": false,
+    "legacy_ontology_accessed": false
+  },
+  "reviewed_o_d": {
+    "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f",
+    "llm_call_count": 9,
+    "review_policy": "retain_object_descriptions_only",
+    "review_policy_reason": "Query-sensitive names, synonyms, and all structural and physical fields remain Gold-reviewed; only object boundary descriptions retain constrained LLM semantics.",
+    "review_decisions": {
+      "ACCEPT": 12,
+      "MODIFY": 60,
+      "REJECT": 25
+    },
+    "total_edited_field_count": 196,
+    "review_saving_rate": 0.5188834154,
+    "draft_id": "draft-construction-8440f32050664f70bb2f397095f291dc",
+    "ontology_version_id": "version_23aa2974a54a460694a92024b3d0b1a9",
+    "artifact_id": "artifact-version_23aa2974a54a460694a92024b3d0b1a9",
+    "artifact_hash": "09132da1bf5bbbe80a9348d0a73641de7700d7299a9b4f3efab07dea5a9bfdb8",
+    "bundle_hash": "024d318c691a5e670621c5364ddadec3471284010838856b9a3ac2bd0fa02987",
+    "sql_asset_build_id": "sqlbuild-551264a4ab16456ebc67fef848cf88ce",
+    "strict_validation": true,
+    "seed_accessed": false,
+    "fallback_used": false,
+    "legacy_ontology_accessed": false
+  },
+  "rejected_o_d_attempt": {
+    "construction_run_id": "construction-8fac6f0dd4f44f5ba195ef8cfdd523ef",
+    "draft_id": "draft-construction-a64f84fa358148ffa513224aaec855fc",
+    "review_policy": "retain_all_allowed_llm_semantics",
+    "published": false,
+    "failure": "Strict PostgreSQL Dry Run rejected the generated relative_days_30 value as an invalid date literal.",
+    "interpretation": "Allowed semantic wording can still affect query resolution. Structured-field immutability alone is insufficient; publication gates correctly blocked this artifact."
+  },
+  "gold": {
+    "draft_id": "draft-seed-2827fbc016704cd8be8c174887781207",
+    "ontology_version_id": "version_3a17072aa48949f185d167da1e1892e8",
+    "artifact_id": "artifact-version_3a17072aa48949f185d167da1e1892e8",
+    "artifact_hash": "58c0c6dd1daa88e4dc641fdb6c2045e574e66d9dde484bfe7db3278954c51248",
+    "bundle_hash": "c5335c771f809e0e591ea2a3c77e3644e844c1420d5992ac07baf4674c8ab219",
+    "sql_asset_build_id": "sqlbuild-6c61de9c015a41f8b0a010555738b8de",
+    "construction_run_id": null,
+    "construction_mode": "LEGACY_COMPAT"
+  },
+  "isolation": {
+    "ontology_version_ids_pairwise_distinct": true,
+    "bundle_hashes_pairwise_distinct": true,
+    "artifact_hashes_pairwise_distinct": true,
+    "sql_asset_build_ids_pairwise_distinct": true
+  }
+}
