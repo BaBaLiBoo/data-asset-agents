@@ -1,0 +1,110 @@
+[
+  {
+    "pair_id": "PAIR-001",
+    "title": "DUPLICATE_EQUIVALENT_REWRITE",
+    "asset_a_id": "ODS_CLIENT",
+    "asset_a_name": "客户源数据",
+    "asset_b_id": "ODS_CLIENT_DUP",
+    "asset_b_name": "客户对象源数据",
+    "expected_label": "DUPLICATE"
+  },
+  {
+    "pair_id": "PAIR-002",
+    "title": "DUPLICATE_EQUIVALENT_REWRITE",
+    "asset_a_id": "ODS_DEPOSIT_ACCOUNT",
+    "asset_a_name": "存款账户源数据",
+    "asset_b_id": "ODS_DEPOSIT_ACCOUNT_DUP",
+    "asset_b_name": "储蓄账户源数据",
+    "expected_label": "DUPLICATE"
+  },
+  {
+    "pair_id": "PAIR-003",
+    "title": "DUPLICATE_EQUIVALENT_REWRITE",
+    "asset_a_id": "ODS_DEPOSIT_TRANSACTION",
+    "asset_a_name": "存款交易源数据",
+    "asset_b_id": "ODS_DEPOSIT_TRANSACTION_DUP",
+    "asset_b_name": "储蓄交易源数据",
+    "expected_label": "DUPLICATE"
+  },
+  {
+    "pair_id": "PAIR-004",
+    "title": "DUPLICATE_EQUIVALENT_REWRITE",
+    "asset_a_id": "ODS_LOAN_ACCOUNT",
+    "asset_a_name": "贷款账户源数据",
+    "asset_b_id": "ODS_LOAN_ACCOUNT_DUP",
+    "asset_b_name": "信贷账户源数据",
+    "expected_label": "DUPLICATE"
+  },
+  {
+    "pair_id": "PAIR-021",
+    "title": "SIMILAR_SCOPE_CONFLICT",
+    "asset_a_id": "ODS_CLIENT",
+    "asset_a_name": "客户源数据",
+    "asset_b_id": "ODS_CLIENT_SIM",
+    "asset_b_name": "客户源数据不同口径",
+    "expected_label": "NOT_DUPLICATE"
+  },
+  {
+    "pair_id": "PAIR-022",
+    "title": "SIMILAR_SCOPE_CONFLICT",
+    "asset_a_id": "ODS_DEPOSIT_ACCOUNT",
+    "asset_a_name": "存款账户源数据",
+    "asset_b_id": "ODS_DEPOSIT_ACCOUNT_SIM",
+    "asset_b_name": "存款账户源数据不同口径",
+    "expected_label": "NOT_DUPLICATE"
+  },
+  {
+    "pair_id": "PAIR-023",
+    "title": "SIMILAR_SCOPE_CONFLICT",
+    "asset_a_id": "ODS_LOAN_ACCOUNT",
+    "asset_a_name": "贷款账户源数据",
+    "asset_b_id": "ODS_LOAN_ACCOUNT_SIM",
+    "asset_b_name": "贷款账户源数据不同口径",
+    "expected_label": "NOT_DUPLICATE"
+  },
+  {
+    "pair_id": "PAIR-024",
+    "title": "SIMILAR_FILTER_CONFLICT",
+    "asset_a_id": "DWD_CUSTOMER",
+    "asset_a_name": "客户标准明细",
+    "asset_b_id": "DWD_CUSTOMER_SIM",
+    "asset_b_name": "客户标准明细不同口径",
+    "expected_label": "NOT_DUPLICATE"
+  },
+  {
+    "pair_id": "PAIR-041",
+    "title": "CLEAR_CROSS_DOMAIN",
+    "asset_a_id": "ODS_CLIENT",
+    "asset_a_name": "客户源数据",
+    "asset_b_id": "ODS_LOAN_ACCOUNT",
+    "asset_b_name": "贷款账户源数据",
+    "expected_label": "NOT_DUPLICATE"
+  },
+  {
+    "pair_id": "PAIR-042",
+    "title": "CLEAR_CROSS_DOMAIN",
+    "asset_a_id": "ODS_DEPOSIT_ACCOUNT",
+    "asset_a_name": "存款账户源数据",
+    "asset_b_id": "DWD_CUSTOMER",
+    "asset_b_name": "客户标准明细",
+    "expected_label": "NOT_DUPLICATE"
+  },
+  {
+    "pair_id": "PAIR-043",
+    "title": "CLEAR_CROSS_DOMAIN",
+    "asset_a_id": "ODS_LOAN_ACCOUNT",
+    "asset_a_name": "贷款账户源数据",
+    "asset_b_id": "DWD_DEPOSIT_ACCOUNT",
+    "asset_b_name": "存款账户标准明细",
+    "expected_label": "NOT_DUPLICATE"
+  },
+  {
+    "pair_id": "PAIR-044",
+    "title": "CLEAR_CROSS_DOMAIN",
+    "asset_a_id": "DWD_CUSTOMER",
+    "asset_a_name": "客户标准明细",
+    "asset_b_id": "DWD_LOAN_TRANSACTION",
+    "asset_b_name": "贷款交易标准明细",
+    "expected_label": "NOT_DUPLICATE"
+  }
+]

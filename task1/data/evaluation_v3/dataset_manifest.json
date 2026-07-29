@@ -1,0 +1,46 @@
+{
+  "version": "independent-evaluation-v3.0",
+  "asset_count": 360,
+  "pair_count": 270,
+  "base_asset_count": 90,
+  "duplicate_variant_count": 90,
+  "hard_variant_count": 90,
+  "same_domain_distractor_count": 90,
+  "label_distribution": {
+    "DUPLICATE": 90,
+    "NOT_DUPLICATE": 180
+  },
+  "scenario_distribution": {
+    "duplicate": 90,
+    "hard_not_duplicate": 90,
+    "clear_not_duplicate": 90
+  },
+  "split_distribution": {
+    "TEST": 180,
+    "DEV": 90
+  },
+  "dev_family_count": 30,
+  "test_family_count": 60,
+  "asset_split_leakage": 0,
+  "family_split_leakage": 0,
+  "dev_duplicate_templates": [
+    "CTE_REWRITE"
+  ],
+  "test_duplicate_templates": [
+    "SUBQUERY_REWRITE"
+  ],
+  "dev_hard_conflicts": [
+    "AGGREGATION",
+    "FILTER"
+  ],
+  "test_hard_conflicts": [
+    "TIME_GRAIN",
+    "DATE_FIELD",
+    "MEASURE",
+    "CURRENCY_SCOPE"
+  ],
+  "generation_independence": "generator uses business specifications and deterministic transformations; it does not import or query similarity scores, fusion weights, or thresholds",
+  "boundary": "public-schema-inspired semi-synthetic data; labels are deterministic business-spec labels, not bank-expert blind annotations",
+  "assets_sha256": "40d3e7b1764e4739530487a6f7589761c22a1e55cc2e73e73fea1e23592fa5d8",
+  "pairs_sha256": "f8642311ef6e1e879df56c17d1d8424b47bf992bfd9f7fd7381c548c7c3369a5"
+}

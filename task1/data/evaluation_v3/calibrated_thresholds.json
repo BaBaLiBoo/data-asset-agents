@@ -1,0 +1,12 @@
+{
+  "KEYWORD_BASELINE": {
+    "suspected": 0.51,
+    "duplicate": 0.51,
+    "minimum_evidence_coverage": 0.7
+  },
+  "THREE_LAYER": {
+    "suspected": 0.91,
+    "duplicate": 0.91,
+    "minimum_evidence_coverage": 0.7
+  }
+}

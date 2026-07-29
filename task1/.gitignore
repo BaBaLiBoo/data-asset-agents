@@ -1,0 +1,36 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.coverage
+htmlcov/
+
+# Runtime databases and caches
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# Generated reports
+reports/*
+!reports/.gitkeep
+
+# Test and local work directories
+.test-tmp/
+pytest-cache-files-*/
+tmp*/
+work/
+
+# IDE
+.vscode/
+.idea/
+
+# Operating system
+Thumbs.db
+.DS_Store

@@ -1,0 +1,9 @@
+{
+  "query_count": 138,
+  "dev_count": 47,
+  "test_count": 91,
+  "sql_count": 38,
+  "no_match_count": 18,
+  "source": "data/evaluation_v3",
+  "limitations": "半仿真工程评测，不能替代真实用户检索评测"
+}

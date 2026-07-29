@@ -1,0 +1,20 @@
+{
+  "text_only": {
+    "vector_weight": 0.6,
+    "keyword_weight": 0.4,
+    "min_score": 0.5,
+    "top_k": 5
+  },
+  "text_sql_enhanced": {
+    "embedding_weight": 0.45,
+    "keyword_weight": 0.1,
+    "sql_logic_weight": 0.35,
+    "sql_identifier_weight": 0.1,
+    "min_score": 0.81,
+    "top_k": 5
+  },
+  "calibration": {
+    "source_split": "DEV",
+    "test_used_for_tuning": false
+  }
+}

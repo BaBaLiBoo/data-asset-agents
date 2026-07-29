@@ -1,0 +1,24 @@
+{
+  "version": "task1_v1-dataset-v1.0",
+  "source": "Apache Fineract public schema plus controlled semi-synthetic assets",
+  "fineract_commit": "86edc6b19963e2e73ac5a2ad1926843f6832568f",
+  "base_asset_count": 24,
+  "variant_asset_count": 40,
+  "asset_count": 64,
+  "pair_count": 60,
+  "split_distribution": {
+    "DEV": 40,
+    "TEST": 20
+  },
+  "scenario_category_distribution": {
+    "duplicate": 20,
+    "similar_not_duplicate": 20,
+    "clear_not_duplicate": 20
+  },
+  "demo_case_count": 12,
+  "data_boundary": "metadata, SQL and lineage only; no real bank record data",
+  "assets_sha256": "20bc2cbd09cf15838cf2268db24d157ebdd89ca47da6510d1c10996d6f6b263d",
+  "pairs_sha256": "6c291b65bc1c8adc16a37d51ca537578d8abb73b6a34a2de2f3c31c41e606027",
+  "demo_cases_sha256": "5120e3299c6a7e7cbbf9001dde041f7d215a08bf23e6f7197b52990045fbd899",
+  "source_schema_sha256": "eee001cc5aa2da8bd043234a54c828ae337d8edafd608b3818bcd59bd3e0b56b"
+}

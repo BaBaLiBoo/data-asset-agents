@@ -1,0 +1,308 @@
+{
+  "source": "apache/fineract",
+  "commit": "86edc6b19963e2e73ac5a2ad1926843f6832568f",
+  "usage": "public schema only; no customer or transaction rows",
+  "tables": {
+    "m_client": [
+      {
+        "name": "id",
+        "data_type": "BIGINT",
+        "comment": "客户主键"
+      },
+      {
+        "name": "account_no",
+        "data_type": "VARCHAR",
+        "comment": "客户账号"
+      },
+      {
+        "name": "office_id",
+        "data_type": "BIGINT",
+        "comment": "所属机构"
+      },
+      {
+        "name": "display_name",
+        "data_type": "VARCHAR",
+        "comment": "客户展示名称"
+      },
+      {
+        "name": "joined_date",
+        "data_type": "DATE",
+        "comment": "加入日期"
+      },
+      {
+        "name": "is_deleted",
+        "data_type": "BOOLEAN",
+        "comment": "删除标志"
+      }
+    ],
+    "m_office": [
+      {
+        "name": "id",
+        "data_type": "BIGINT",
+        "comment": "机构主键"
+      },
+      {
+        "name": "parent_id",
+        "data_type": "BIGINT",
+        "comment": "上级机构"
+      },
+      {
+        "name": "hierarchy",
+        "data_type": "VARCHAR",
+        "comment": "机构层级路径"
+      },
+      {
+        "name": "name",
+        "data_type": "VARCHAR",
+        "comment": "机构名称"
+      },
+      {
+        "name": "opening_date",
+        "data_type": "DATE",
+        "comment": "开业日期"
+      }
+    ],
+    "m_savings_account": [
+      {
+        "name": "id",
+        "data_type": "BIGINT",
+        "comment": "存款账户主键"
+      },
+      {
+        "name": "account_no",
+        "data_type": "VARCHAR",
+        "comment": "存款账号"
+      },
+      {
+        "name": "client_id",
+        "data_type": "BIGINT",
+        "comment": "客户主键"
+      },
+      {
+        "name": "product_id",
+        "data_type": "BIGINT",
+        "comment": "产品主键"
+      },
+      {
+        "name": "status_enum",
+        "data_type": "SMALLINT",
+        "comment": "账户状态"
+      },
+      {
+        "name": "activation_date",
+        "data_type": "DATE",
+        "comment": "激活日期"
+      },
+      {
+        "name": "currency_code",
+        "data_type": "VARCHAR",
+        "comment": "币种"
+      },
+      {
+        "name": "account_balance_derived",
+        "data_type": "DECIMAL",
+        "comment": "账户余额"
+      }
+    ],
+    "m_savings_account_transaction": [
+      {
+        "name": "id",
+        "data_type": "BIGINT",
+        "comment": "存款交易主键"
+      },
+      {
+        "name": "savings_account_id",
+        "data_type": "BIGINT",
+        "comment": "存款账户主键"
+      },
+      {
+        "name": "transaction_type_enum",
+        "data_type": "SMALLINT",
+        "comment": "交易类型"
+      },
+      {
+        "name": "transaction_date",
+        "data_type": "DATE",
+        "comment": "交易日期"
+      },
+      {
+        "name": "amount",
+        "data_type": "DECIMAL",
+        "comment": "交易金额"
+      },
+      {
+        "name": "is_reversed",
+        "data_type": "BOOLEAN",
+        "comment": "冲正标志"
+      },
+      {
+        "name": "running_balance_derived",
+        "data_type": "DECIMAL",
+        "comment": "交易后余额"
+      }
+    ],
+    "m_loan": [
+      {
+        "name": "id",
+        "data_type": "BIGINT",
+        "comment": "贷款主键"
+      },
+      {
+        "name": "client_id",
+        "data_type": "BIGINT",
+        "comment": "客户主键"
+      },
+      {
+        "name": "product_id",
+        "data_type": "BIGINT",
+        "comment": "产品主键"
+      },
+      {
+        "name": "loan_status_id",
+        "data_type": "SMALLINT",
+        "comment": "贷款状态"
+      },
+      {
+        "name": "currency_code",
+        "data_type": "VARCHAR",
+        "comment": "币种"
+      },
+      {
+        "name": "principal_amount",
+        "data_type": "DECIMAL",
+        "comment": "贷款本金"
+      },
+      {
+        "name": "principal_outstanding_derived",
+        "data_type": "DECIMAL",
+        "comment": "未偿本金"
+      },
+      {
+        "name": "interest_outstanding_derived",
+        "data_type": "DECIMAL",
+        "comment": "未偿利息"
+      },
+      {
+        "name": "submittedon_date",
+        "data_type": "DATE",
+        "comment": "申请日期"
+      },
+      {
+        "name": "disbursedon_date",
+        "data_type": "DATE",
+        "comment": "放款日期"
+      }
+    ],
+    "m_loan_transaction": [
+      {
+        "name": "id",
+        "data_type": "BIGINT",
+        "comment": "贷款交易主键"
+      },
+      {
+        "name": "loan_id",
+        "data_type": "BIGINT",
+        "comment": "贷款主键"
+      },
+      {
+        "name": "is_reversed",
+        "data_type": "BOOLEAN",
+        "comment": "冲正标志"
+      },
+      {
+        "name": "transaction_type_enum",
+        "data_type": "SMALLINT",
+        "comment": "交易类型"
+      },
+      {
+        "name": "transaction_date",
+        "data_type": "DATE",
+        "comment": "交易日期"
+      },
+      {
+        "name": "amount",
+        "data_type": "DECIMAL",
+        "comment": "交易金额"
+      },
+      {
+        "name": "principal_portion_derived",
+        "data_type": "DECIMAL",
+        "comment": "本金部分"
+      },
+      {
+        "name": "interest_portion_derived",
+        "data_type": "DECIMAL",
+        "comment": "利息部分"
+      }
+    ],
+    "acc_gl_account": [
+      {
+        "name": "id",
+        "data_type": "BIGINT",
+        "comment": "科目主键"
+      },
+      {
+        "name": "name",
+        "data_type": "VARCHAR",
+        "comment": "科目名称"
+      },
+      {
+        "name": "gl_code",
+        "data_type": "VARCHAR",
+        "comment": "科目编码"
+      },
+      {
+        "name": "disabled",
+        "data_type": "BOOLEAN",
+        "comment": "停用标志"
+      },
+      {
+        "name": "classification_enum",
+        "data_type": "SMALLINT",
+        "comment": "科目分类"
+      }
+    ],
+    "acc_gl_journal_entry": [
+      {
+        "name": "id",
+        "data_type": "BIGINT",
+        "comment": "分录主键"
+      },
+      {
+        "name": "account_id",
+        "data_type": "BIGINT",
+        "comment": "科目主键"
+      },
+      {
+        "name": "office_id",
+        "data_type": "BIGINT",
+        "comment": "机构主键"
+      },
+      {
+        "name": "entry_date",
+        "data_type": "DATE",
+        "comment": "入账日期"
+      },
+      {
+        "name": "type_enum",
+        "data_type": "SMALLINT",
+        "comment": "借贷方向"
+      },
+      {
+        "name": "amount",
+        "data_type": "DECIMAL",
+        "comment": "分录金额"
+      },
+      {
+        "name": "reversed",
+        "data_type": "BOOLEAN",
+        "comment": "冲正标志"
+      },
+      {
+        "name": "description",
+        "data_type": "VARCHAR",
+        "comment": "分录摘要"
+      }
+    ]
+  }
+}

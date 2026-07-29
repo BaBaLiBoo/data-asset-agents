@@ -1,0 +1,10 @@
+fastapi>=0.115,<1
+uvicorn>=0.34,<1
+pydantic>=2.10,<3
+sqlglot>=27,<28
+httpx>=0.28,<1
+numpy>=2.2,<3
+jieba>=0.42,<1
+python-dotenv>=1.0,<2
+pytest>=8,<10
+
