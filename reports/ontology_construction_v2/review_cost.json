@@ -2,7 +2,7 @@
   {
     "run_id": "mock-O-A-raw_metadata",
     "provenance": {
-      "evaluation_stage": "REVIEWED_DRAFT",
+      "evaluation_stage": "REVIEW_PROCESS",
       "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
       "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
       "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
@@ -75,7 +75,7 @@
   {
     "run_id": "mock-O-B-raw_metadata",
     "provenance": {
-      "evaluation_stage": "REVIEWED_DRAFT",
+      "evaluation_stage": "REVIEW_PROCESS",
       "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
       "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
       "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
@@ -148,7 +148,7 @@
   {
     "run_id": "mock-O-C-raw_metadata",
     "provenance": {
-      "evaluation_stage": "REVIEWED_DRAFT",
+      "evaluation_stage": "REVIEW_PROCESS",
       "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
       "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
       "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
@@ -223,7 +223,7 @@
   {
     "run_id": "mock-O-D-raw_metadata",
     "provenance": {
-      "evaluation_stage": "REVIEWED_DRAFT",
+      "evaluation_stage": "REVIEW_PROCESS",
       "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
       "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
       "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
@@ -298,7 +298,7 @@
   {
     "run_id": "mock-O-A-governed_catalog",
     "provenance": {
-      "evaluation_stage": "REVIEWED_DRAFT",
+      "evaluation_stage": "REVIEW_PROCESS",
       "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
       "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
       "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
@@ -371,7 +371,7 @@
   {
     "run_id": "mock-O-B-governed_catalog",
     "provenance": {
-      "evaluation_stage": "REVIEWED_DRAFT",
+      "evaluation_stage": "REVIEW_PROCESS",
       "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
       "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
       "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
@@ -444,7 +444,7 @@
   {
     "run_id": "mock-O-C-governed_catalog",
     "provenance": {
-      "evaluation_stage": "REVIEWED_DRAFT",
+      "evaluation_stage": "REVIEW_PROCESS",
       "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
       "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
       "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",
@@ -519,7 +519,7 @@
   {
     "run_id": "mock-O-D-governed_catalog",
     "provenance": {
-      "evaluation_stage": "REVIEWED_DRAFT",
+      "evaluation_stage": "REVIEW_PROCESS",
       "git_sha": "126a4e1c208b6affae5fbc247fdf6edae4a92f7b",
       "source_snapshot_hash": "b4bea6fcf9a1b99927af6804247ab6efe6a92946d486048dfec47ec3ceda6bcb",
       "profiling_snapshot_hash": "e3dc9a20ef6a1c66ae7bd49a7e3907f963ce25007d0242a4171f08f170d1be6d",

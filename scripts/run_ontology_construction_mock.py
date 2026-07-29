@@ -585,6 +585,20 @@ def _display(value: Any) -> str:
     return f"{value:.3f}" if isinstance(value, float) else str(value)
 
 
+def _stage_provenance(
+    report: dict[str, Any], report_field: str
+) -> dict[str, Any]:
+    provenance = dict(report["provenance"])
+    provenance["evaluation_stage"] = {
+        "raw_candidate_metrics": "RAW_CANDIDATE",
+        "reviewed_draft_metrics": "REVIEWED_DRAFT",
+        "review_cost": "REVIEW_PROCESS",
+        "review_delta": "REVIEW_DELTA",
+        "error_analysis": "RAW_AND_REVIEWED",
+    }[report_field]
+    return provenance
+
+
 def write_v2_reports(reports: list[dict[str, Any]]) -> None:
     """Write stage-separated machine-readable reports and an honest summary."""
 
@@ -604,7 +618,7 @@ def write_v2_reports(reports: list[dict[str, Any]]) -> None:
                 [
                     {
                         "run_id": report["run_id"],
-                        "provenance": report["provenance"],
+                        "provenance": _stage_provenance(report, field),
                         field: report[field],
                     }
                     for report in reports

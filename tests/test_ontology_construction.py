@@ -62,6 +62,7 @@ from data_asset_agents.ontology.models import (
 )
 from data_asset_agents.ontology.repository import YamlOntologyRepository
 from data_asset_agents.text2sql.semantic_parser import SemanticQueryParser
+from scripts.run_ontology_construction_mock import _stage_provenance
 
 
 def _snapshot() -> MetadataSnapshot:
@@ -742,3 +743,26 @@ def test_link_semantic_enrichment_preserves_structural_fields() -> None:
     assert enriched.target_object_type_id == link.target_object_type_id
     assert enriched.cardinality == link.cardinality
     assert enriched.physical_join_ids == link.physical_join_ids
+
+
+@pytest.mark.parametrize(
+    ("field", "expected_stage"),
+    [
+        ("raw_candidate_metrics", "RAW_CANDIDATE"),
+        ("reviewed_draft_metrics", "REVIEWED_DRAFT"),
+        ("review_cost", "REVIEW_PROCESS"),
+        ("review_delta", "REVIEW_DELTA"),
+        ("error_analysis", "RAW_AND_REVIEWED"),
+    ],
+)
+def test_split_report_provenance_uses_its_actual_stage(
+    field: str, expected_stage: str
+) -> None:
+    original = {
+        "evaluation_stage": "REVIEWED_DRAFT",
+        "git_sha": "a" * 40,
+    }
+    staged = _stage_provenance({"provenance": original}, field)
+    assert staged["evaluation_stage"] == expected_stage
+    assert staged["git_sha"] == "a" * 40
+    assert original["evaluation_stage"] == "REVIEWED_DRAFT"
