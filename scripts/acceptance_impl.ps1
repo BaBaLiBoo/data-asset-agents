@@ -13,6 +13,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $exitCode = 0
 
+function Assert-LastExitCode([string]$Message) {
+    if ($LASTEXITCODE -ne 0) { throw $Message }
+}
+
 function Get-TextSha256([string]$Text) {
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($Text)
     $algorithm = [System.Security.Cryptography.SHA256]::Create()
@@ -39,9 +43,11 @@ $webBaseUrl = "http://localhost:$WebPort"
 try {
     Write-Host "[1/15] Validating Docker Compose configuration..."
     docker compose -p $ComposeProject config --quiet
+    Assert-LastExitCode "Docker Compose configuration is invalid"
 
     Write-Host "[2/15] Building and starting services..."
     docker compose -p $ComposeProject up --build -d
+    Assert-LastExitCode "Could not build and start acceptance services"
 
     Write-Host "[3/15] Waiting for API health..."
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
