@@ -30,6 +30,13 @@ ALLOWED_TABLES = {
     "dim_merchant",
 }
 FINAL_STATUSES = {"ACCEPTED", "MODIFIED", "REJECTED", "MERGED"}
+LLM_SEMANTIC_FIELDS = {
+    "object_type": {"name", "plural_name", "description"},
+    "property": {"name", "description", "synonyms"},
+    "link_type": {"name", "inverse_name"},
+    "dimension": {"name", "description", "synonyms"},
+    "metric": {"name", "description"},
+}
 
 
 def _request(
@@ -70,7 +77,47 @@ def _safe_unmatched_candidate(resource_type: str, resource: dict[str, Any]) -> b
     return False
 
 
-def review(base_url: str, run_id: str, gold_path: Path) -> dict[str, Any]:
+def _reviewed_resource(
+    resource_type: str,
+    candidate: dict[str, Any],
+    gold: dict[str, Any],
+    *,
+    retain_llm_semantics: bool,
+    retain_object_descriptions_only: bool,
+) -> dict[str, Any]:
+    reviewed = dict(gold)
+    retained_fields = (
+        {"description"}
+        if retain_object_descriptions_only and resource_type == "object_type"
+        else (
+            LLM_SEMANTIC_FIELDS.get(resource_type, set())
+            if retain_llm_semantics
+            else set()
+        )
+    )
+    for field in retained_fields:
+        value = candidate.get(field)
+        if value not in (None, "", []):
+            reviewed[field] = value
+    if resource_type == "binding":
+        reviewed = {
+            **reviewed,
+            "latest_snapshot_id": candidate.get("latest_snapshot_id"),
+            "schema_columns": candidate.get("schema_columns", []),
+        }
+    return reviewed
+
+
+def review(
+    base_url: str,
+    run_id: str,
+    gold_path: Path,
+    *,
+    retain_llm_semantics: bool = False,
+    retain_object_descriptions_only: bool = False,
+) -> dict[str, Any]:
+    if retain_llm_semantics and retain_object_descriptions_only:
+        raise ValueError("Choose only one LLM semantic retention policy")
     run = _request(base_url, f"/api/v1/ontology/construction-runs/{run_id}")
     if run["status"] not in {"CANDIDATES_READY", "UNDER_REVIEW"}:
         raise RuntimeError(
@@ -104,16 +151,21 @@ def review(base_url: str, run_id: str, gold_path: Path) -> dict[str, Any]:
         resource = candidate["current_resource"]
         gold_resource = gold_maps[resource_type].get(resource["id"])
         if gold_resource is not None:
-            if resource_type == "binding":
-                gold_resource = {
-                    **gold_resource,
-                    "latest_snapshot_id": resource.get("latest_snapshot_id"),
-                    "schema_columns": resource.get("schema_columns", []),
-                }
             decision = "MODIFY"
-            modified_resource = gold_resource
+            modified_resource = _reviewed_resource(
+                resource_type,
+                resource,
+                gold_resource,
+                retain_llm_semantics=retain_llm_semantics,
+                retain_object_descriptions_only=retain_object_descriptions_only,
+            )
             comment = (
                 "Post-generation Gold acceptance review; stable resource ID preserved"
+                + (
+                    "; allowed live LLM semantic suggestions retained by reviewer"
+                    if retain_llm_semantics or retain_object_descriptions_only
+                    else ""
+                )
             )
         elif _safe_unmatched_candidate(resource_type, resource):
             decision = "ACCEPT"
@@ -141,6 +193,15 @@ def review(base_url: str, run_id: str, gold_path: Path) -> dict[str, Any]:
     return {
         "run_id": run_id,
         "reviewer_kind": "POST_GENERATION_GOLD_TEST_REVIEWER",
+        "review_policy": (
+            "GOLD_STRUCTURE_WITH_REVIEWED_LLM_SEMANTICS"
+            if retain_llm_semantics
+            else (
+                "GOLD_ALIGNED_WITH_REVIEWED_LLM_OBJECT_DESCRIPTIONS"
+                if retain_object_descriptions_only
+                else "GOLD_ALIGNED"
+            )
+        ),
         "gold_hash": gold_hash,
         "gold_loaded_after_generation": True,
         "raw_evaluated_before_gold_review": (
@@ -160,10 +221,32 @@ def main() -> None:
         type=Path,
         default=Path("ontology/retail_banking/object_model"),
     )
+    parser.add_argument(
+        "--retain-llm-semantics",
+        action="store_true",
+        help=(
+            "Retain only allow-listed O-D semantic suggestions while Gold remains "
+            "authoritative for structural and physical fields."
+        ),
+    )
+    parser.add_argument(
+        "--retain-object-descriptions-only",
+        action="store_true",
+        help=(
+            "Retain only reviewed O-D object boundary descriptions. This is the "
+            "query-safe formal profile after names/synonyms fail strict Dry Run."
+        ),
+    )
     args = parser.parse_args()
     print(
         json.dumps(
-            review(args.base_url, args.run_id, args.gold_path),
+            review(
+                args.base_url,
+                args.run_id,
+                args.gold_path,
+                retain_llm_semantics=args.retain_llm_semantics,
+                retain_object_descriptions_only=args.retain_object_descriptions_only,
+            ),
             ensure_ascii=False,
             sort_keys=True,
         )

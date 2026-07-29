@@ -170,6 +170,13 @@ def test_semantic_accuracy_requires_filters_and_time_range() -> None:
         .semantic_query_accuracy
         == 1
     )
+    detailed = calculate_metrics(
+        "run", [case], [exact], strategy_variant="ontology_full"
+    )
+    assert detailed.semantic_parse_accuracy == 1
+    assert detailed.metric_accuracy == 1
+    assert detailed.dimension_accuracy == 1
+    assert detailed.sql_asset_selection_accuracy is None
     assert (
         calculate_metrics("run", [case], [wrong_time], strategy_variant="ontology_full")
         .semantic_query_accuracy
@@ -342,6 +349,112 @@ def test_four_runs_with_same_valid_git_sha_can_be_compared(
 
     assert comparison.warnings == []
     assert len(comparison.runs) == 4
+
+
+def test_two_factor_ontology_sources_require_distinct_version_bundle_and_build(
+    ontology: OntologyService,
+) -> None:
+    repository = MemoryEvaluationRepository()
+    service = _service(repository, ontology)
+    factors = (
+        (
+            "T-C",
+            "ontology_no_sql_asset",
+            "REVIEWED_O_C",
+            "version-o-c",
+            "a" * 64,
+            None,
+            "construction-o-c",
+        ),
+        (
+            "T-D",
+            "ontology_full",
+            "REVIEWED_O_C",
+            "version-o-c",
+            "a" * 64,
+            "build-o-c",
+            "construction-o-c",
+        ),
+        (
+            "T-E",
+            "ontology_no_sql_asset",
+            "REVIEWED_O_D",
+            "version-o-d",
+            "b" * 64,
+            None,
+            "construction-o-d",
+        ),
+        (
+            "T-F",
+            "ontology_full",
+            "REVIEWED_O_D",
+            "version-o-d",
+            "b" * 64,
+            "build-o-d",
+            "construction-o-d",
+        ),
+        (
+            "T-G",
+            "ontology_no_sql_asset",
+            "GOLD",
+            "version-gold",
+            "c" * 64,
+            None,
+            None,
+        ),
+        (
+            "T-H",
+            "ontology_full",
+            "GOLD",
+            "version-gold",
+            "c" * 64,
+            "build-gold",
+            None,
+        ),
+    )
+    run_ids: list[str] = []
+    for group, variant, source, version, bundle, build, construction in factors:
+        run = EvaluationRun(
+            run_id=f"two-factor-{group.lower()}",
+            run_kind="live",
+            query_mode="ontology",
+            strategy_variant=variant,
+            sql_asset_enabled=variant == "ontology_full",
+            model_provider="provider",
+            model_name="model",
+            git_commit_sha="a" * 40,
+            database_snapshot_hash="d" * 64,
+            benchmark_hash="e" * 64,
+            benchmark_version="v1",
+            ontology_version_id=version,
+            bundle_hash=bundle,
+            sql_asset_build_id=build,
+            experiment_group=group,
+            ontology_source=source,
+            construction_run_id=construction,
+            max_cases=1,
+            status="COMPLETED",
+        )
+        repository.save_run(run)
+        repository.save_case(
+            EvaluationCaseResult(
+                run_id=run.run_id,
+                case_id="basic-01",
+                predicted_status="success",
+                success=True,
+            )
+        )
+        run_ids.append(run.run_id)
+
+    comparison = service.compare(run_ids, "data/benchmark/text2sql_v1.json")
+    assert len(comparison.runs) == 6
+
+    for run_id in ("two-factor-t-e", "two-factor-t-f"):
+        shared = repository.get_run(run_id)
+        assert shared is not None
+        repository.save_run(shared.model_copy(update={"bundle_hash": "a" * 64}))
+    with pytest.raises(DataAssetAgentsError, match="share a bundle"):
+        service.compare(run_ids, "data/benchmark/text2sql_v1.json")
 
 
 def test_live_run_requires_valid_git_sha(

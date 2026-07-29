@@ -246,8 +246,24 @@ class EvaluationService:
                     if output.common_validation_report
                     else []
                 ),
+                common_validation_valid=(
+                    output.common_validation_report.valid
+                    if output.common_validation_report
+                    else None
+                ),
+                explain_passed=(
+                    output.common_validation_report.explain_passed
+                    if output.common_validation_report
+                    else None
+                ),
+                execution_succeeded=output.execution_result is not None,
                 ontology_policy_errors=(
                     output.ontology_policy_report.errors if output.ontology_policy_report else None
+                ),
+                ontology_policy_valid=(
+                    output.ontology_policy_report.valid
+                    if output.ontology_policy_report
+                    else None
                 ),
                 evaluation_policy_violations=policy.violations if policy else [],
                 execution_result_hash=result_hash,
@@ -462,10 +478,48 @@ class EvaluationService:
         if ontology_runs:
             if any(not run.bundle_hash for run in ontology_runs):
                 raise DataAssetAgentsError("Fairness mismatch: bundle_hash provenance is missing")
-            fairness["ontology_version_id"] = {
-                run.ontology_version_id for run in ontology_runs
+            sources: dict[str, list[EvaluationRun]] = {}
+            for run in ontology_runs:
+                sources.setdefault(run.ontology_source, []).append(run)
+            for source, source_runs in sources.items():
+                if len({run.ontology_version_id for run in source_runs}) != 1:
+                    raise DataAssetAgentsError(
+                        f"Fairness mismatch: {source} ontology_version_id"
+                    )
+                if len({run.bundle_hash for run in source_runs}) != 1:
+                    raise DataAssetAgentsError(f"Fairness mismatch: {source} bundle_hash")
+            experimental_sources = {
+                source: source_runs[0]
+                for source, source_runs in sources.items()
+                if source in {"REVIEWED_O_C", "REVIEWED_O_D", "GOLD"}
             }
-            fairness["bundle_hash"] = {run.bundle_hash for run in ontology_runs}
+            if len(experimental_sources) > 1:
+                if len(
+                    {
+                        run.ontology_version_id
+                        for run in experimental_sources.values()
+                    }
+                ) != len(experimental_sources):
+                    raise DataAssetAgentsError(
+                        "Version isolation mismatch: ontology sources share a version"
+                    )
+                if len(
+                    {run.bundle_hash for run in experimental_sources.values()}
+                ) != len(experimental_sources):
+                    raise DataAssetAgentsError(
+                        "Version isolation mismatch: ontology sources share a bundle"
+                    )
+                sql_build_ids = {
+                    run.sql_asset_build_id
+                    for run in ontology_runs
+                    if run.strategy_variant == "ontology_full"
+                    and run.ontology_source in experimental_sources
+                }
+                if len(sql_build_ids) != len(experimental_sources):
+                    raise DataAssetAgentsError(
+                        "Version isolation mismatch: ontology sources share a "
+                        "SQLAsset build"
+                    )
         for field, values in fairness.items():
             if len(values) > 1:
                 warnings.append(f"Fairness mismatch: {field}")

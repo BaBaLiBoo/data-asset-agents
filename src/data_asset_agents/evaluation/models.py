@@ -184,6 +184,27 @@ class EvaluationRun(BaseModel):
             raise ValueError("reviewed ontology runs require construction_run_id")
         if self.ontology_source == "GOLD" and self.construction_run_id:
             raise ValueError("Gold ontology runs cannot carry construction_run_id")
+        if self.experiment_group:
+            expected = {
+                "T-A": ("schema", "NONE", False),
+                "T-B": ("rag", "NONE", False),
+                "T-C": ("ontology_no_sql_asset", "REVIEWED_O_C", False),
+                "T-D": ("ontology_full", "REVIEWED_O_C", True),
+                "T-E": ("ontology_no_sql_asset", "REVIEWED_O_D", False),
+                "T-F": ("ontology_full", "REVIEWED_O_D", True),
+                "T-G": ("ontology_no_sql_asset", "GOLD", False),
+                "T-H": ("ontology_full", "GOLD", True),
+            }[self.experiment_group]
+            actual = (
+                self.strategy_variant,
+                self.ontology_source,
+                self.sql_asset_enabled,
+            )
+            if actual != expected:
+                raise ValueError(
+                    f"{self.experiment_group} experiment factors do not match "
+                    f"{expected}"
+                )
         return self
 
     def mark_running(self) -> EvaluationRun:
@@ -209,7 +230,11 @@ class EvaluationCaseResult(BaseModel):
     referenced_columns: list[str] = Field(default_factory=list)
     discovered_joins: list[str] = Field(default_factory=list)
     common_validation_errors: list[str] = Field(default_factory=list)
+    common_validation_valid: bool | None = None
+    explain_passed: bool | None = None
+    execution_succeeded: bool = False
     ontology_policy_errors: list[str] | None = None
+    ontology_policy_valid: bool | None = None
     evaluation_policy_violations: list[str] = Field(default_factory=list)
     execution_result_hash: str | None = None
     latency_ms: float = 0.0
@@ -231,21 +256,39 @@ class EvaluationMetrics(BaseModel):
     run_id: str
     case_count: int
     status_accuracy: float
+    semantic_parse_accuracy: float | None = None
     semantic_query_accuracy: float | None = None
+    metric_accuracy: float | None = None
+    dimension_accuracy: float | None = None
     table_recall_at_k: float | None = None
     table_exact_match: float
+    table_selection_accuracy: float
     column_recall_at_k: float | None = None
     column_exact_match: float
+    column_selection_accuracy: float
     join_exact_match: float | None = None
+    join_accuracy: float | None = None
     deprecated_table_false_selection_rate: float | None = None
     business_policy_accuracy: float | None = None
+    business_rule_accuracy: float | None = None
     sql_parse_rate: float
+    sql_validity: float
+    explain_success: float
     sql_execution_rate: float
+    execution_success: float
     result_accuracy: float | None = None
+    result_hash_accuracy: float | None = None
+    clarification_accuracy: float | None = None
+    deprecated_table_rejection: float | None = None
+    temporary_table_rejection: float | None = None
+    aggregate_grain_rejection: float | None = None
+    sql_asset_selection_accuracy: float | None = None
     template_adoption_rate: float | None = None
+    template_rewrite_success: float | None = None
     average_latency_ms: float
     p50_latency_ms: float
     p95_latency_ms: float
+    token_usage: TokenUsage = Field(default_factory=TokenUsage)
     failure_distribution: dict[str, int] = Field(default_factory=dict)
 
 
