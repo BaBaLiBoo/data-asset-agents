@@ -3,7 +3,10 @@ param(
     [int]$TimeoutSeconds = 300,
     [string]$ComposeProject = "data-asset-agents-acceptance",
     [Parameter(Mandatory = $true)]
-    [string]$ScriptsRoot
+    [string]$ScriptsRoot,
+    [int]$PostgresPort = 15432,
+    [int]$ApiPort = 18000,
+    [int]$WebPort = 18501
 )
 
 Set-StrictMode -Version Latest
@@ -27,6 +30,11 @@ $env:POSTGRES_USER = if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "mini
 $env:LLM_MODE = "mock"
 $env:LLM_API_KEY = ""
 $env:EMBEDDING_API_KEY = ""
+$env:POSTGRES_HOST_PORT = [string]$PostgresPort
+$env:API_HOST_PORT = [string]$ApiPort
+$env:WEB_HOST_PORT = [string]$WebPort
+$apiBaseUrl = "http://localhost:$ApiPort"
+$webBaseUrl = "http://localhost:$WebPort"
 
 try {
     Write-Host "[1/15] Validating Docker Compose configuration..."
@@ -40,7 +48,7 @@ try {
     $healthy = $false
     while ((Get-Date) -lt $deadline) {
         try {
-            $health = Invoke-RestMethod -Uri "http://localhost:8000/health" -TimeoutSec 5
+            $health = Invoke-RestMethod -Uri "$apiBaseUrl/health" -TimeoutSec 5
             if ($health.status -eq "ok" -and $health.database -eq "up") {
                 $healthy = $true
                 break
@@ -60,7 +68,7 @@ try {
     while ((Get-Date) -lt $deadline) {
         try {
             $webHealth = Invoke-WebRequest `
-                -Uri "http://localhost:8501/_stcore/health" `
+                -Uri "$webBaseUrl/_stcore/health" `
                 -TimeoutSec 5 `
                 -UseBasicParsing
             if ($webHealth.StatusCode -eq 200 -and $webHealth.Content.Trim() -eq "ok") {
@@ -79,7 +87,7 @@ try {
     Write-Host "[5/15] Building evidence and validating a direct object-seed Draft..."
     $build = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/build" `
+        -Uri "$apiBaseUrl/api/v1/ontology/build" `
         -ContentType "application/json; charset=utf-8" `
         -Body "{}" `
         -TimeoutSec 300
@@ -102,7 +110,7 @@ try {
     } | ConvertTo-Json
     $verifiedCandidate = Invoke-RestMethod `
         -Method Post `
-        -Uri ("http://localhost:8000/api/v1/ontology/candidates/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/candidates/" +
               $reviewCandidate.id + "/verify") `
         -ContentType "application/json; charset=utf-8" `
         -Body $reviewBody `
@@ -118,7 +126,7 @@ try {
     } | ConvertTo-Json
     $draft = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/from-seed" `
+        -Uri "$apiBaseUrl/api/v1/ontology/drafts/from-seed" `
         -ContentType "application/json; charset=utf-8" `
         -Body $draftBody `
         -TimeoutSec 30
@@ -156,7 +164,7 @@ try {
 
     $candidates = Invoke-RestMethod `
         -Method Post `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $draft.draft.id + "/candidates/generate") `
         -TimeoutSec 120
     $requiredExclusions = @(
@@ -194,7 +202,7 @@ try {
     } | ConvertTo-Json -Depth 10
     $draft = Invoke-RestMethod `
         -Method Post `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $draft.draft.id + "/import-candidates") `
         -ContentType "application/json; charset=utf-8" `
         -Headers $draftHeaders `
@@ -205,10 +213,10 @@ try {
         throw "Candidate review unexpectedly changed Draft publication state"
     }
     $draftDiff = Invoke-RestMethod `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/diff" `
+        -Uri "$apiBaseUrl/api/v1/ontology/drafts/$($draft.draft.id)/diff" `
         -TimeoutSec 30
     $draftImpact = Invoke-RestMethod `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/impact" `
+        -Uri "$apiBaseUrl/api/v1/ontology/drafts/$($draft.draft.id)/impact" `
         -TimeoutSec 30
     if ($draftDiff.added_objects.Count -le 0 -or
         -not $draftImpact.rebuild_concept_index) {
@@ -216,7 +224,7 @@ try {
     }
     $validated = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/validate" `
+        -Uri "$apiBaseUrl/api/v1/ontology/drafts/$($draft.draft.id)/validate" `
         -Headers $draftHeaders `
         -TimeoutSec 30
     if (-not $validated.draft.validation_report.valid) {
@@ -247,7 +255,7 @@ try {
     $validatedMetric.description = "Acceptance governance freshness update"
     $staleDraft = Invoke-RestMethod `
         -Method Put `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $draft.draft.id + "/metrics/credit_card_transaction_amount") `
         -ContentType "application/json; charset=utf-8" `
         -Headers $draftHeaders `
@@ -266,7 +274,7 @@ try {
     try {
         Invoke-RestMethod `
             -Method Post `
-            -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/submit" `
+            -Uri "$apiBaseUrl/api/v1/ontology/drafts/$($draft.draft.id)/submit" `
             -ContentType "application/json; charset=utf-8" `
             -Headers $staleHeaders `
             -Body (@{ actor = "acceptance-reviewer" } | ConvertTo-Json) `
@@ -281,7 +289,7 @@ try {
     try {
         Invoke-RestMethod `
             -Method Put `
-            -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+            -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
                   $draft.draft.id + "/metrics/credit_card_transaction_amount") `
             -ContentType "application/json; charset=utf-8" `
             -Headers $draftHeaders `
@@ -296,7 +304,7 @@ try {
     $validatedMetric.description = "Acceptance governance current revision update"
     $draft = Invoke-RestMethod `
         -Method Put `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $draft.draft.id + "/metrics/credit_card_transaction_amount") `
         -ContentType "application/json; charset=utf-8" `
         -Headers $staleHeaders `
@@ -305,7 +313,7 @@ try {
     $draftHeaders = @{ "If-Match" = '"' + $draft.draft.resource_revision + '"' }
     $validated = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/validate" `
+        -Uri "$apiBaseUrl/api/v1/ontology/drafts/$($draft.draft.id)/validate" `
         -Headers $draftHeaders `
         -TimeoutSec 120
     if (-not $validated.draft.validation_report.valid) {
@@ -316,14 +324,14 @@ try {
     $actorBody = @{ actor = "acceptance-reviewer" } | ConvertTo-Json
     Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/submit" `
+        -Uri "$apiBaseUrl/api/v1/ontology/drafts/$($draft.draft.id)/submit" `
         -ContentType "application/json; charset=utf-8" `
         -Headers $draftHeaders `
         -Body $actorBody `
         -TimeoutSec 30 | Out-Null
     Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/approve" `
+        -Uri "$apiBaseUrl/api/v1/ontology/drafts/$($draft.draft.id)/approve" `
         -ContentType "application/json; charset=utf-8" `
         -Headers $draftHeaders `
         -Body $actorBody `
@@ -336,13 +344,13 @@ try {
     } | ConvertTo-Json
     $publishedBase = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/publish" `
+        -Uri "$apiBaseUrl/api/v1/ontology/drafts/$($draft.draft.id)/publish" `
         -ContentType "application/json; charset=utf-8" `
         -Headers $draftHeaders `
         -Body $publishBody `
         -TimeoutSec 120
     $baseArtifact = Invoke-RestMethod `
-        -Uri ("http://localhost:8000/api/v1/ontology/versions/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/versions/" +
               $publishedBase.id + "/compiled-artifact") `
         -TimeoutSec 30
     if ($baseArtifact.status -ne "READY" -or
@@ -375,7 +383,7 @@ try {
         "compiler_version=$($baseArtifact.compiler_version)"
     )
     $baseAudit = Invoke-RestMethod `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $draft.draft.id + "/audit-events?limit=500") `
         -TimeoutSec 30
     $baseActions = @($baseAudit.action)
@@ -395,7 +403,7 @@ try {
     } | ConvertTo-Json
     $incremental = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts" `
+        -Uri "$apiBaseUrl/api/v1/ontology/drafts" `
         -ContentType "application/json; charset=utf-8" `
         -Body $incrementalBody `
         -TimeoutSec 30
@@ -408,7 +416,7 @@ try {
     $statusProperty.description = "Acceptance-only clarified fictional status description"
     $incremental = Invoke-RestMethod `
         -Method Put `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/properties/transaction.status") `
         -ContentType "application/json; charset=utf-8" `
         -Headers $incrementalHeaders `
@@ -423,7 +431,7 @@ try {
     $metricDefinition.description = "Acceptance-only clarified fictional metric definition"
     $incremental = Invoke-RestMethod `
         -Method Put `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/metrics/credit_card_transaction_amount") `
         -ContentType "application/json; charset=utf-8" `
         -Headers $incrementalHeaders `
@@ -433,11 +441,11 @@ try {
         "If-Match" = '"' + $incremental.draft.resource_revision + '"'
     }
     $incrementalDiff = Invoke-RestMethod `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/diff") `
         -TimeoutSec 30
     $incrementalImpact = Invoke-RestMethod `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/impact") `
         -TimeoutSec 30
     if (@($incrementalDiff.modified_properties).Count -ne 1 -or
@@ -449,13 +457,13 @@ try {
     }
     Invoke-RestMethod `
         -Method Post `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/validate") `
         -Headers $incrementalHeaders `
         -TimeoutSec 120 | Out-Null
     Invoke-RestMethod `
         -Method Post `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/submit") `
         -ContentType "application/json; charset=utf-8" `
         -Headers $incrementalHeaders `
@@ -463,7 +471,7 @@ try {
         -TimeoutSec 30 | Out-Null
     Invoke-RestMethod `
         -Method Post `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/approve") `
         -ContentType "application/json; charset=utf-8" `
         -Headers $incrementalHeaders `
@@ -476,14 +484,14 @@ try {
     } | ConvertTo-Json
     $publishedFollowup = Invoke-RestMethod `
         -Method Post `
-        -Uri ("http://localhost:8000/api/v1/ontology/drafts/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/drafts/" +
               $incremental.draft.id + "/publish") `
         -ContentType "application/json; charset=utf-8" `
         -Headers $incrementalHeaders `
         -Body $incrementalPublishBody `
         -TimeoutSec 120
     $followupArtifact = Invoke-RestMethod `
-        -Uri ("http://localhost:8000/api/v1/ontology/versions/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/versions/" +
               $publishedFollowup.id + "/compiled-artifact") `
         -TimeoutSec 30
     if ($followupArtifact.status -ne "READY") {
@@ -495,7 +503,7 @@ try {
     } | ConvertTo-Json
     $beforeRestartQuery = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/query" `
+        -Uri "$apiBaseUrl/api/v1/query" `
         -ContentType "application/json; charset=utf-8" `
         -Body $reproBody `
         -TimeoutSec 30
@@ -507,7 +515,7 @@ try {
     for ($attempt = 0; $attempt -lt 30; $attempt++) {
         try {
             $healthAfterRestart = Invoke-RestMethod `
-                -Uri "http://localhost:8000/health" `
+                -Uri "$apiBaseUrl/health" `
                 -TimeoutSec 5
             if ($healthAfterRestart.status -eq "ok") {
                 $apiRestarted = $true
@@ -521,13 +529,13 @@ try {
         throw "API did not recover after artifact reproducibility restart"
     }
     $versionsAfterRestart = Invoke-RestMethod `
-        -Uri "http://localhost:8000/api/v1/ontology/versions" `
+        -Uri "$apiBaseUrl/api/v1/ontology/versions" `
         -TimeoutSec 30
     $currentAfterRestart = $versionsAfterRestart |
         Where-Object { $_.is_current } |
         Select-Object -First 1
     $artifactAfterRestart = Invoke-RestMethod `
-        -Uri ("http://localhost:8000/api/v1/ontology/versions/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/versions/" +
               $currentAfterRestart.id + "/compiled-artifact") `
         -TimeoutSec 30
     if ($currentAfterRestart.id -ne $publishedFollowup.id -or
@@ -536,7 +544,7 @@ try {
     }
     $afterRestartQuery = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/query" `
+        -Uri "$apiBaseUrl/api/v1/query" `
         -ContentType "application/json; charset=utf-8" `
         -Body $reproBody `
         -TimeoutSec 30
@@ -548,10 +556,10 @@ try {
     }
     $rolledBack = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/versions/$objectVersion/activate" `
+        -Uri "$apiBaseUrl/api/v1/ontology/versions/$objectVersion/activate" `
         -TimeoutSec 120
     $rollbackArtifact = Invoke-RestMethod `
-        -Uri ("http://localhost:8000/api/v1/ontology/versions/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/versions/" +
               $rolledBack.id + "/compiled-artifact") `
         -TimeoutSec 30
     if ($rolledBack.id -ne $publishedBase.id -or
@@ -559,7 +567,7 @@ try {
         throw "Rollback did not load the target version artifact"
     }
     $rollbackAudit = Invoke-RestMethod `
-        -Uri ("http://localhost:8000/api/v1/ontology/versions/" +
+        -Uri ("$apiBaseUrl/api/v1/ontology/versions/" +
               $publishedBase.id + "/audit-events?limit=500") `
         -TimeoutSec 30
     $releaseActions = @($baseActions) + @($rollbackAudit.action)
@@ -574,7 +582,7 @@ try {
 
     Write-Host "[7/15] Verifying the published object graph..."
     $objectGraph = Invoke-RestMethod `
-        -Uri "http://localhost:8000/api/v1/ontology/object-graph" `
+        -Uri "$apiBaseUrl/api/v1/ontology/object-graph" `
         -TimeoutSec 30
     if ($objectGraph.nodes.Count -ne 6 -or
         ($objectGraph.edges.id -notcontains "transaction_belongs_to_branch")) {
@@ -585,7 +593,7 @@ try {
     $indexBody = @{ index_type = "BUSINESS_CONCEPT" } | ConvertTo-Json
     $indexBuild = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/index-builds" `
+        -Uri "$apiBaseUrl/api/v1/ontology/index-builds" `
         -ContentType "application/json; charset=utf-8" `
         -Body $indexBody `
         -TimeoutSec 120
@@ -596,7 +604,7 @@ try {
     }
     $syncRun = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/sync-runs" `
+        -Uri "$apiBaseUrl/api/v1/ontology/sync-runs" `
         -TimeoutSec 120
     $breakingDrift = @(
         $syncRun.reports | Where-Object { $_.severity -eq "BREAKING" }
@@ -607,7 +615,7 @@ try {
 
     Write-Host "[7b/15] Exercising the read-only Object Explorer..."
     $records = Invoke-RestMethod `
-        -Uri "http://localhost:8000/api/v1/objects/transaction?limit=2" `
+        -Uri "$apiBaseUrl/api/v1/objects/transaction?limit=2" `
         -TimeoutSec 30
     if ($records.Count -le 0 -or
         $records[0].available_links -notcontains "transaction_belongs_to_branch" -or
@@ -616,7 +624,7 @@ try {
     }
     $objectId = $records[0].primary_key
     $branchRecords = Invoke-RestMethod `
-        -Uri ("http://localhost:8000/api/v1/objects/transaction/" + $objectId +
+        -Uri ("$apiBaseUrl/api/v1/objects/transaction/" + $objectId +
               "/links/transaction_belongs_to_branch?limit=2") `
         -TimeoutSec 30
     if ($branchRecords.Count -le 0) {
@@ -630,7 +638,7 @@ try {
     } | ConvertTo-Json
     $result = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/query" `
+        -Uri "$apiBaseUrl/api/v1/query" `
         -ContentType "application/json; charset=utf-8" `
         -Body $body `
         -TimeoutSec 30
@@ -651,7 +659,7 @@ try {
         ConvertTo-Json
     $assets = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/sql-assets/search" `
+        -Uri "$apiBaseUrl/api/v1/sql-assets/search" `
         -ContentType "application/json; charset=utf-8" `
         -Body $searchBody `
         -TimeoutSec 30
@@ -666,7 +674,7 @@ try {
     } | ConvertTo-Json
     $complex = Invoke-RestMethod `
         -Method Post `
-        -Uri "http://localhost:8000/api/v1/query" `
+        -Uri "$apiBaseUrl/api/v1/query" `
         -ContentType "application/json; charset=utf-8" `
         -Body $complexBody `
         -TimeoutSec 30
@@ -706,7 +714,7 @@ try {
         } | ConvertTo-Json
         $strategyResult = Invoke-RestMethod `
             -Method Post `
-            -Uri "http://localhost:8000/api/v1/query" `
+            -Uri "$apiBaseUrl/api/v1/query" `
             -ContentType "application/json; charset=utf-8" `
             -Body $strategyBody `
             -TimeoutSec 30
@@ -745,7 +753,7 @@ try {
         } | ConvertTo-Json
         $run = Invoke-RestMethod `
             -Method Post `
-            -Uri "http://localhost:8000/api/v1/evaluation/runs" `
+            -Uri "$apiBaseUrl/api/v1/evaluation/runs" `
             -ContentType "application/json; charset=utf-8" `
             -Body $runBody `
             -TimeoutSec 30
@@ -756,7 +764,7 @@ try {
         $allCompleted = $true
         foreach ($runId in $runIds) {
             $runState = Invoke-RestMethod `
-                -Uri "http://localhost:8000/api/v1/evaluation/runs/$runId" `
+                -Uri "$apiBaseUrl/api/v1/evaluation/runs/$runId" `
                 -TimeoutSec 10
             if ($runState.run.status -eq "FAILED") {
                 throw "EvaluationRun $runId failed: $($runState.run.error_message)"
@@ -789,7 +797,7 @@ try {
     Write-Host "[14/15] Comparing smoke runs..."
     $compareQuery = ($runIds | ForEach-Object { "run_id=$_" }) -join "&"
     $comparison = Invoke-RestMethod `
-        -Uri "http://localhost:8000/api/v1/evaluation/compare?$compareQuery" `
+        -Uri "$apiBaseUrl/api/v1/evaluation/compare?$compareQuery" `
         -TimeoutSec 30
     if ($comparison.runs.Count -ne 4 -or $comparison.warnings.Count -ne 0) {
         throw "Smoke comparison did not return four fair runs"
@@ -801,7 +809,7 @@ try {
     $constructionScript = [ScriptBlock]::Create($constructionSource)
     & $constructionScript `
         -ComposeProject $ComposeProject -TimeoutSeconds $TimeoutSeconds `
-        -GoldVersion $publishedBase.version
+        -GoldVersion $publishedBase.version -BaseUrl $apiBaseUrl
     if ($LASTEXITCODE -ne 0) {
         throw "Ontology Construction acceptance failed"
     }

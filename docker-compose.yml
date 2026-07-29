@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
       POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - "127.0.0.1:5432:5432"
+      - "${POSTGRES_BIND_IP:-127.0.0.1}:${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - minibank_data:/var/lib/postgresql/data
       - ./data/ddl/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
@@ -62,7 +62,7 @@ services:
       EVALUATION_LIVE_CONCURRENCY: ${EVALUATION_LIVE_CONCURRENCY:-1}
       EVALUATION_SMOKE_CONCURRENCY: ${EVALUATION_SMOKE_CONCURRENCY:-2}
     ports:
-      - "8000:8000"
+      - "${API_HOST_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,7 +82,7 @@ services:
       API_BASE_URL: ${WEB_API_BASE_URL:-http://api:8000}
       GITHUB_SHA: ${GIT_COMMIT_SHA:-unknown}
     ports:
-      - "8501:8501"
+      - "${WEB_HOST_PORT:-8501}:8501"
     depends_on:
       api:
         condition: service_healthy

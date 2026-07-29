@@ -1,6 +1,9 @@
 param(
     [int]$TimeoutSeconds = 180,
-    [string]$ComposeProject = "data-asset-agents-upgrade"
+    [string]$ComposeProject = "data-asset-agents-upgrade",
+    [int]$PostgresPort = 25432,
+    [int]$ApiPort = 28000,
+    [int]$WebPort = 28501
 )
 
 Set-StrictMode -Version Latest
@@ -34,7 +37,7 @@ function Wait-Api([int]$Seconds) {
     $deadline = (Get-Date).AddSeconds($Seconds)
     while ((Get-Date) -lt $deadline) {
         try {
-            $health = Invoke-RestMethod -Uri "http://localhost:8000/health" -TimeoutSec 5
+            $health = Invoke-RestMethod -Uri "$script:ApiBaseUrl/health" -TimeoutSec 5
             if ($health.status -eq "ok" -and $health.database -eq "up") { return }
         } catch {
             Start-Sleep -Seconds 2
@@ -72,6 +75,10 @@ $env:POSTGRES_USER = if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "mini
 $env:LLM_MODE = "mock"
 $env:LLM_API_KEY = ""
 $env:EMBEDDING_API_KEY = ""
+$env:POSTGRES_HOST_PORT = [string]$PostgresPort
+$env:API_HOST_PORT = [string]$ApiPort
+$env:WEB_HOST_PORT = [string]$WebPort
+$script:ApiBaseUrl = "http://localhost:$ApiPort"
 if ([string]::IsNullOrWhiteSpace($env:GIT_COMMIT_SHA)) {
     $env:GIT_COMMIT_SHA = (git rev-parse HEAD).Trim()
 }
@@ -205,10 +212,10 @@ try {
     Assert-LastExitCode "Could not start the current API"
     Wait-Api $TimeoutSeconds
 
-    $versions = Invoke-RestMethod -Uri "http://localhost:8000/api/v1/ontology/versions"
+    $versions = Invoke-RestMethod -Uri "$script:ApiBaseUrl/api/v1/ontology/versions"
     $legacyVersion = $versions | Where-Object { $_.id -eq "legacy-upgrade-version-id" }
     $legacyDraft = Invoke-RestMethod `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/legacy-upgrade-draft"
+        -Uri "$script:ApiBaseUrl/api/v1/ontology/drafts/legacy-upgrade-draft"
     if ($null -eq $legacyVersion -or $null -eq $legacyDraft -or
         $legacyDraft.draft.validation_state -ne "STALE") {
         throw "Legacy published version or Draft was not readable after upgrade"
@@ -227,11 +234,11 @@ try {
         seed_name = "retail_banking"
     } | ConvertTo-Json
     $draft = Invoke-RestMethod -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/from-seed" `
+        -Uri "$script:ApiBaseUrl/api/v1/ontology/drafts/from-seed" `
         -ContentType "application/json; charset=utf-8" -Body $draftBody
     $headers = @{ "If-Match" = '"' + $draft.draft.resource_revision + '"' }
     $validated = Invoke-RestMethod -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/validate" `
+        -Uri "$script:ApiBaseUrl/api/v1/ontology/drafts/$($draft.draft.id)/validate" `
         -Headers $headers -TimeoutSec 120
     if (-not $validated.draft.validation_report.valid -or
         @($validated.draft.validation_report.dry_run_cases).Count -ne 4) {
@@ -239,10 +246,10 @@ try {
     }
     $actor = @{ actor = "upgrade-acceptance" } | ConvertTo-Json
     Invoke-RestMethod -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/submit" `
+        -Uri "$script:ApiBaseUrl/api/v1/ontology/drafts/$($draft.draft.id)/submit" `
         -Headers $headers -ContentType "application/json" -Body $actor | Out-Null
     Invoke-RestMethod -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/approve" `
+        -Uri "$script:ApiBaseUrl/api/v1/ontology/drafts/$($draft.draft.id)/approve" `
         -Headers $headers -ContentType "application/json" -Body $actor -TimeoutSec 120 | Out-Null
     $publish = @{
         actor = "upgrade-acceptance"
@@ -252,10 +259,10 @@ try {
         change_ticket = "FICTIONAL-UPGRADE-ACCEPTANCE"
     } | ConvertTo-Json
     $currentVersion = Invoke-RestMethod -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/drafts/$($draft.draft.id)/publish" `
+        -Uri "$script:ApiBaseUrl/api/v1/ontology/drafts/$($draft.draft.id)/publish" `
         -Headers $headers -ContentType "application/json" -Body $publish -TimeoutSec 120
     $artifact = Invoke-RestMethod `
-        -Uri "http://localhost:8000/api/v1/ontology/versions/$($currentVersion.id)/compiled-artifact"
+        -Uri "$script:ApiBaseUrl/api/v1/ontology/versions/$($currentVersion.id)/compiled-artifact"
     if ($artifact.status -ne "READY" -or
         [string]::IsNullOrWhiteSpace($artifact.bundle_hash)) {
         throw "Post-upgrade publication did not create a READY artifact"
@@ -263,10 +270,10 @@ try {
 
     Write-Host "[7/10] Activating legacy fallback and current artifact independently..."
     $legacyActivation = Invoke-RestMethod -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/versions/legacy-upgrade-v1/activate" `
+        -Uri "$script:ApiBaseUrl/api/v1/ontology/versions/legacy-upgrade-v1/activate" `
         -TimeoutSec 120
     $currentActivation = Invoke-RestMethod -Method Post `
-        -Uri "http://localhost:8000/api/v1/ontology/versions/upgrade-current-v1/activate" `
+        -Uri "$script:ApiBaseUrl/api/v1/ontology/versions/upgrade-current-v1/activate" `
         -TimeoutSec 120
     if ($legacyActivation.id -ne "legacy-upgrade-version-id" -or
         $currentActivation.id -ne $currentVersion.id) {

@@ -775,23 +775,34 @@ def ontology_construction_page() -> None:
         comment = st.text_input("审核说明")
         final = {"ACCEPTED", "MODIFIED", "REJECTED", "MERGED"}
         if st.button("提交审核", disabled=candidate["status"] in final):
-            api_request(
-                "POST",
-                (
-                    f"/api/v1/ontology/construction-runs/{run_id}/candidates/"
-                    f"{candidate['candidate_id']}/review"
-                ),
-                json={
-                    "decision": decision,
-                    "reviewer": "streamlit-reviewer",
-                    "modified_resource": json.loads(modified)
-                    if decision == "MODIFY"
-                    else None,
-                    "comment": comment,
-                    "merge_target_candidate_id": merge_target or None,
-                },
-            )
-            st.rerun()
+            try:
+                modified_resource = (
+                    json.loads(modified) if decision == "MODIFY" else None
+                )
+                if (
+                    modified_resource is not None
+                    and modified_resource.get("id")
+                    != candidate["current_resource"].get("id")
+                ):
+                    raise ValueError("Stable resource ID cannot be modified.")
+                api_request(
+                    "POST",
+                    (
+                        f"/api/v1/ontology/construction-runs/{run_id}/candidates/"
+                        f"{candidate['candidate_id']}/review"
+                    ),
+                    json={
+                        "decision": decision,
+                        "reviewer": "streamlit-reviewer",
+                        "modified_resource": modified_resource,
+                        "comment": comment,
+                        "merge_target_candidate_id": merge_target or None,
+                    },
+                )
+            except (RuntimeError, ValueError) as exc:
+                st.error(str(exc))
+            else:
+                st.rerun()
     with evidence_col:
         st.subheader("物理证据")
         for evidence in candidate["evidence"]:
@@ -1559,7 +1570,10 @@ page = st.sidebar.radio(
 if page == "Text-to-SQL":
     text_to_sql_page()
 elif page == "Ontology Construction":
-    ontology_construction_page()
+    try:
+        ontology_construction_page()
+    except RuntimeError as exc:
+        st.error(str(exc))
 elif page == "Ontology Manager":
     ontology_manager_page()
 elif page == "模式对比与评测":
