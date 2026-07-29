@@ -173,10 +173,13 @@ and `reports/text2sql_reviewed_ontology_v2/manifest.json`.
 
 The isolated Fresh Acceptance passed with 97 construction candidates and review
 decisions 12 ACCEPT / 60 MODIFY / 25 REJECT. Existing-Volume Upgrade Acceptance
-also passed after applying DDL 009 and 010 twice. A later final-SHA Fresh retry
-was blocked by a Docker Desktop content-store I/O error while reading the
-locally cached `pgvector` image; the acceptance script correctly failed
-immediately and removed its temporary project. Restarting Docker Desktop did
-not recover its Linux engine. This external failure is not reported as a
-repository pass. Exact successful and blocked attempts are recorded in
+also passed after applying DDL 009 and 010 twice. A later retry exposed a Docker
+Desktop content-store I/O error while reading the locally cached `pgvector`
+image; the acceptance script correctly failed immediately and removed its
+temporary project. After local disk space was reclaimed and Docker Desktop
+recovered, the complete Fresh Acceptance passed again on commit
+`d4b1f5b41678f801dd5c84797060c4f1bbd3a28c`: 97 candidates, review decisions
+12 ACCEPT / 60 MODIFY / 25 REJECT, strict publication, runtime activation, and
+all five local mock smoke groups. Exact successful attempts and the recovered
+storage incident are recorded in
 `reports/ontology_construction_v2/local_runtime_verification_v2.json`.

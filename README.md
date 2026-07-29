@@ -565,7 +565,7 @@ Template Adoption Rate 为 22.22%；同时平均延迟比 No SQLAsset 增加 440
 
 T-A 至 T-H 共 640 Case 的正式 live 实验尚未运行。它需要把虚构 MiniBank 问题、本体语义和检索文本发送到配置的 DeepSeek 与 DashScope 服务；本次执行未获得该外发载荷的明确授权，因此没有生成或伪造 Case 结果。完整版本、Hash、构建 ID 和未运行原因见 `reports/ontology_construction_v2/published_versions_v2.json` 与 `reports/text2sql_reviewed_ontology_v2/manifest.json`。
 
-本地 Fresh Acceptance 和 Existing-Volume Upgrade Acceptance 均已实际通过。随后在最终 SHA 上复跑 Fresh 时，Docker Desktop 本地内容存储读取 `pgvector` 镜像 blob 出现 I/O 错误；验收脚本已按预期立即失败并清理临时项目，但 Docker Linux Engine 重启未恢复。该外部故障没有记作通过，详情见 `reports/ontology_construction_v2/local_runtime_verification_v2.json`。
+本地 Fresh Acceptance 和 Existing-Volume Upgrade Acceptance 均已实际通过。中途一次复跑因 Docker Desktop 本地内容存储读取 `pgvector` 镜像 blob 出现 I/O 错误而按预期快速失败并清理临时项目；释放本地磁盘空间并恢复 Docker Desktop 后，完整 Fresh Acceptance 已在 `d4b1f5b41678f801dd5c84797060c4f1bbd3a28c` 再次通过，包含 97 个候选、12 ACCEPT / 60 MODIFY / 25 REJECT、严格发布、运行时激活和五组本地 mock smoke。普通开发环境随后也已恢复健康，详情见 `reports/ontology_construction_v2/local_runtime_verification_v2.json`。
 
 - Ontology Manager 当前只连接应用已经配置的 PostgreSQL Engine；`connection_ref` 仅保存环境变量名，不支持 API 任意新增主机。
 - `account.status` 与 `card.status` 已作为对象属性保留，但当前虚构物理表没有对应字段，因此不会伪造物理绑定或进入运行时投影。

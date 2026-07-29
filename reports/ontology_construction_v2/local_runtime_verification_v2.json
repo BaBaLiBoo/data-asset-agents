@@ -4,6 +4,7 @@
   "branch": "feature/text2sql-mvp",
   "runtime_code_commit_sha": "868123c139e48d0b5d7202f0519820b097f46116",
   "python_verification_commit_sha": "b6a8a680a03057559fbba2343e7ba6d6aa8f25d3",
+  "final_verification_commit_sha": "d4b1f5b41678f801dd5c84797060c4f1bbd3a28c",
   "python": {
     "ruff": "PASSED",
     "collected_tests": 208,
@@ -53,14 +54,43 @@
       "isolated_volume_removed": true
     },
     "final_sha_fresh_acceptance_retry": {
-      "status": "BLOCKED_DOCKER_DESKTOP_STORAGE_FAILURE",
-      "injected_git_commit_sha": "b6a8a680a03057559fbba2343e7ba6d6aa8f25d3",
+      "status": "PASSED_AFTER_STORAGE_RECOVERY",
+      "injected_git_commit_sha": "d4b1f5b41678f801dd5c84797060c4f1bbd3a28c",
+      "compose_project": "data-asset-agents-quality-v2",
+      "ports": {
+        "postgres": 15432,
+        "api": 18000,
+        "streamlit": 18501
+      },
+      "construction_run_id": "construction-f1942033104d42be839b8c55d0689ab0",
+      "candidate_count": 97,
+      "review_decisions": {
+        "ACCEPT": 12,
+        "MODIFY": 60,
+        "REJECT": 25
+      },
+      "draft_id": "draft-construction-ee639d08f8d448289e7285b5fe5b46b2",
+      "ontology_version_id": "version_fcfb33d3110a4f2988bbd80fa0ecd839",
+      "bundle_hash": "36bcedcac7691bbd865cc3fffc1f51c078038da233994f4491a2ad7330169394",
+      "mock_smoke_result_hashes": {
+        "schema": "aa237b2c600a994380cf88962936aea34f5188cb112e6f9ef27e35c57f79e416",
+        "physical_rag": "46ad74cc44f7fc3c27e528d63e8d9c9316a765670f97ecd6f03f77f7f8eeadc4",
+        "reviewed_auto_scaffold_ontology_no_sql_asset": "65b266517df54e18862c30c1d6a8450cbe3fa07fdb4232d97ee1a5a7fc69eb55",
+        "reviewed_auto_scaffold_ontology_full": "65b266517df54e18862c30c1d6a8450cbe3fa07fdb4232d97ee1a5a7fc69eb55",
+        "gold_ontology_full": "64dd84f3b4af67fb1032e883875789ede4590cdd497c388ee5d54673eaa1c939"
+      },
+      "isolated_volume_removed": true,
+      "docker_engine_recovered": true
+    },
+    "recovered_storage_incident": {
+      "status": "RECOVERED",
+      "attempted_git_commit_sha": "b6a8a680a03057559fbba2343e7ba6d6aa8f25d3",
       "repository_failure": false,
       "failure": "Docker Desktop could not read the cached pgvector image blob and returned input/output error.",
       "acceptance_failed_fast": true,
       "temporary_project_resources_removed": true,
       "docker_desktop_restart_attempted": true,
-      "docker_engine_recovered": false
+      "recovery": "The user freed local disk space, Docker Desktop recovered, and the complete Fresh Acceptance subsequently passed on the final verification commit."
     },
     "upgrade_acceptance": {
       "status": "PASSED",
@@ -85,7 +115,39 @@
         "database": "up"
       },
       "streamlit_health_body": "ok",
-      "final_state": "UNAVAILABLE_AFTER_DOCKER_DESKTOP_RESTART_FAILED"
+      "final_state": "HEALTHY_AFTER_FINAL_RESTORE",
+      "ports": {
+        "postgres": 5432,
+        "api": 8000,
+        "streamlit": 8501
+      },
+      "persistent_quality_v2_versions_verified": [
+        {
+          "ontology_version_id": "version_9792e7e2f4fa4db9b27cb26a3c076f2c",
+          "artifact_status": "READY",
+          "sql_asset_build_status": "READY",
+          "construction_run_id": "construction-0de800c044194393a9317150c2cde05e",
+          "seed_accessed": false,
+          "fallback_used": false,
+          "legacy_ontology_accessed": false
+        },
+        {
+          "ontology_version_id": "version_23aa2974a54a460694a92024b3d0b1a9",
+          "artifact_status": "READY",
+          "sql_asset_build_status": "READY",
+          "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f",
+          "seed_accessed": false,
+          "fallback_used": false,
+          "legacy_ontology_accessed": false
+        },
+        {
+          "ontology_version_id": "version_3a17072aa48949f185d167da1e1892e8",
+          "artifact_status": "READY",
+          "sql_asset_build_status": "READY",
+          "construction_run_id": null,
+          "construction_mode": "LEGACY_COMPAT"
+        }
+      ]
     }
   },
   "streamlit_workbench": {
