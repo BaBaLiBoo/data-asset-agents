@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     ontology_path: Path = Path("ontology/retail_banking")
     historical_sql_path: Path = Path("data/historical_sql/examples.json")
     api_base_url: str = "http://localhost:8000"
+    demo_mode: bool = True
+    demo_ontology_version_name: str = "quality-v2-gold-independent"
+    demo_ontology_display_name: str = "MiniBank 正式业务本体 v1.0"
     evaluation_benchmark_path: Path = Path("data/benchmark/text2sql_v1.json")
     evaluation_live_concurrency: int = Field(default=1, ge=1, le=4)
     evaluation_smoke_concurrency: int = Field(default=2, ge=1, le=8)

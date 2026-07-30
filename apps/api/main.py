@@ -542,6 +542,174 @@ def health(request: Request, response: Response) -> dict[str, str]:
     return {"status": "ok" if database == "up" else "degraded", "database": database}
 
 
+@app.get("/api/v1/ontology/demo-status")
+def ontology_demo_status(
+    request: Request,
+    run_example_checks: bool = Query(default=False),
+) -> dict[str, Any]:
+    settings = request.app.state.settings
+    versions = request.app.state.ontology_repository.list_versions()
+    current = request.app.state.ontology_repository.get_current_version()
+    configured = next(
+        (item for item in versions if item.version == settings.demo_ontology_version_name),
+        None,
+    )
+    configured_artifact = None
+    current_artifact = None
+    for label, version in (("configured", configured), ("current", current)):
+        if version is None:
+            continue
+        try:
+            artifact = request.app.state.ontology_manager.compiled_artifact(version.id)
+        except Exception:
+            artifact = None
+        if label == "configured":
+            configured_artifact = artifact
+        else:
+            current_artifact = artifact
+
+    index_builds = request.app.state.ontology_index_service.list()
+    current_index = next((item for item in index_builds if item.is_current), None)
+    latest_sql_build = None
+    if current is not None:
+        bundle_hash = request.app.state.ontology.compiled_bundle_hash
+        latest_sql_build = request.app.state.sql_asset_service.repository.latest_ready(
+            current.id, bundle_hash
+        )
+
+    try:
+        _, resources = request.app.state.ontology_manager.published()
+        resource_counts = {
+            "object_types": len(resources.object_types),
+            "properties": len(resources.properties),
+            "metrics": len(resources.metrics),
+            "dimensions": len(resources.dimensions),
+            "link_types": len(resources.link_types),
+            "bindings": len(resources.bindings),
+            "physical_joins": len(resources.physical_joins),
+        }
+    except Exception:
+        resource_counts = {}
+
+    graph = request.app.state.ontology_manager.object_graph()
+    health_checks = [
+        {
+            "name": "API",
+            "status": "PASSED",
+            "detail": "FastAPI is responding.",
+            "fix": "",
+        },
+        {
+            "name": "PostgreSQL",
+            "status": "PASSED" if request.app.state.executor.ping() else "BLOCKED",
+            "detail": "Database ping succeeded."
+            if request.app.state.executor.ping()
+            else "Database ping failed.",
+            "fix": "Start PostgreSQL and verify DATABASE_* environment variables.",
+        },
+        {
+            "name": "Configured demo ontology",
+            "status": "PASSED" if configured is not None else "BLOCKED",
+            "detail": settings.demo_ontology_version_name
+            if configured is not None
+            else "Configured version was not found.",
+            "fix": "Publish or import the MiniBank official demo ontology version.",
+        },
+        {
+            "name": "Compiled Artifact",
+            "status": "PASSED"
+            if configured_artifact is not None and configured_artifact.status == "READY"
+            else "WARNING",
+            "detail": configured_artifact.status if configured_artifact is not None else "missing",
+            "fix": "Validate and publish the Draft again to rebuild the compiled artifact.",
+        },
+        {
+            "name": "Ontology Index",
+            "status": "PASSED"
+            if current_index is not None and current_index.status == "READY"
+            else "WARNING",
+            "detail": current_index.status if current_index is not None else "missing",
+            "fix": "Run the ontology index build action.",
+        },
+        {
+            "name": "SQLAsset Build",
+            "status": "PASSED" if latest_sql_build is not None else "WARNING",
+            "detail": latest_sql_build.build_id if latest_sql_build is not None else "missing",
+            "fix": "Run the SQLAsset build action for the active ontology.",
+        },
+        {
+            "name": "Object Graph",
+            "status": "PASSED" if graph.nodes else "BLOCKED",
+            "detail": f"{len(graph.nodes)} nodes, {len(graph.edges)} edges",
+            "fix": "Activate a published object ontology with object and link resources.",
+        },
+        {
+            "name": "Metrics and Dimensions",
+            "status": "PASSED"
+            if resource_counts.get("metrics", 0) > 0
+            and resource_counts.get("dimensions", 0) > 0
+            else "BLOCKED",
+            "detail": (
+                f"{resource_counts.get('metrics', 0)} metrics, "
+                f"{resource_counts.get('dimensions', 0)} dimensions"
+            ),
+            "fix": "Complete Metric and Dimension resources before publishing.",
+        },
+    ]
+
+    example_query_checks: list[dict[str, Any]] = []
+    if run_example_checks:
+        examples = [
+            ("basic_metric", "查询交易金额", True),
+            ("multi_table_join", "按客户类型统计交易笔数", True),
+            ("sql_asset_template", "查询近30天各分行信用卡交易金额", True),
+        ]
+        for name, question, sql_asset_enabled in examples:
+            try:
+                result = request.app.state.strategy_router.execute(
+                    question,
+                    "ontology",
+                    sql_asset_enabled=sql_asset_enabled,
+                )
+                example_query_checks.append(
+                    {
+                        "name": name,
+                        "question": question,
+                        "status": "PASSED" if result.status == "success" else "WARNING",
+                        "detail": result.status,
+                        "sql_asset_enabled": sql_asset_enabled,
+                    }
+                )
+            except Exception as exc:
+                example_query_checks.append(
+                    {
+                        "name": name,
+                        "question": question,
+                        "status": "BLOCKED",
+                        "detail": str(exc),
+                        "sql_asset_enabled": sql_asset_enabled,
+                    }
+                )
+
+    return jsonable_encoder(
+        {
+            "demo_mode": settings.demo_mode,
+            "display_name": settings.demo_ontology_display_name,
+            "current_version": current,
+            "configured_demo_version": configured,
+            "artifact": configured_artifact,
+            "current_artifact": current_artifact,
+            "ontology_index": current_index,
+            "sql_asset_build": latest_sql_build,
+            "resource_counts": resource_counts,
+            "object_graph": graph,
+            "runtime": request.app.state.ontology_runtime,
+            "health_checks": health_checks,
+            "example_query_checks": example_query_checks,
+        }
+    )
+
+
 @app.post("/api/v1/query", response_model=QueryResponse)
 def query(payload: QueryRequest, request: Request) -> QueryResponse:
     try:

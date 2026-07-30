@@ -2,6 +2,48 @@
 
 ## Data-source-driven ontology construction
 
+## Ontology Workbench demo
+
+Streamlit now opens a productized MiniBank demo by default:
+
+- `演示首页` shows PostgreSQL, FastAPI, Streamlit, current ontology, compiled artifact,
+  ontology index, SQLAsset build, resource counts, the six-step workflow, and a one-click
+  demo environment check.
+- `本体构建与治理` is the main ontology entry. It connects data-source scanning,
+  O-A/O-B/O-C/O-D construction, structured candidate review, Promote to Draft,
+  Draft editing, Validate / Submit / Approve / Publish, activation, and version management.
+- `智能问数` shows the active ontology display name, Version ID, Bundle Hash,
+  Artifact status, SQLAsset status, business semantics, physical mapping, Join Plan,
+  generated SQL, validation, results, and the “为什么这样查询” explanation.
+- `高级管理` keeps the old Builder, Construction Workbench, Ontology Manager and
+  low-level JSON/debug tools for engineering regression.
+
+Local demo configuration is intentionally name-based, not ID-based:
+
+```env
+DEMO_MODE=true
+DEMO_ONTOLOGY_VERSION_NAME=quality-v2-gold-independent
+DEMO_ONTOLOGY_DISPLAY_NAME=MiniBank 正式业务本体 v1.0
+```
+
+The service does not silently activate the configured demo ontology at startup.
+Activation happens only when the user clicks “启用正式演示本体” or an acceptance
+script explicitly calls the existing Version Activate API.
+
+Demo workflow and talk track:
+
+- [`docs/ontology-demo-workflow.md`](docs/ontology-demo-workflow.md)
+- [`docs/ontology-demo-script.md`](docs/ontology-demo-script.md)
+- [`docs/ontology-demo-ui-audit.md`](docs/ontology-demo-ui-audit.md)
+
+End-to-end demo flow acceptance:
+
+```powershell
+$env:GIT_COMMIT_SHA = (git rev-parse HEAD).Trim()
+.\scripts\demo_flow_acceptance.ps1 -TimeoutSeconds 900 `
+  -ComposeProject "data-asset-agents-demo-flow"
+```
+
 Reviewed YAML remains the Gold ontology, demonstration seed, and compatibility
 entry point. The recommended construction path captures `RAW_METADATA` from the
 configured PostgreSQL source, generates isolated candidates, requires explicit
