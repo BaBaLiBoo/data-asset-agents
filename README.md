@@ -563,7 +563,7 @@ Template Adoption Rate 为 22.22%；同时平均延迟比 No SQLAsset 增加 440
 
 三者的 bundle、artifact source hash 和 READY SQLAsset Build 均不同。O-C/O-D 通过严格构建且三个泄漏标志均为 `false`。第一次保留全部允许语义字段的 O-D Draft 被 PostgreSQL Dry Run 拒绝，没有发布；正式 O-D 对照版本只保留模型生成的对象边界说明，并明确记录为查询安全的测试审核策略。
 
-T-A 至 T-H 共 640 Case 的正式 live 实验尚未运行。它需要把虚构 MiniBank 问题、本体语义和检索文本发送到配置的 DeepSeek 与 DashScope 服务；本次执行未获得该外发载荷的明确授权，因此没有生成或伪造 Case 结果。完整版本、Hash、构建 ID 和未运行原因见 `reports/ontology_construction_v2/published_versions_v2.json` 与 `reports/text2sql_reviewed_ontology_v2/manifest.json`。
+T-A 至 T-H 共 640 Case 的正式 live 实验已在 Git SHA `d9ae4ef12968df5cadb4271af7ff6d1bd885290e` 完成：八组均为 `COMPLETED`、每组恰好 80 条持久化 Case，公平性比较无 warning。Result Hash Accuracy 依次为 0.013514、0.418919、0.459459、0.513514、0.445946、0.500000、0.756757、0.810811。三类本体的 SQLAsset 单次观测增量均约为 +0.054054；O-D 的 9 次 Live LLM 构建调用只少了 1 次估算审核操作，且下游结果比 O-C 低约 0.0135，不能据此声称 LLM 降低了审核成本或提升了查询效果。完整 Run ID、版本、Hash、Build、Case CSV、错误归因和构建—查询关联见 `reports/text2sql_reviewed_ontology_v2/`；这是每组一次的实验，不作统计显著声明。
 
 本地 Fresh Acceptance 和 Existing-Volume Upgrade Acceptance 均已实际通过。中途一次复跑因 Docker Desktop 本地内容存储读取 `pgvector` 镜像 blob 出现 I/O 错误而按预期快速失败并清理临时项目；释放本地磁盘空间并恢复 Docker Desktop 后，完整 Fresh Acceptance 已在 `d4b1f5b41678f801dd5c84797060c4f1bbd3a28c` 再次通过，包含 97 个候选、12 ACCEPT / 60 MODIFY / 25 REJECT、严格发布、运行时激活和五组本地 mock smoke。普通开发环境随后也已恢复健康，详情见 `reports/ontology_construction_v2/local_runtime_verification_v2.json`。
 

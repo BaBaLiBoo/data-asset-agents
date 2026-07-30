@@ -121,10 +121,11 @@ per Catalog mode. It did not improve raw F1 and increased edited fields from 214
 to 219, so this run provides no evidence that the configured model reduced
 review work.
 
-The dependent T-A through T-H 80-case experiment was not run: independently
-published reviewed O-C, reviewed O-D, and Gold versions with version-bound
-SQLAsset builds were not created. Mock, historical, and file-only construction
-results were not substituted for downstream case results.
+At that earlier file-based stage, the dependent T-A through T-H experiment was
+not run because independent published versions and version-bound SQLAsset
+builds did not yet exist. That historical state is superseded by the PostgreSQL
+publication and formal downstream closure below; no mock or historical Case was
+substituted into the later formal Runs.
 
 ## PostgreSQL publication closure
 
@@ -142,6 +143,15 @@ Version IDs, bundle hashes, artifact source hashes, and build IDs are pairwise
 distinct. O-C and O-D artifacts passed `STRICT_CONSTRUCTION` with
 `seed_accessed=false`, `fallback_used=false`, and
 `legacy_ontology_accessed=false`.
+
+The formal runner resolved the following exact identities; the latest READY
+Gold build shown here supersedes the earlier publication-time build row:
+
+| Source | Artifact source hash | Bundle hash | Formal SQLAsset Build |
+|---|---|---|---|
+| O-C | `a660a316a9bdb2a26403eee190d4dee6c4118c9af017acf1574ce8abb2609540` | `4544739e14bdebc0ea2e0248153d9387cfd38e5761e992f172819933eb4a0616` | `sqlbuild-8d5ebe518fc14e76a2646e52cc767145` |
+| O-D | `09132da1bf5bbbe80a9348d0a73641de7700d7299a9b4f3efab07dea5a9bfdb8` | `024d318c691a5e670621c5364ddadec3471284010838856b9a3ac2bd0fa02987` | `sqlbuild-551264a4ab16456ebc67fef848cf88ce` |
+| Gold | `58c0c6dd1daa88e4dc641fdb6c2045e574e66d9dde484bfe7db3278954c51248` | `c5335c771f809e0e591ea2a3c77e3644e844c1420d5992ac07baf4674c8ab219` | `sqlbuild-b25dced77be84fdbab7e4a460c6c78bc` |
 
 The first O-D review retained every model-suggested semantic field allowed by
 the structured schema. Strict PostgreSQL Dry Run rejected it because query
@@ -164,12 +174,37 @@ The formal 640-case runner is:
 ```
 
 It writes 80 persisted Case rows and one CSV per T-A through T-H group, then
-checks ontology/bundle/artifact/build isolation before comparison. The run was
-not started because the environment did not grant explicit approval to send
-the fictional MiniBank questions, ontology semantics, and retrieval text to
-DeepSeek and DashScope. No earlier result was substituted. Exact hashes and the
-not-run evidence are in `reports/ontology_construction_v2/published_versions_v2.json`
-and `reports/text2sql_reviewed_ontology_v2/manifest.json`.
+checks ontology/bundle/artifact/build isolation before comparison. External
+processing was explicitly authorized on 2026-07-30. DashScope Embedding
+LIVE_PREFLIGHT passed at 1024 dimensions. The first DeepSeek Schema
+LIVE_PREFLIGHT returned HTTP 402 and is retained under Run
+`827062c3-c4e2-408f-af33-982ec757d2d3`; after the account balance was restored,
+the same provider/model passed the balance check and all eight one-Case
+strategy preflights.
+
+The formal run then completed all eight groups on Git SHA
+`d9ae4ef12968df5cadb4271af7ff6d1bd885290e`: each Run is `COMPLETED`, each has
+80 persisted Cases, total coverage is 640, and the fairness comparison has no
+warnings. Result Hash Accuracy for T-A through T-H is respectively 0.013514,
+0.418919, 0.459459, 0.513514, 0.445946, 0.500000, 0.756757, and 0.810811.
+Exact non-secret preflight and formal evidence is in
+`reports/text2sql_reviewed_ontology_v2/preflight.json` and
+`reports/text2sql_reviewed_ontology_v2/manifest.json`.
+
+O-C is 0.297298 below Gold without SQLAsset and 0.297297 below Gold with it;
+O-D is 0.310811 below Gold in both conditions. SQLAsset adds about 0.054054 for
+O-C, O-D, and Gold. O-D made nine Live LLM construction calls but reduced the
+review estimate by only one operation and scored about 0.0135 below O-C. This
+single run does not support a statistical-significance claim, a general
+LLM-driven review-cost reduction, or replacement of human review. The 22 Cases
+where O-C failed while Gold succeeded and the single Case where O-D failed
+while O-C succeeded are listed in `error-analysis.md` and
+`construction-query-correlation.json`.
+
+The runner writes each Case CSV and its progress manifest atomically. Rerunning
+with the same output directory (or an explicit `--resume-manifest`) reuses only
+a complete, provenance-matching 80-Case group. Failed attempts remain recorded;
+individual failed Cases are never selectively rerun or combined.
 
 The isolated Fresh Acceptance passed with 97 construction candidates and review
 decisions 12 ACCEPT / 60 MODIFY / 25 REJECT. Existing-Volume Upgrade Acceptance

@@ -1,0 +1,1485 @@
+case_id,category,common_validation_errors,common_validation_valid,created_at,difficulty,discovered_joins,evaluation_policy_violations,execution_result_hash,execution_succeeded,explain_passed,failure_category,failure_reason,generated_sql,gold,latency_ms,ontology_policy_errors,ontology_policy_valid,predicted_status,question,raw_model_output,referenced_columns,referenced_tables,retrieved_columns,retrieved_context,retrieved_tables,run_id,selected_sql_asset_id,selected_template_rank,semantic_output,sql_asset_candidates,sql_rewrite,status,success,template_adopted,template_compatible,template_rejection_reasons,token_usage
+basic-01,基础指标,[],True,2026-07-30T02:56:57.605092Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED""]",9874d819290d9fa4d409a8e16992a70a7016a8c142233ad55618cb3831455b59,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,SELECT txn_amount_cny FROM dwd_card_transaction,"{""columns"": [""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""30908c6af98d63d34fc8dabd0e99c8441dc8328f7505704da6a9b4959b83b34c"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1010.73,,,success,查询交易金额,"```sql
+SELECT txn_amount_cny FROM dwd_card_transaction;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2652, ""output_tokens"": 17, ""total_tokens"": 2669}"
+basic-02,基础指标,[],True,2026-07-30T02:56:58.423309Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",cff1441d1554b64fda6fe4e104c6e2c1f3ca473a6711d2dbbe726c81cc7feb4a,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT SUM(txn_amount_cny) AS total_credit_card_amount
+FROM dwd_card_transaction
+WHERE card_type = 'credit'","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""8fc4c944ae49f0cd8d3ebdc39554733d3bf1bf8c246d8d96c7d509ec2ce4fb65"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",812.78,,,success,统计信用卡交易金额,"```sql
+SELECT SUM(txn_amount_cny) AS total_credit_card_amount
+FROM dwd_card_transaction
+WHERE card_type = 'credit';
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2653, ""output_tokens"": 33, ""total_tokens"": 2686}"
+basic-03,基础指标,[],True,2026-07-30T02:56:59.338252Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED""]",e55e5800a229f6833f34fff66df8aad5a333a6bda5fc2cdbe8b479dba1382ce6,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT COUNT(*) AS transaction_count
+FROM dwd_card_transaction","{""columns"": [""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_count""], ""result_hash"": ""082a6289bb7a8a437a316537009c7aed92c32a663d5f03915d613181de3dc998"", ""semantic_filters"": [], ""sql"": ""SELECT COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",907.01,,,success,查询交易笔数,"```sql
+SELECT COUNT(*) AS transaction_count
+FROM dwd_card_transaction;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2653, ""output_tokens"": 18, ""total_tokens"": 2671}"
+basic-04,基础指标,[],True,2026-07-30T02:57:00.754896Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",63e3449ae6a79dca7f930c6be151381fbb0a61897a42ca654de8477f4fac7cc2,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT COUNT(*) AS credit_card_transaction_count
+FROM dwd_card_transaction
+WHERE card_type = '信用卡'","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_count""], ""result_hash"": ""25cf54dc86c9446c3fb104e24f89d6e52b24e65b5fbf06136ffdf717a6128b67"", ""semantic_filters"": [], ""sql"": ""SELECT COUNT(DISTINCT t.transaction_id) AS credit_card_transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1412.58,,,success,统计信用卡交易笔数,"```sql
+SELECT COUNT(*) AS credit_card_transaction_count
+FROM dwd_card_transaction
+WHERE card_type = '信用卡';
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2654, ""output_tokens"": 28, ""total_tokens"": 2682}"
+basic-05,基础指标,[],True,2026-07-30T02:57:01.901521Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED""]",ac4215ec04b21477e9c38aaab4de57d9064aba01f23d15da2660cbc357067077,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT AVG(txn_amount_cny) AS avg_transaction_amount
+FROM dwd_card_transaction","{""columns"": [""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""average_transaction_amount""], ""result_hash"": ""faaa217e573df6437ba76645ca5511062193a4d73ce259fb20b40e805ef88e6d"", ""semantic_filters"": [], ""sql"": ""SELECT AVG(t.txn_amount_cny) AS average_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1137.1,,,success,查询平均交易金额,"```sql
+SELECT AVG(txn_amount_cny) AS avg_transaction_amount
+FROM dwd_card_transaction;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2653, ""output_tokens"": 26, ""total_tokens"": 2679}"
+basic-06,基础指标,[],True,2026-07-30T02:57:02.880572Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED""]",172bbf24a5baa51d67384f496dc33ce29f71ed989c01e49e6dd710a1046f135c,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT COUNT(DISTINCT c.customer_id) AS active_customer_count
+FROM dim_customer c
+WHERE EXISTS (
+    SELECT 1
+    FROM dwd_card_transaction t
+    WHERE t.customer_id = c.customer_id
+)","{""columns"": [""dwd_card_transaction.customer_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""active_customer_count""], ""result_hash"": ""172bbf24a5baa51d67384f496dc33ce29f71ed989c01e49e6dd710a1046f135c"", ""semantic_filters"": [], ""sql"": ""SELECT COUNT(DISTINCT t.customer_id) AS active_customer_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",973.76,,,success,查询活跃客户数,"```sql
+SELECT COUNT(DISTINCT c.customer_id) AS active_customer_count
+FROM dim_customer c
+WHERE EXISTS (
+    SELECT 1
+    FROM dwd_card_transaction t
+    WHERE t.customer_id = c.customer_id
+);
+```","[""dim_customer.customer_id"", ""dwd_card_transaction.customer_id""]","[""dim_customer"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2653, ""output_tokens"": 56, ""total_tokens"": 2709}"
+basic-07,基础指标,[],True,2026-07-30T02:57:04.829527Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED""]",307ab5779d11fe17b316880e94bbd2f68782bb6c4e87acc8f15df093604d68a8,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT SUM(txn_amount_cny) AS total_posted_amount
+FROM dwd_card_transaction
+WHERE transaction_status = 'posted'","{""columns"": [""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""30908c6af98d63d34fc8dabd0e99c8441dc8328f7505704da6a9b4959b83b34c"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1942.82,,,success,统计全部已入账交易额,"SELECT SUM(txn_amount_cny) AS total_posted_amount
+FROM dwd_card_transaction
+WHERE transaction_status = 'posted';",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2656, ""output_tokens"": 28, ""total_tokens"": 2684}"
+basic-08,基础指标,[],True,2026-07-30T02:57:05.874428Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",6d81f81020c5f4886660a4cfec829d2ca9c0b3cc90c098064a76099fec03b074,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT SUM(txn_amount_cny) AS total_credit_card_spending
+FROM dwd_card_transaction
+WHERE card_type = '贷记卡'","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""8fc4c944ae49f0cd8d3ebdc39554733d3bf1bf8c246d8d96c7d509ec2ce4fb65"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1040.62,,,success,计算贷记卡消费金额,"```sql
+SELECT SUM(txn_amount_cny) AS total_credit_card_spending
+FROM dwd_card_transaction
+WHERE card_type = '贷记卡';
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2654, ""output_tokens"": 35, ""total_tokens"": 2689}"
+basic-09,基础指标,[],True,2026-07-30T02:57:07.820886Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED""]",e55e5800a229f6833f34fff66df8aad5a333a6bda5fc2cdbe8b479dba1382ce6,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,SELECT COUNT(*) AS transaction_count FROM dwd_card_transaction,"{""columns"": [""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_count""], ""result_hash"": ""082a6289bb7a8a437a316537009c7aed92c32a663d5f03915d613181de3dc998"", ""semantic_filters"": [], ""sql"": ""SELECT COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1941.81,,,success,统计流水笔数,"```sql
+SELECT COUNT(*) AS transaction_count FROM dwd_card_transaction;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2653, ""output_tokens"": 17, ""total_tokens"": 2670}"
+basic-10,基础指标,[],True,2026-07-30T02:57:09.236346Z,easy,"[""dwd_card_transaction.customer_id = dim_customer.customer_id""]","[""Missing required metric filter: transaction_status = POSTED""]",ad0c223f79efbe94c3eb703294b4e0f5ff17b3463d74a0f1f3324e7869a204b5,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    d.customer_id,
+    SUM(t.txn_amount_cny) / COUNT(DISTINCT t.transaction_id) AS avg_revenue_per_transaction
+FROM dwd_card_transaction t
+JOIN dim_customer d ON t.customer_id = d.customer_id
+GROUP BY d.customer_id","{""columns"": [""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""average_transaction_amount""], ""result_hash"": ""faaa217e573df6437ba76645ca5511062193a4d73ce259fb20b40e805ef88e6d"", ""semantic_filters"": [], ""sql"": ""SELECT AVG(t.txn_amount_cny) AS average_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1408.42,,,success,查询客单价,"```sql
+SELECT 
+    d.customer_id,
+    SUM(t.txn_amount_cny) / COUNT(DISTINCT t.transaction_id) AS avg_revenue_per_transaction
+FROM dwd_card_transaction t
+JOIN dim_customer d ON t.customer_id = d.customer_id
+GROUP BY d.customer_id;
+```","[""dim_customer.customer_id"", ""dwd_card_transaction.customer_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_customer"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2652, ""output_tokens"": 71, ""total_tokens"": 2723}"
+dimension-01,单维度、双维度,[],True,2026-07-30T02:57:11.592858Z,easy,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",bec5d7402dc76492b76cdfe531354ff7ae799b9d14ac58a7ff9727e9e24098da,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount_cny
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""6cab8c111e82c9961fb7563ef0eb8721fcfbf2e114517039fc3c6fe84aaf98b8"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",2351.72,,,success,按分行统计交易金额,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount_cny
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2654, ""output_tokens"": 86, ""total_tokens"": 2740}"
+dimension-02,单维度、双维度,[],True,2026-07-30T02:57:12.515168Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED""]",f083c8a2e761754bab9b305bfdb39fca6a3ee5478fc4df99e8375321993b9db0,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    transaction_channel,
+    SUM(txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction
+GROUP BY 
+    transaction_channel
+ORDER BY 
+    total_amount DESC","{""columns"": [""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""transaction_channel""], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""737cb115242acc631349339da84bc15be1c7f92cab1534b6cc7094f2d4ec9c4b"", ""semantic_filters"": [], ""sql"": ""SELECT t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_channel ORDER BY t.transaction_channel"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",917.57,,,success,按交易渠道统计交易金额,"```sql
+SELECT 
+    transaction_channel,
+    SUM(txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction
+GROUP BY 
+    transaction_channel
+ORDER BY 
+    total_amount DESC;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2655, ""output_tokens"": 48, ""total_tokens"": 2703}"
+dimension-03,单维度、双维度,[],True,2026-07-30T02:57:16.510464Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED""]",04d15c831d0cdf3a040847966376c39f38f3bbc766d2bce51e6107e9e1c1158d,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    dct.card_type,
+    SUM(dct.txn_amount_cny) AS total_txn_amount_cny
+FROM dwd_card_transaction dct
+GROUP BY dct.card_type","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""card_type""], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""61f98855ae9f9916ecfa8286144be1f2396877ac34e752bce5b0595bf8198b0e"", ""semantic_filters"": [], ""sql"": ""SELECT t.card_type, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.card_type ORDER BY t.card_type"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",3986.68,,,success,按卡类型统计交易金额,"```sql
+SELECT 
+    dct.card_type,
+    SUM(dct.txn_amount_cny) AS total_txn_amount_cny
+FROM dwd_card_transaction dct
+GROUP BY dct.card_type;
+```","[""dwd_card_transaction.card_type"", ""dwd_card_transaction.txn_amount_cny""]","[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2655, ""output_tokens"": 46, ""total_tokens"": 2701}"
+dimension-04,单维度、双维度,[],True,2026-07-30T02:57:17.698258Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED""]",7c00474ce28a1fce106c37e0dd6a00f530a0e2643c9bfe0aaa94b5231446f22f,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT transaction_date, SUM(txn_amount_cny) AS total_amount
+FROM dwd_card_transaction
+GROUP BY transaction_date
+ORDER BY transaction_date","{""columns"": [""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""transaction_date""], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""65b93a79d080c03f8fe3cb9ca184cdcd220215aaeb3461925b3c97ce5019d04a"", ""semantic_filters"": [], ""sql"": ""SELECT t.transaction_date, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date ORDER BY t.transaction_date"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1182.71,,,success,按交易日期统计交易金额,"```sql
+SELECT transaction_date, SUM(txn_amount_cny) AS total_amount
+FROM dwd_card_transaction
+GROUP BY transaction_date
+ORDER BY transaction_date;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2655, ""output_tokens"": 36, ""total_tokens"": 2691}"
+dimension-05,单维度、双维度,[],True,2026-07-30T02:57:19.580447Z,easy,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",bec5d7402dc76492b76cdfe531354ff7ae799b9d14ac58a7ff9727e9e24098da,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount_cny
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""6cab8c111e82c9961fb7563ef0eb8721fcfbf2e114517039fc3c6fe84aaf98b8"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1877.57,,,success,按分行统计交易金额,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount_cny
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2654, ""output_tokens"": 86, ""total_tokens"": 2740}"
+dimension-06,单维度、双维度,[],True,2026-07-30T02:57:23.903320Z,easy,[],"[""Missing required metric filter: transaction_status = POSTED""]",a6ce8b38076209f9e195167c15dbdcc2e065dd60a633c50c8364d9a08bafbc34,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    transaction_channel,
+    SUM(txn_amount_cny) AS total_amount
+FROM dwd_card_transaction
+GROUP BY transaction_channel
+ORDER BY transaction_channel","{""columns"": [""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""transaction_channel""], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""737cb115242acc631349339da84bc15be1c7f92cab1534b6cc7094f2d4ec9c4b"", ""semantic_filters"": [], ""sql"": ""SELECT t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_channel ORDER BY t.transaction_channel"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",4318.88,,,success,按交易渠道统计交易金额,"```sql
+SELECT 
+    transaction_channel,
+    SUM(txn_amount_cny) AS total_amount
+FROM dwd_card_transaction
+GROUP BY transaction_channel
+ORDER BY transaction_channel;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2655, ""output_tokens"": 42, ""total_tokens"": 2697}"
+dimension-07,单维度、双维度,[],True,2026-07-30T02:57:25.959994Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED""]",ff7b4cdd82a28f4648dc4638f4ea6030319974cc3d130850e373c73f852f4347,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    card_type,
+    transaction_channel,
+    SUM(txn_amount) AS total_txn_amount
+FROM dwd_card_transaction
+GROUP BY card_type, transaction_channel
+ORDER BY card_type, transaction_channel","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""card_type"", ""transaction_channel""], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""0b9f04d354a227fe28678f1d8fc2191bb1c4d2799c5e5378fe30c966fe053a94"", ""semantic_filters"": [], ""sql"": ""SELECT t.card_type, t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.card_type, t.transaction_channel ORDER BY t.card_type, t.transaction_channel"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",2051.45,,,success,按卡类型和交易渠道统计交易金额,"```sql
+SELECT 
+    card_type,
+    transaction_channel,
+    SUM(txn_amount) AS total_txn_amount
+FROM dwd_card_transaction
+GROUP BY card_type, transaction_channel
+ORDER BY card_type, transaction_channel;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 52, ""total_tokens"": 2710}"
+dimension-08,单维度、双维度,[],True,2026-07-30T02:57:26.994366Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED""]",03d99a80d3013228bc6c6b03150aa687c36ace47485c633bd16ea2ee91f20463,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    transaction_date,
+    transaction_channel,
+    SUM(txn_amount) AS total_txn_amount
+FROM 
+    dwd_card_transaction
+GROUP BY 
+    transaction_date,
+    transaction_channel
+ORDER BY 
+    transaction_date,
+    transaction_channel","{""columns"": [""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""transaction_date"", ""transaction_channel""], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""267c68df0af0682552c80a303db04c3f694868c983dac780d9ea7c334a218455"", ""semantic_filters"": [], ""sql"": ""SELECT t.transaction_date, t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date, t.transaction_channel ORDER BY t.transaction_date, t.transaction_channel"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",727.7,,,success,按交易日期和交易渠道统计交易金额,"```sql
+SELECT 
+    transaction_date,
+    transaction_channel,
+    SUM(txn_amount) AS total_txn_amount
+FROM 
+    dwd_card_transaction
+GROUP BY 
+    transaction_date,
+    transaction_channel
+ORDER BY 
+    transaction_date,
+    transaction_channel;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 60, ""total_tokens"": 2718}"
+dimension-09,单维度、双维度,[],True,2026-07-30T02:57:29.148547Z,medium,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",0afe4dd06f7350bb011fc531777e33e12d955130274f63d807e0969660e953da,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    d.branch_id,
+    d.branch_name,
+    ct.transaction_channel,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount_cny
+FROM dwd_card_transaction ct
+JOIN dim_branch d ON ct.branch_id = d.branch_id
+GROUP BY d.branch_id, d.branch_name, ct.transaction_channel
+ORDER BY d.branch_id, ct.transaction_channel","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch"", ""transaction_channel""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""234245aca177a5d1179f7074d2f0ca8419ba730ec0addddfa28cd5e40f128d83"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name, t.transaction_channel ORDER BY b.branch_name, t.transaction_channel"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1026.61,,,success,按分行和交易渠道统计交易金额,"```sql
+SELECT 
+    d.branch_id,
+    d.branch_name,
+    ct.transaction_channel,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount_cny
+FROM dwd_card_transaction ct
+JOIN dim_branch d ON ct.branch_id = d.branch_id
+GROUP BY d.branch_id, d.branch_name, ct.transaction_channel
+ORDER BY d.branch_id, ct.transaction_channel;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2657, ""output_tokens"": 99, ""total_tokens"": 2756}"
+dimension-10,单维度、双维度,[],True,2026-07-30T02:57:30.141546Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED""]",f083c8a2e761754bab9b305bfdb39fca6a3ee5478fc4df99e8375321993b9db0,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    transaction_channel,
+    SUM(txn_amount_cny) AS total_amount
+FROM dwd_card_transaction
+GROUP BY transaction_channel
+ORDER BY total_amount DESC","{""columns"": [""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""transaction_channel""], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""737cb115242acc631349339da84bc15be1c7f92cab1534b6cc7094f2d4ec9c4b"", ""semantic_filters"": [], ""sql"": ""SELECT t.transaction_channel, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t  WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_channel ORDER BY t.transaction_channel"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",987.97,,,success,按交易渠道统计交易金额,"```sql
+SELECT 
+    transaction_channel,
+    SUM(txn_amount_cny) AS total_amount
+FROM dwd_card_transaction
+GROUP BY transaction_channel
+ORDER BY total_amount DESC;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2655, ""output_tokens"": 42, ""total_tokens"": 2697}"
+join-01,多表 Join,[],True,2026-07-30T02:57:30.966519Z,medium,"[""dim_branch.branch_id = dwd_card_transaction.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",1bb052908936ab822efb0a28c1e7f2e55418edcd15cd304747a1498b55eec114,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    COUNT(t.transaction_id) AS transaction_count
+FROM 
+    dim_branch b
+LEFT JOIN 
+    dwd_card_transaction t ON b.branch_id = t.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",818.87,,,success,按分行统计交易笔数,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    COUNT(t.transaction_id) AS transaction_count
+FROM 
+    dim_branch b
+LEFT JOIN 
+    dwd_card_transaction t ON b.branch_id = t.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2655, ""output_tokens"": 81, ""total_tokens"": 2736}"
+join-02,多表 Join,[],True,2026-07-30T02:57:31.979669Z,medium,"[""dwd_card_transaction.customer_id = dim_customer.customer_id""]","[""Missing required metric filter: transaction_status = POSTED""]",9b2bf9cbad9423fdcf9b23fa0b50ce039f79cfad8c1a6c7364c7e8cbaf95015a,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT
+    c.customer_type,
+    COUNT(*) AS transaction_count
+FROM
+    dwd_card_transaction t
+    JOIN dim_customer c ON t.customer_id = c.customer_id
+GROUP BY
+    c.customer_type","{""columns"": [""dim_customer.customer_id"", ""dim_customer.customer_type"", ""dwd_card_transaction.customer_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""customer_type""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.customer_id = dim_customer.customer_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""cf028b468ee2e8b7d35395261bd868c799ef272345c810e7bc4bbbfa07c3ee93"", ""semantic_filters"": [], ""sql"": ""SELECT c.customer_type, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_customer c ON t.customer_id = c.customer_id WHERE t.transaction_status = 'POSTED' GROUP BY c.customer_type ORDER BY c.customer_type"", ""tables"": [""dim_customer"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1009.63,,,success,按客户类型统计交易笔数,"```sql
+SELECT
+    c.customer_type,
+    COUNT(*) AS transaction_count
+FROM
+    dwd_card_transaction t
+    JOIN dim_customer c ON t.customer_id = c.customer_id
+GROUP BY
+    c.customer_type;
+```","[""dim_customer.customer_id"", ""dim_customer.customer_type"", ""dwd_card_transaction.customer_id""]","[""dim_customer"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2656, ""output_tokens"": 55, ""total_tokens"": 2711}"
+join-03,多表 Join,[],True,2026-07-30T02:57:32.828816Z,medium,"[""dwd_card_transaction.merchant_id = dim_merchant.merchant_id""]","[""Missing required metric filter: transaction_status = POSTED""]",fb2ff37107194f6c6b3a24997ec66f595027c239fa03049113ae9b23ae5cba29,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    dm.merchant_category,
+    COUNT(*) AS transaction_count
+FROM 
+    dwd_card_transaction dct
+    JOIN dim_merchant dm ON dct.merchant_id = dm.merchant_id
+GROUP BY 
+    dm.merchant_category
+ORDER BY 
+    transaction_count DESC","{""columns"": [""dim_merchant.merchant_category"", ""dim_merchant.merchant_id"", ""dwd_card_transaction.merchant_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""merchant_category""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.merchant_id = dim_merchant.merchant_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""e59348234c51e1787aec5a777da9e4ee7d5a344827239d30f4414796e689a8e4"", ""semantic_filters"": [], ""sql"": ""SELECT m.merchant_category, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_merchant m ON t.merchant_id = m.merchant_id WHERE t.transaction_status = 'POSTED' GROUP BY m.merchant_category ORDER BY m.merchant_category"", ""tables"": [""dim_merchant"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",845.4,,,success,按商户类别统计交易笔数,"```sql
+SELECT 
+    dm.merchant_category,
+    COUNT(*) AS transaction_count
+FROM 
+    dwd_card_transaction dct
+    JOIN dim_merchant dm ON dct.merchant_id = dm.merchant_id
+GROUP BY 
+    dm.merchant_category
+ORDER BY 
+    transaction_count DESC;
+```","[""dim_merchant.merchant_category"", ""dim_merchant.merchant_id"", ""dwd_card_transaction.merchant_id""]","[""dim_merchant"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2656, ""output_tokens"": 70, ""total_tokens"": 2726}"
+join-04,多表 Join,[],True,2026-07-30T02:57:33.712105Z,medium,"[""dim_branch.branch_id = dwd_card_transaction.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",1bb052908936ab822efb0a28c1e7f2e55418edcd15cd304747a1498b55eec114,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    COUNT(t.transaction_id) AS transaction_count
+FROM 
+    dim_branch b
+    LEFT JOIN dwd_card_transaction t ON b.branch_id = t.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",879.21,,,success,按分行统计交易笔数,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    COUNT(t.transaction_id) AS transaction_count
+FROM 
+    dim_branch b
+    LEFT JOIN dwd_card_transaction t ON b.branch_id = t.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2655, ""output_tokens"": 80, ""total_tokens"": 2735}"
+join-05,多表 Join,[],True,2026-07-30T02:57:34.706507Z,hard,"[""dwd_card_transaction.customer_id = dim_customer.customer_id"", ""dwd_card_transaction.merchant_id = dim_merchant.merchant_id""]","[""Missing required metric filter: transaction_status = POSTED""]",5eeb0569b4bd6b866f548b0a6ace15cc2be58f5596ac9b74f8a03a8b75dc2fb7,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    dc.customer_type,
+    dm.merchant_category,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction dct
+JOIN dim_customer dc ON dct.customer_id = dc.customer_id
+JOIN dim_merchant dm ON dct.merchant_id = dm.merchant_id
+GROUP BY dc.customer_type, dm.merchant_category
+ORDER BY dc.customer_type, dm.merchant_category","{""columns"": [""dim_customer.customer_id"", ""dim_customer.customer_type"", ""dim_merchant.merchant_category"", ""dim_merchant.merchant_id"", ""dwd_card_transaction.customer_id"", ""dwd_card_transaction.merchant_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""customer_type"", ""merchant_category""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.customer_id = dim_customer.customer_id"", ""dwd_card_transaction.merchant_id = dim_merchant.merchant_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""f7ce360999a5e0795fadc251dd4e0ebab69c23d0c044212b8675aaafe5a08e49"", ""semantic_filters"": [], ""sql"": ""SELECT c.customer_type, m.merchant_category, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_customer c ON t.customer_id = c.customer_id JOIN dim_merchant m ON t.merchant_id = m.merchant_id WHERE t.transaction_status = 'POSTED' GROUP BY c.customer_type, m.merchant_category ORDER BY c.customer_type, m.merchant_category"", ""tables"": [""dim_customer"", ""dim_merchant"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",988.45,,,success,按客户类型和商户类别统计交易笔数,"```sql
+SELECT 
+    dc.customer_type,
+    dm.merchant_category,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction dct
+JOIN dim_customer dc ON dct.customer_id = dc.customer_id
+JOIN dim_merchant dm ON dct.merchant_id = dm.merchant_id
+GROUP BY dc.customer_type, dm.merchant_category
+ORDER BY dc.customer_type, dm.merchant_category;
+```","[""dim_customer.customer_id"", ""dim_customer.customer_type"", ""dim_merchant.merchant_category"", ""dim_merchant.merchant_id"", ""dwd_card_transaction.customer_id"", ""dwd_card_transaction.merchant_id""]","[""dim_customer"", ""dim_merchant"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2659, ""output_tokens"": 100, ""total_tokens"": 2759}"
+join-06,多表 Join,[],True,2026-07-30T02:57:35.551622Z,hard,"[""dwd_card_transaction.merchant_id = dim_merchant.merchant_id"", ""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",4b85358e419264f850f650d6251c4ac52ec50587eae82461962dae8bdeafa67c,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    dm.merchant_category,
+    db.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction dct
+JOIN dim_merchant dm ON dct.merchant_id = dm.merchant_id
+JOIN dim_branch db ON dct.branch_id = db.branch_id
+GROUP BY dm.merchant_category, db.branch_name
+ORDER BY dm.merchant_category, db.branch_name","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dim_merchant.merchant_category"", ""dim_merchant.merchant_id"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.merchant_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""merchant_category"", ""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.merchant_id = dim_merchant.merchant_id"", ""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""1643e12cb7d12929efa820fcf1180864bcc52afaf1c1bc21a1de72f5346127ae"", ""semantic_filters"": [], ""sql"": ""SELECT m.merchant_category, b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_merchant m ON t.merchant_id = m.merchant_id JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY m.merchant_category, b.branch_name ORDER BY m.merchant_category, b.branch_name"", ""tables"": [""dim_branch"", ""dim_merchant"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",835.9,,,success,按商户类别和分行统计交易笔数,"```sql
+SELECT 
+    dm.merchant_category,
+    db.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction dct
+JOIN dim_merchant dm ON dct.merchant_id = dm.merchant_id
+JOIN dim_branch db ON dct.branch_id = db.branch_id
+GROUP BY dm.merchant_category, db.branch_name
+ORDER BY dm.merchant_category, db.branch_name;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dim_merchant.merchant_category"", ""dim_merchant.merchant_id"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.merchant_id""]","[""dim_branch"", ""dim_merchant"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 100, ""total_tokens"": 2758}"
+join-07,多表 Join,[],True,2026-07-30T02:57:36.780451Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id"", ""dwd_card_transaction.customer_id = dim_customer.customer_id""]","[""Missing required metric filter: transaction_status = POSTED""]",27961e8bd02d322bfc9235c387c963cd9fac74e45f68c19732b998a5850aaf1c,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    c.customer_type,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+JOIN dim_customer c ON t.customer_id = c.customer_id
+GROUP BY b.branch_id, b.branch_name, c.customer_type
+ORDER BY b.branch_id, c.customer_type","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dim_customer.customer_id"", ""dim_customer.customer_type"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.customer_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""branch"", ""customer_type""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id"", ""dwd_card_transaction.customer_id = dim_customer.customer_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""4fb6d8ee9b9a4b653dd94e36dd94008ce07f02a5922297e76ca8b514318538eb"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, c.customer_type, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id JOIN dim_customer c ON t.customer_id = c.customer_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name, c.customer_type ORDER BY b.branch_name, c.customer_type"", ""tables"": [""dim_branch"", ""dim_customer"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1219.97,,,success,按分行和客户类型统计交易笔数,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    c.customer_type,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+JOIN dim_customer c ON t.customer_id = c.customer_id
+GROUP BY b.branch_id, b.branch_name, c.customer_type
+ORDER BY b.branch_id, c.customer_type;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dim_customer.customer_id"", ""dim_customer.customer_type"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.customer_id""]","[""dim_branch"", ""dim_customer"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 102, ""total_tokens"": 2760}"
+join-08,多表 Join,[],True,2026-07-30T02:57:37.833411Z,hard,"[""dwd_card_transaction.customer_id = dim_customer.customer_id"", ""dwd_card_transaction.merchant_id = dim_merchant.merchant_id""]","[""Missing required metric filter: transaction_status = POSTED""]",5eeb0569b4bd6b866f548b0a6ace15cc2be58f5596ac9b74f8a03a8b75dc2fb7,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    dc.customer_type,
+    dm.merchant_category,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction dct
+JOIN dim_customer dc ON dct.customer_id = dc.customer_id
+JOIN dim_merchant dm ON dct.merchant_id = dm.merchant_id
+GROUP BY dc.customer_type, dm.merchant_category
+ORDER BY dc.customer_type, dm.merchant_category","{""columns"": [""dim_customer.customer_id"", ""dim_customer.customer_type"", ""dim_merchant.merchant_category"", ""dim_merchant.merchant_id"", ""dwd_card_transaction.customer_id"", ""dwd_card_transaction.merchant_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""customer_type"", ""merchant_category""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.customer_id = dim_customer.customer_id"", ""dwd_card_transaction.merchant_id = dim_merchant.merchant_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""f7ce360999a5e0795fadc251dd4e0ebab69c23d0c044212b8675aaafe5a08e49"", ""semantic_filters"": [], ""sql"": ""SELECT c.customer_type, m.merchant_category, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_customer c ON t.customer_id = c.customer_id JOIN dim_merchant m ON t.merchant_id = m.merchant_id WHERE t.transaction_status = 'POSTED' GROUP BY c.customer_type, m.merchant_category ORDER BY c.customer_type, m.merchant_category"", ""tables"": [""dim_customer"", ""dim_merchant"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1045.98,,,success,按客户类型和商户类别统计交易笔数,"```sql
+SELECT 
+    dc.customer_type,
+    dm.merchant_category,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction dct
+JOIN dim_customer dc ON dct.customer_id = dc.customer_id
+JOIN dim_merchant dm ON dct.merchant_id = dm.merchant_id
+GROUP BY dc.customer_type, dm.merchant_category
+ORDER BY dc.customer_type, dm.merchant_category;
+```","[""dim_customer.customer_id"", ""dim_customer.customer_type"", ""dim_merchant.merchant_category"", ""dim_merchant.merchant_id"", ""dwd_card_transaction.customer_id"", ""dwd_card_transaction.merchant_id""]","[""dim_customer"", ""dim_merchant"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2659, ""output_tokens"": 100, ""total_tokens"": 2759}"
+join-09,多表 Join,[],True,2026-07-30T02:57:38.806099Z,hard,"[""dwd_card_transaction.merchant_id = dim_merchant.merchant_id"", ""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",4b85358e419264f850f650d6251c4ac52ec50587eae82461962dae8bdeafa67c,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    dm.merchant_category,
+    db.branch_name,
+    COUNT(*) AS transaction_count
+FROM 
+    dwd_card_transaction dct
+    JOIN dim_merchant dm ON dct.merchant_id = dm.merchant_id
+    JOIN dim_branch db ON dct.branch_id = db.branch_id
+GROUP BY 
+    dm.merchant_category,
+    db.branch_name
+ORDER BY 
+    dm.merchant_category,
+    db.branch_name","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dim_merchant.merchant_category"", ""dim_merchant.merchant_id"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.merchant_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""merchant_category"", ""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.merchant_id = dim_merchant.merchant_id"", ""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""1643e12cb7d12929efa820fcf1180864bcc52afaf1c1bc21a1de72f5346127ae"", ""semantic_filters"": [], ""sql"": ""SELECT m.merchant_category, b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_merchant m ON t.merchant_id = m.merchant_id JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY m.merchant_category, b.branch_name ORDER BY m.merchant_category, b.branch_name"", ""tables"": [""dim_branch"", ""dim_merchant"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",967.3,,,success,按商户类别和分行统计交易笔数,"```sql
+SELECT 
+    dm.merchant_category,
+    db.branch_name,
+    COUNT(*) AS transaction_count
+FROM 
+    dwd_card_transaction dct
+    JOIN dim_merchant dm ON dct.merchant_id = dm.merchant_id
+    JOIN dim_branch db ON dct.branch_id = db.branch_id
+GROUP BY 
+    dm.merchant_category,
+    db.branch_name
+ORDER BY 
+    dm.merchant_category,
+    db.branch_name;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dim_merchant.merchant_category"", ""dim_merchant.merchant_id"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.merchant_id""]","[""dim_branch"", ""dim_merchant"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 108, ""total_tokens"": 2766}"
+join-10,多表 Join,[],True,2026-07-30T02:57:39.709196Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id"", ""dwd_card_transaction.customer_id = dim_customer.customer_id""]","[""Missing required metric filter: transaction_status = POSTED""]",27961e8bd02d322bfc9235c387c963cd9fac74e45f68c19732b998a5850aaf1c,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT
+    b.branch_id,
+    b.branch_name,
+    c.customer_type,
+    COUNT(*) AS transaction_count
+FROM
+    dwd_card_transaction t
+    JOIN dim_branch b ON t.branch_id = b.branch_id
+    JOIN dim_customer c ON t.customer_id = c.customer_id
+GROUP BY
+    b.branch_id,
+    b.branch_name,
+    c.customer_type
+ORDER BY
+    b.branch_id,
+    c.customer_type","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dim_customer.customer_id"", ""dim_customer.customer_type"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.customer_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""branch"", ""customer_type""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id"", ""dwd_card_transaction.customer_id = dim_customer.customer_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""4fb6d8ee9b9a4b653dd94e36dd94008ce07f02a5922297e76ca8b514318538eb"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, c.customer_type, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id JOIN dim_customer c ON t.customer_id = c.customer_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name, c.customer_type ORDER BY b.branch_name, c.customer_type"", ""tables"": [""dim_branch"", ""dim_customer"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",898.99,,,success,按分行和客户类型统计交易笔数,"```sql
+SELECT
+    b.branch_id,
+    b.branch_name,
+    c.customer_type,
+    COUNT(*) AS transaction_count
+FROM
+    dwd_card_transaction t
+    JOIN dim_branch b ON t.branch_id = b.branch_id
+    JOIN dim_customer c ON t.customer_id = c.customer_id
+GROUP BY
+    b.branch_id,
+    b.branch_name,
+    c.customer_type
+ORDER BY
+    b.branch_id,
+    c.customer_type;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dim_customer.customer_id"", ""dim_customer.customer_type"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.customer_id""]","[""dim_branch"", ""dim_customer"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 111, ""total_tokens"": 2769}"
+filter-01,时间、用户过滤和 IN,[],True,2026-07-30T02:57:40.580682Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",22064146ef3004873e0f96fcae18ef7a8fb121995f9002baf46d322942b138e7,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT SUM(txn_amount_cny) AS total_amount
+FROM dwd_card_transaction
+WHERE transaction_date >= CURRENT_DATE - INTERVAL '7 days'","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""9039cab6425f141269a4c5a724b52f39413301129472c87ea9eae36bbee69ba9"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '7 days'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""days"": 7, ""kind"": ""relative_days""}}",867.73,,,success,查询近7天信用卡交易金额,"```sql
+SELECT SUM(txn_amount_cny) AS total_amount
+FROM dwd_card_transaction
+WHERE transaction_date >= CURRENT_DATE - INTERVAL '7 days';
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2656, ""output_tokens"": 36, ""total_tokens"": 2692}"
+filter-02,时间、用户过滤和 IN,[],True,2026-07-30T02:57:41.280607Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",7bcb2ed926ac3399ee3a43169c650e3677ffb1b58cb0c5fcd1422fe33d224d4d,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT SUM(txn_amount_cny) AS total_credit_card_amount
+FROM dwd_card_transaction
+WHERE transaction_date >= CURRENT_DATE - INTERVAL '30 days'","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""080131d0b9560d21b6f94d541b5db9fd2dd9577f101a6c20ff37c800bf49d885"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '30 days'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""days"": 30, ""kind"": ""relative_days""}}",695.53,,,success,查询近30天信用卡交易金额,"```sql
+SELECT SUM(txn_amount_cny) AS total_credit_card_amount
+FROM dwd_card_transaction
+WHERE transaction_date >= CURRENT_DATE - INTERVAL '30 days';
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2656, ""output_tokens"": 39, ""total_tokens"": 2695}"
+filter-03,时间、用户过滤和 IN,[],True,2026-07-30T02:57:42.043971Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",15462c9590aba0014cbb819e0a2335c20f8d2e66cdfa7ab19f9e607ba4bdf9d1,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT SUM(txn_amount_cny) AS total_card_transaction_amount
+FROM dwd_card_transaction
+WHERE transaction_date >= CURRENT_DATE - INTERVAL '60 days'","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""8fc4c944ae49f0cd8d3ebdc39554733d3bf1bf8c246d8d96c7d509ec2ce4fb65"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '60 days'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""days"": 60, ""kind"": ""relative_days""}}",758.05,,,success,查询近60天信用卡交易金额,"```sql
+SELECT SUM(txn_amount_cny) AS total_card_transaction_amount
+FROM dwd_card_transaction
+WHERE transaction_date >= CURRENT_DATE - INTERVAL '60 days';
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2656, ""output_tokens"": 39, ""total_tokens"": 2695}"
+filter-04,时间、用户过滤和 IN,[],True,2026-07-30T02:57:43.156208Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",0ed799aaef08c9db98c4da171e309b3eb0a2103219a7b767634a1e6d66f3179f,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    dct.transaction_id,
+    dct.card_id,
+    dct.customer_id,
+    dct.branch_id,
+    dct.merchant_id,
+    dct.txn_amount,
+    dct.txn_amount_cny,
+    dct.posted_amount,
+    dct.card_type,
+    dct.transaction_status,
+    dct.transaction_channel,
+    dct.transaction_date
+FROM dwd_card_transaction dct
+WHERE dct.transaction_date >= CURRENT_DATE - INTERVAL '14 days'
+ORDER BY dct.transaction_date DESC","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""0cc6222559329148e2432fc25537dee2ece5b4189428d24933ed8e981739a6f6"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '14 days'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""days"": 14, ""kind"": ""relative_days""}}",1099.33,,,success,查询最近两周信用卡交易金额,"```sql
+SELECT 
+    dct.transaction_id,
+    dct.card_id,
+    dct.customer_id,
+    dct.branch_id,
+    dct.merchant_id,
+    dct.txn_amount,
+    dct.txn_amount_cny,
+    dct.posted_amount,
+    dct.card_type,
+    dct.transaction_status,
+    dct.transaction_channel,
+    dct.transaction_date
+FROM dwd_card_transaction dct
+WHERE dct.transaction_date >= CURRENT_DATE - INTERVAL '14 days'
+ORDER BY dct.transaction_date DESC;
+```","[""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.customer_id"", ""dwd_card_transaction.merchant_id"", ""dwd_card_transaction.posted_amount"", ""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount"", ""dwd_card_transaction.txn_amount_cny""]","[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2655, ""output_tokens"": 126, ""total_tokens"": 2781}"
+filter-05,时间、用户过滤和 IN,[],True,2026-07-30T02:57:44.139238Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",cff1441d1554b64fda6fe4e104c6e2c1f3ca473a6711d2dbbe726c81cc7feb4a,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT SUM(txn_amount_cny) AS total_credit_card_amount
+FROM dwd_card_transaction
+WHERE card_type = '信用卡'
+  AND transaction_date >= '2026-07-01'
+  AND transaction_date < '2026-08-01'","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""491f041f737410359d5ac5d02243e705c44e395b8700ff8c35956a1d4a36332e"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date BETWEEN DATE '2026-07-01' AND DATE '2026-07-31'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""end"": ""2026-07-31"", ""kind"": ""absolute"", ""start"": ""2026-07-01""}}",978.93,,,success,查询2026年7月信用卡交易金额,"```sql
+SELECT SUM(txn_amount_cny) AS total_credit_card_amount
+FROM dwd_card_transaction
+WHERE card_type = '信用卡'
+  AND transaction_date >= '2026-07-01'
+  AND transaction_date < '2026-08-01';
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 59, ""total_tokens"": 2717}"
+filter-06,时间、用户过滤和 IN,[],True,2026-07-30T02:57:45.190950Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",22064146ef3004873e0f96fcae18ef7a8fb121995f9002baf46d322942b138e7,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    SUM(txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction
+WHERE 
+    transaction_date >= CURRENT_DATE - INTERVAL '7 days'
+    AND transaction_channel IN ('APP', 'POS')
+    AND card_type = '信用卡'","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""6be13b2fb30d09542e19eaaf879c7e1a3826ea5cfeb61a598ce2db41908fb4ac"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '7 days' AND t.transaction_channel IN ('APP', 'POS')"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""days"": 7, ""kind"": ""relative_days""}}",1043.8,,,success,查询近7天APP和POS渠道信用卡交易金额,"```sql
+SELECT 
+    SUM(txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction
+WHERE 
+    transaction_date >= CURRENT_DATE - INTERVAL '7 days'
+    AND transaction_channel IN ('APP', 'POS')
+    AND card_type = '信用卡';
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2660, ""output_tokens"": 62, ""total_tokens"": 2722}"
+filter-07,时间、用户过滤和 IN,[],True,2026-07-30T02:57:46.030644Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",141315bc82075a8874a1c8f8ac4a6f80301c077be3f4c9b7224f2ff56b1bc8e4,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    transaction_channel,
+    SUM(txn_amount_cny) AS total_amount_cny
+FROM dwd_card_transaction
+WHERE transaction_date >= CURRENT_DATE - INTERVAL '30 days'
+  AND transaction_channel IN ('APP', 'POS')
+GROUP BY transaction_channel","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""f388a4de903861a1cc15fa17d02b280e8876462a311ad2cc57bb7dd06e203d8b"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '30 days' AND t.transaction_channel IN ('APP', 'POS')"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""days"": 30, ""kind"": ""relative_days""}}",834.6,,,success,查询近30天APP和POS渠道信用卡交易金额,"```sql
+SELECT 
+    transaction_channel,
+    SUM(txn_amount_cny) AS total_amount_cny
+FROM dwd_card_transaction
+WHERE transaction_date >= CURRENT_DATE - INTERVAL '30 days'
+  AND transaction_channel IN ('APP', 'POS')
+GROUP BY transaction_channel;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2660, ""output_tokens"": 63, ""total_tokens"": 2723}"
+filter-08,时间、用户过滤和 IN,[],True,2026-07-30T02:57:46.854372Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",7e3d6870d45da2f54e0b59651f8fc8e4c386b29046712c078da2eaf8c0383f21,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    SUM(txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction
+WHERE 
+    transaction_channel IN ('APP', 'POS')
+    AND transaction_date >= CURRENT_DATE - INTERVAL '60 days'","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""c22807916c1ace79dfd3c8b06493fe253b0689cfd0444ea2e8f3bc20b4fc8c3e"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '60 days' AND t.transaction_channel IN ('APP', 'POS')"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""days"": 60, ""kind"": ""relative_days""}}",819.51,,,success,查询近60天APP和POS渠道信用卡交易金额,"```sql
+SELECT 
+    SUM(txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction
+WHERE 
+    transaction_channel IN ('APP', 'POS')
+    AND transaction_date >= CURRENT_DATE - INTERVAL '60 days';
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2660, ""output_tokens"": 54, ""total_tokens"": 2714}"
+filter-09,时间、用户过滤和 IN,[],True,2026-07-30T02:57:47.750380Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",e1174911794dde5a63dbbb7cce403cc3499806041d9735cb84dec061b5e13bc9,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    SUM(txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction
+WHERE 
+    transaction_channel IN ('APP', 'POS')
+    AND transaction_date >= CURRENT_DATE - INTERVAL '14 days'","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""fda8b34111491e593f243079b43142e59ab5e100ffb3843b472b3daf4f14f399"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '14 days' AND t.transaction_channel IN ('APP', 'POS')"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""days"": 14, ""kind"": ""relative_days""}}",891.48,,,success,查询最近两周APP和POS渠道信用卡交易金额,"```sql
+SELECT 
+    SUM(txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction
+WHERE 
+    transaction_channel IN ('APP', 'POS')
+    AND transaction_date >= CURRENT_DATE - INTERVAL '14 days';
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2659, ""output_tokens"": 54, ""total_tokens"": 2713}"
+filter-10,时间、用户过滤和 IN,[],True,2026-07-30T02:57:48.972327Z,medium,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",bba67e06449d84c8aa4b7bbedac505d06ff53527c94ea6a19e8e7825e7cba95f,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    dct.transaction_date,
+    dct.transaction_channel,
+    SUM(dct.txn_amount_cny) AS total_txn_amount_cny
+FROM 
+    dwd_card_transaction dct
+WHERE 
+    dct.transaction_date >= '2026-07-01' 
+    AND dct.transaction_date < '2026-08-01'
+    AND dct.transaction_channel IN ('APP', 'POS')
+    AND dct.card_type = '信用卡'
+GROUP BY 
+    dct.transaction_date,
+    dct.transaction_channel
+ORDER BY 
+    dct.transaction_date,
+    dct.transaction_channel","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""ef8fad266fc2ec59f99857c38d8fb065db2185d4ad2cd5d05b157b7d836180cb"", ""semantic_filters"": [], ""sql"": ""SELECT SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' AND t.transaction_date BETWEEN DATE '2026-07-01' AND DATE '2026-07-31' AND t.transaction_channel IN ('APP', 'POS')"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""end"": ""2026-07-31"", ""kind"": ""absolute"", ""start"": ""2026-07-01""}}",1215.86,,,success,查询2026年7月APP和POS渠道信用卡交易金额,"```sql
+SELECT 
+    dct.transaction_date,
+    dct.transaction_channel,
+    SUM(dct.txn_amount_cny) AS total_txn_amount_cny
+FROM 
+    dwd_card_transaction dct
+WHERE 
+    dct.transaction_date >= '2026-07-01' 
+    AND dct.transaction_date < '2026-08-01'
+    AND dct.transaction_channel IN ('APP', 'POS')
+    AND dct.card_type = '信用卡'
+GROUP BY 
+    dct.transaction_date,
+    dct.transaction_channel
+ORDER BY 
+    dct.transaction_date,
+    dct.transaction_channel;
+```","[""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.txn_amount_cny""]","[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2662, ""output_tokens"": 145, ""total_tokens"": 2807}"
+top-01,Top N 和排序,[],True,2026-07-30T02:57:50.014449Z,medium,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",5247cb2902788009d82c7f9cfcd75e74ef2cd7708337a1294bca0446487bedce,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT b.branch_id, b.branch_name, SUM(ct.txn_amount_cny) AS total_amount
+FROM dwd_card_transaction ct
+JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE ct.card_type = 'credit'
+GROUP BY b.branch_id, b.branch_name
+ORDER BY total_amount DESC
+LIMIT 3","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""e5b21db047d84bf2e613e375ad7bc5942230af780a505f18cda56e1c93986bc6"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 3"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1033.48,,,success,查询信用卡交易金额最高的前3个分行,"SELECT b.branch_id, b.branch_name, SUM(ct.txn_amount_cny) AS total_amount
+FROM dwd_card_transaction ct
+JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE ct.card_type = 'credit'
+GROUP BY b.branch_id, b.branch_name
+ORDER BY total_amount DESC
+LIMIT 3;","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 80, ""total_tokens"": 2738}"
+top-02,Top N 和排序,[],True,2026-07-30T02:57:51.213570Z,medium,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",b6a2b2e526a25a3a3f5372c505a11fd2274243b8db4fa9a18aaaf33f52bc4b05,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount
+FROM 
+    dwd_card_transaction ct
+JOIN 
+    dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_transaction_amount DESC
+LIMIT 4","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""4afb2ed2cf3a16e30d331ccb208f764d69038c73ffa52f1e151d74156fa713ef"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 4"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1194.66,,,success,查询信用卡交易金额最高的前4个分行,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount
+FROM 
+    dwd_card_transaction ct
+JOIN 
+    dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_transaction_amount DESC
+LIMIT 4;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 102, ""total_tokens"": 2760}"
+top-03,Top N 和排序,[],True,2026-07-30T02:57:52.234697Z,medium,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",b6a2b2e526a25a3a3f5372c505a11fd2274243b8db4fa9a18aaaf33f52bc4b05,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_transaction_amount DESC
+LIMIT 5","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""ac1b812cc23805a71257f8fde922e4c2df907961ca085c86817084bbca0c87f0"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 5"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1016.37,,,success,查询信用卡交易金额最高的前5个分行,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_transaction_amount DESC
+LIMIT 5;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 100, ""total_tokens"": 2758}"
+top-04,Top N 和排序,[],True,2026-07-30T02:57:53.361132Z,medium,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",5247cb2902788009d82c7f9cfcd75e74ef2cd7708337a1294bca0446487bedce,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_amount DESC
+LIMIT 6","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""ac1b812cc23805a71257f8fde922e4c2df907961ca085c86817084bbca0c87f0"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 6"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1122.16,,,success,查询信用卡交易金额最高的前6个分行,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_amount DESC
+LIMIT 6;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 96, ""total_tokens"": 2754}"
+top-05,Top N 和排序,[],True,2026-07-30T02:57:54.361220Z,medium,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",5247cb2902788009d82c7f9cfcd75e74ef2cd7708337a1294bca0446487bedce,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_amount DESC
+LIMIT 7","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""ac1b812cc23805a71257f8fde922e4c2df907961ca085c86817084bbca0c87f0"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 7"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",994.83,,,success,查询信用卡交易金额最高的前7个分行,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_amount DESC
+LIMIT 7;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 96, ""total_tokens"": 2754}"
+top-06,Top N 和排序,[],True,2026-07-30T02:57:55.381510Z,medium,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",b6a2b2e526a25a3a3f5372c505a11fd2274243b8db4fa9a18aaaf33f52bc4b05,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_transaction_amount DESC
+LIMIT 8","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""ac1b812cc23805a71257f8fde922e4c2df907961ca085c86817084bbca0c87f0"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 8"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1011.75,,,success,查询信用卡交易金额最高的前8个分行,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_transaction_amount DESC
+LIMIT 8;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 100, ""total_tokens"": 2758}"
+top-07,Top N 和排序,[],True,2026-07-30T02:57:56.563095Z,medium,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",5247cb2902788009d82c7f9cfcd75e74ef2cd7708337a1294bca0446487bedce,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_amount DESC
+LIMIT 9","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""ac1b812cc23805a71257f8fde922e4c2df907961ca085c86817084bbca0c87f0"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 9"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1172.22,,,success,查询信用卡交易金额最高的前9个分行,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_amount
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_amount DESC
+LIMIT 9;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 96, ""total_tokens"": 2754}"
+top-08,Top N 和排序,[],True,2026-07-30T02:57:57.859568Z,medium,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",184f472f509548fa6f2aa34a30b2eaedb0e22d30477b3d8c821e0344b70eb7b9,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_amount_cny
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_amount_cny DESC
+LIMIT 10","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""ac1b812cc23805a71257f8fde922e4c2df907961ca085c86817084bbca0c87f0"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY credit_card_transaction_amount DESC LIMIT 10"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1287.76,,,success,查询信用卡交易金额最高的前10个分行,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_amount_cny
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_amount_cny DESC
+LIMIT 10;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2658, ""output_tokens"": 100, ""total_tokens"": 2758}"
+complex-01,CTE、窗口函数和子查询,[],True,2026-07-30T02:58:00.426090Z,hard,"[""dim_branch.branch_id = dwd_card_transaction.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",7222a2e2143de4d6ada586d7b8240bfa270d66f33fb637ea12a7b9465864bd9e,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount,
+    RANK() OVER (ORDER BY SUM(ct.txn_amount_cny) DESC) AS rank
+FROM 
+    dim_branch b
+    JOIN dwd_card_transaction ct ON b.branch_id = ct.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    rank","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""c97a7e2105bc58cda0b672504c17d069295bd0ce42d9707e7d804cd08bdd79d3"", ""semantic_filters"": [], ""sql"": ""WITH totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name) SELECT branch_name, amount, DENSE_RANK() OVER (ORDER BY amount DESC) AS amount_rank FROM totals ORDER BY amount_rank"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1067.78,,,success,查询各分行信用卡交易金额和排名,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount,
+    RANK() OVER (ORDER BY SUM(ct.txn_amount_cny) DESC) AS rank
+FROM 
+    dim_branch b
+    JOIN dwd_card_transaction ct ON b.branch_id = ct.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    rank;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2657, ""output_tokens"": 103, ""total_tokens"": 2760}"
+complex-02,CTE、窗口函数和子查询,[],True,2026-07-30T02:58:01.641266Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",c95380361b4181fcbaeb633f0998b85d9bbec74184870a13bba607c1a550479f,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(d.txn_amount_cny) AS total_transaction_amount
+FROM 
+    dwd_card_transaction d
+    JOIN dim_branch b ON d.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+HAVING 
+    SUM(d.txn_amount_cny) > (
+        SELECT AVG(branch_total)
+        FROM (
+            SELECT SUM(txn_amount_cny) AS branch_total
+            FROM dwd_card_transaction
+            GROUP BY branch_id
+        ) AS branch_totals
+    )","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""bba09341c87d83d28991d741f232f795d2fef5a4101f3fa313441705a0f3f93d"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.txn_amount_cny > (SELECT AVG(x.txn_amount_cny) FROM dwd_card_transaction x WHERE x.transaction_status = 'POSTED') GROUP BY b.branch_name ORDER BY amount DESC"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1208.08,,,success,查询高于整体平均值的分行交易金额,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(d.txn_amount_cny) AS total_transaction_amount
+FROM 
+    dwd_card_transaction d
+    JOIN dim_branch b ON d.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+HAVING 
+    SUM(d.txn_amount_cny) > (
+        SELECT AVG(branch_total)
+        FROM (
+            SELECT SUM(txn_amount_cny) AS branch_total
+            FROM dwd_card_transaction
+            GROUP BY branch_id
+        ) AS branch_totals
+    );
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2657, ""output_tokens"": 137, ""total_tokens"": 2794}"
+complex-03,CTE、窗口函数和子查询,[],True,2026-07-30T02:58:03.315938Z,hard,[],"[""Missing required metric filter: transaction_status = POSTED""]",5980b0d48d6ea6680f375086dab0a3ab12679b99b9ad27b98ee67ebe2b06eb7e,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    transaction_date,
+    SUM(txn_amount_cny) AS daily_amount,
+    SUM(SUM(txn_amount_cny)) OVER (ORDER BY transaction_date) AS cumulative_amount
+FROM dwd_card_transaction
+GROUP BY transaction_date
+ORDER BY transaction_date","{""columns"": [""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""transaction_date""], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""63d66123a04967f8edfdccf645131ce57e439f127224da36f820c667a6b8f472"", ""semantic_filters"": [], ""sql"": ""WITH daily AS (SELECT t.transaction_date, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date) SELECT transaction_date, amount, SUM(amount) OVER (ORDER BY transaction_date) AS running_amount FROM daily ORDER BY transaction_date"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1669.54,,,success,查询每日交易金额和累计金额,"```sql
+SELECT 
+    transaction_date,
+    SUM(txn_amount_cny) AS daily_amount,
+    SUM(SUM(txn_amount_cny)) OVER (ORDER BY transaction_date) AS cumulative_amount
+FROM dwd_card_transaction
+GROUP BY transaction_date
+ORDER BY transaction_date;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2656, ""output_tokens"": 60, ""total_tokens"": 2716}"
+complex-04,CTE、窗口函数和子查询,[],True,2026-07-30T02:58:05.996998Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",8ad96ada520b91063cc6af74c69fd3bff455acd05e030a1317c70943631e995a,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount,
+    RANK() OVER (ORDER BY SUM(ct.txn_amount_cny) DESC) AS rank
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    rank","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""c97a7e2105bc58cda0b672504c17d069295bd0ce42d9707e7d804cd08bdd79d3"", ""semantic_filters"": [], ""sql"": ""WITH totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name) SELECT branch_name, amount, DENSE_RANK() OVER (ORDER BY amount DESC) AS amount_rank FROM totals ORDER BY amount_rank"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",2675.17,,,success,查询各分行信用卡交易金额和排名,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount,
+    RANK() OVER (ORDER BY SUM(ct.txn_amount_cny) DESC) AS rank
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = 'credit'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    rank;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2657, ""output_tokens"": 113, ""total_tokens"": 2770}"
+complex-05,CTE、窗口函数和子查询,[],True,2026-07-30T02:58:10.505168Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",c95380361b4181fcbaeb633f0998b85d9bbec74184870a13bba607c1a550479f,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(d.txn_amount_cny) AS total_transaction_amount
+FROM 
+    dwd_card_transaction d
+    JOIN dim_branch b ON d.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+HAVING 
+    SUM(d.txn_amount_cny) > (
+        SELECT AVG(total_amount)
+        FROM (
+            SELECT SUM(txn_amount_cny) AS total_amount
+            FROM dwd_card_transaction
+            GROUP BY branch_id
+        ) AS branch_totals
+    )","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""bba09341c87d83d28991d741f232f795d2fef5a4101f3fa313441705a0f3f93d"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.txn_amount_cny > (SELECT AVG(x.txn_amount_cny) FROM dwd_card_transaction x WHERE x.transaction_status = 'POSTED') GROUP BY b.branch_name ORDER BY amount DESC"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",4498.45,,,success,查询高于整体平均值的分行交易金额,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(d.txn_amount_cny) AS total_transaction_amount
+FROM 
+    dwd_card_transaction d
+    JOIN dim_branch b ON d.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+HAVING 
+    SUM(d.txn_amount_cny) > (
+        SELECT AVG(total_amount)
+        FROM (
+            SELECT SUM(txn_amount_cny) AS total_amount
+            FROM dwd_card_transaction
+            GROUP BY branch_id
+        ) AS branch_totals
+    );
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2657, ""output_tokens"": 136, ""total_tokens"": 2793}"
+complex-06,CTE、窗口函数和子查询,[],True,2026-07-30T02:58:11.328642Z,hard,[],"[""Missing required metric filter: transaction_status = POSTED""]",5980b0d48d6ea6680f375086dab0a3ab12679b99b9ad27b98ee67ebe2b06eb7e,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    transaction_date,
+    SUM(txn_amount_cny) AS daily_amount,
+    SUM(SUM(txn_amount_cny)) OVER (ORDER BY transaction_date) AS cumulative_amount
+FROM dwd_card_transaction
+GROUP BY transaction_date
+ORDER BY transaction_date","{""columns"": [""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""transaction_date""], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""63d66123a04967f8edfdccf645131ce57e439f127224da36f820c667a6b8f472"", ""semantic_filters"": [], ""sql"": ""WITH daily AS (SELECT t.transaction_date, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date) SELECT transaction_date, amount, SUM(amount) OVER (ORDER BY transaction_date) AS running_amount FROM daily ORDER BY transaction_date"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",816.97,,,success,查询每日交易金额和累计金额,"```sql
+SELECT 
+    transaction_date,
+    SUM(txn_amount_cny) AS daily_amount,
+    SUM(SUM(txn_amount_cny)) OVER (ORDER BY transaction_date) AS cumulative_amount
+FROM dwd_card_transaction
+GROUP BY transaction_date
+ORDER BY transaction_date;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2656, ""output_tokens"": 60, ""total_tokens"": 2716}"
+complex-07,CTE、窗口函数和子查询,[],True,2026-07-30T02:58:12.367768Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",7222a2e2143de4d6ada586d7b8240bfa270d66f33fb637ea12a7b9465864bd9e,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount,
+    RANK() OVER (ORDER BY SUM(ct.txn_amount_cny) DESC) AS rank
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    rank","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""c97a7e2105bc58cda0b672504c17d069295bd0ce42d9707e7d804cd08bdd79d3"", ""semantic_filters"": [], ""sql"": ""WITH totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name) SELECT branch_name, amount, DENSE_RANK() OVER (ORDER BY amount DESC) AS amount_rank FROM totals ORDER BY amount_rank"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1034.41,,,success,查询各分行信用卡交易金额和排名,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount,
+    RANK() OVER (ORDER BY SUM(ct.txn_amount_cny) DESC) AS rank
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    rank;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2657, ""output_tokens"": 103, ""total_tokens"": 2760}"
+complex-08,CTE、窗口函数和子查询,[],True,2026-07-30T02:58:13.705350Z,hard,"[""dim_branch.branch_id = dwd_card_transaction.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",c95380361b4181fcbaeb633f0998b85d9bbec74184870a13bba607c1a550479f,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(d.txn_amount_cny) AS total_transaction_amount
+FROM 
+    dim_branch b
+    JOIN dwd_card_transaction d ON b.branch_id = d.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+HAVING 
+    SUM(d.txn_amount_cny) > (
+        SELECT AVG(total_amount)
+        FROM (
+            SELECT SUM(txn_amount_cny) AS total_amount
+            FROM dwd_card_transaction
+            GROUP BY branch_id
+        ) AS branch_totals
+    )","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""bba09341c87d83d28991d741f232f795d2fef5a4101f3fa313441705a0f3f93d"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.txn_amount_cny > (SELECT AVG(x.txn_amount_cny) FROM dwd_card_transaction x WHERE x.transaction_status = 'POSTED') GROUP BY b.branch_name ORDER BY amount DESC"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1332.87,,,success,查询高于整体平均值的分行交易金额,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(d.txn_amount_cny) AS total_transaction_amount
+FROM 
+    dim_branch b
+    JOIN dwd_card_transaction d ON b.branch_id = d.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+HAVING 
+    SUM(d.txn_amount_cny) > (
+        SELECT AVG(total_amount)
+        FROM (
+            SELECT SUM(txn_amount_cny) AS total_amount
+            FROM dwd_card_transaction
+            GROUP BY branch_id
+        ) AS branch_totals
+    );
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2657, ""output_tokens"": 136, ""total_tokens"": 2793}"
+complex-09,CTE、窗口函数和子查询,[],True,2026-07-30T02:58:14.619027Z,hard,[],"[""Missing required metric filter: transaction_status = POSTED""]",5980b0d48d6ea6680f375086dab0a3ab12679b99b9ad27b98ee67ebe2b06eb7e,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    transaction_date,
+    SUM(txn_amount_cny) AS daily_amount,
+    SUM(SUM(txn_amount_cny)) OVER (ORDER BY transaction_date) AS cumulative_amount
+FROM dwd_card_transaction
+GROUP BY transaction_date
+ORDER BY transaction_date","{""columns"": [""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""transaction_date""], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""63d66123a04967f8edfdccf645131ce57e439f127224da36f820c667a6b8f472"", ""semantic_filters"": [], ""sql"": ""WITH daily AS (SELECT t.transaction_date, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_date) SELECT transaction_date, amount, SUM(amount) OVER (ORDER BY transaction_date) AS running_amount FROM daily ORDER BY transaction_date"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",908.02,,,success,查询每日交易金额和累计金额,"```sql
+SELECT 
+    transaction_date,
+    SUM(txn_amount_cny) AS daily_amount,
+    SUM(SUM(txn_amount_cny)) OVER (ORDER BY transaction_date) AS cumulative_amount
+FROM dwd_card_transaction
+GROUP BY transaction_date
+ORDER BY transaction_date;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2656, ""output_tokens"": 60, ""total_tokens"": 2716}"
+complex-10,CTE、窗口函数和子查询,[],True,2026-07-30T02:58:15.751017Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",7222a2e2143de4d6ada586d7b8240bfa270d66f33fb637ea12a7b9465864bd9e,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount,
+    RANK() OVER (ORDER BY SUM(ct.txn_amount_cny) DESC) AS rank
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    rank","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""c97a7e2105bc58cda0b672504c17d069295bd0ce42d9707e7d804cd08bdd79d3"", ""semantic_filters"": [], ""sql"": ""WITH totals AS (SELECT b.branch_name, SUM(t.txn_amount_cny) AS amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name) SELECT branch_name, amount, DENSE_RANK() OVER (ORDER BY amount DESC) AS amount_rank FROM totals ORDER BY amount_rank"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1124.94,,,success,查询各分行信用卡交易金额和排名,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_transaction_amount,
+    RANK() OVER (ORDER BY SUM(ct.txn_amount_cny) DESC) AS rank
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    rank;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2657, ""output_tokens"": 103, ""total_tokens"": 2760}"
+synonym-01,同义词与金额字段歧义,[],True,2026-07-30T02:58:17.092345Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",f069f23d8d6ff12b33c6c621b4275c2381a35d57da9453163c585743caa5186f,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_spending
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""3cea3cc77cc2f11a8958ce61bbdf7dd410ad382292c824747525e1c3b8650ff0"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1334.99,,,success,按机构查询消费金额,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_spending
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2654, ""output_tokens"": 83, ""total_tokens"": 2737}"
+synonym-02,同义词与金额字段歧义,[],True,2026-07-30T02:58:17.999100Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",426e3ed1899b5b5a3226e9434eff96bd3e89eba74ea2990e995eb8993d80aaa0,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_credit_card_amount_cny
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = '贷记卡'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""3cea3cc77cc2f11a8958ce61bbdf7dd410ad382292c824747525e1c3b8650ff0"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",901.33,,,success,各网点贷记卡交易额,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_credit_card_amount_cny
+FROM 
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE 
+    ct.card_type = '贷记卡'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2655, ""output_tokens"": 98, ""total_tokens"": 2753}"
+synonym-03,同义词与金额字段歧义,[],True,2026-07-30T02:58:18.892354Z,hard,[],"[""Missing required metric filter: transaction_status = POSTED""]",212c61567d486eda53774663f1291c46aaaae1bc9f80ad6a676f27fb548dbce7,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    transaction_channel,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction
+GROUP BY transaction_channel
+ORDER BY transaction_channel","{""columns"": [""dwd_card_transaction.transaction_channel"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""transaction_channel""], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""transaction_count""], ""result_hash"": ""e1bba37028e4455d638bd1727cd970510578c1f3db51677d215ebb68331ec27c"", ""semantic_filters"": [], ""sql"": ""SELECT t.transaction_channel, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' GROUP BY t.transaction_channel ORDER BY t.transaction_channel"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",883.54,,,success,按渠道统计流水笔数,"```sql
+SELECT 
+    transaction_channel,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction
+GROUP BY transaction_channel
+ORDER BY transaction_channel;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2655, ""output_tokens"": 37, ""total_tokens"": 2692}"
+synonym-04,同义词与金额字段歧义,[],True,2026-07-30T02:58:19.791712Z,hard,"[""dwd_card_transaction.customer_id = dim_customer.customer_id""]","[""Missing required metric filter: transaction_status = POSTED""]",0d9f9abe4afc4b75f0d8439b686ecce3353c8505eac97f8d16037ba750cabaf0,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    d.customer_id,
+    SUM(t.txn_amount_cny) / COUNT(DISTINCT t.transaction_id) AS avg_revenue_per_transaction
+FROM dwd_card_transaction t
+JOIN dim_customer d ON t.customer_id = d.customer_id
+GROUP BY d.customer_id","{""columns"": [""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""average_transaction_amount""], ""result_hash"": ""faaa217e573df6437ba76645ca5511062193a4d73ce259fb20b40e805ef88e6d"", ""semantic_filters"": [], ""sql"": ""SELECT AVG(t.txn_amount_cny) AS average_transaction_amount FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED'"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",894.33,,,success,查询客单价,"```sql
+SELECT 
+    d.customer_id,
+    SUM(t.txn_amount_cny) / COUNT(DISTINCT t.transaction_id) AS avg_revenue_per_transaction
+FROM dwd_card_transaction t
+JOIN dim_customer d ON t.customer_id = d.customer_id
+GROUP BY d.customer_id;
+```","[""dim_customer.customer_id"", ""dwd_card_transaction.customer_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_customer"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2652, ""output_tokens"": 71, ""total_tokens"": 2723}"
+synonym-05,同义词与金额字段歧义,[],True,2026-07-30T02:58:20.846220Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",7998e3897768fd1768b1e9f2e416da277b5ce736ad14cbe6db539d02b5dc9189,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_credit_card_spending
+FROM
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE
+    ct.card_type = 'credit'
+GROUP BY
+    b.branch_id,
+    b.branch_name
+ORDER BY
+    total_credit_card_spending DESC","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""credit_card_transaction_amount""], ""result_hash"": ""3cea3cc77cc2f11a8958ce61bbdf7dd410ad382292c824747525e1c3b8650ff0"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS credit_card_transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1049.98,,,success,统计各机构信用卡消费金额,"```sql
+SELECT
+    b.branch_id,
+    b.branch_name,
+    SUM(ct.txn_amount_cny) AS total_credit_card_spending
+FROM
+    dwd_card_transaction ct
+    JOIN dim_branch b ON ct.branch_id = b.branch_id
+WHERE
+    ct.card_type = 'credit'
+GROUP BY
+    b.branch_id,
+    b.branch_name
+ORDER BY
+    total_credit_card_spending DESC;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_type"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2655, ""output_tokens"": 100, ""total_tokens"": 2755}"
+synonym-06,同义词与金额字段歧义,[],True,2026-07-30T02:58:21.790484Z,hard,"[""dim_branch.branch_id = dwd_card_transaction.branch_id AND dwd_card_transaction.transaction_date >= CURRENT_DATE - INTERVAL '30 DAYS'""]","[""Missing required metric filter: transaction_status = POSTED""]",66f616f1d6b43b9447048b77c0b62930d27115224682792a24993c81b68c6f5e,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    COALESCE(SUM(ct.txn_amount_cny), 0) AS total_transaction_amount_cny
+FROM 
+    dim_branch b
+LEFT JOIN 
+    dwd_card_transaction ct ON b.branch_id = ct.branch_id
+    AND ct.transaction_date >= CURRENT_DATE - INTERVAL '30 days'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_transaction_amount_cny DESC","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""4abebb23794496be8788087895f989dcc4e021a2c343a34fbf337a518c356846"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' AND t.transaction_date >= DATE '2026-07-16' - INTERVAL '30 days' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""days"": 30, ""kind"": ""relative_days""}}",933.9,,,success,近30天网点交易额,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    COALESCE(SUM(ct.txn_amount_cny), 0) AS total_transaction_amount_cny
+FROM 
+    dim_branch b
+LEFT JOIN 
+    dwd_card_transaction ct ON b.branch_id = ct.branch_id
+    AND ct.transaction_date >= CURRENT_DATE - INTERVAL '30 days'
+GROUP BY 
+    b.branch_id, b.branch_name
+ORDER BY 
+    total_transaction_amount_cny DESC;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2655, ""output_tokens"": 114, ""total_tokens"": 2769}"
+synonym-07,同义词与金额字段歧义,[],True,2026-07-30T02:58:22.590827Z,hard,[],"[""Missing required metric filter: transaction_status = POSTED"", ""Missing required metric filter: card_type = CREDIT""]",7126ea64c24f507aab21cb2d82d311820ec9dd979dc431e0e5e4db46667a9dd8,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT,"SELECT 
+    transaction_date,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction
+WHERE card_type = '贷记卡'
+GROUP BY transaction_date
+ORDER BY transaction_date","{""columns"": [""dwd_card_transaction.card_type"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""transaction_date""], ""expected_status"": ""success"", ""joins"": [], ""metric_ids"": [""credit_card_transaction_count""], ""result_hash"": ""097ff8f13022cba2c0da78beff52cd2d421f3b3710a28f960cadcc1ceaf555c2"", ""semantic_filters"": [], ""sql"": ""SELECT t.transaction_date, COUNT(DISTINCT t.transaction_id) AS credit_card_transaction_count FROM dwd_card_transaction t WHERE t.transaction_status = 'POSTED' AND t.card_type = 'CREDIT' GROUP BY t.transaction_date ORDER BY t.transaction_date"", ""tables"": [""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",795.76,,,success,按交易日查询贷记卡流水笔数,"```sql
+SELECT 
+    transaction_date,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction
+WHERE card_type = '贷记卡'
+GROUP BY transaction_date
+ORDER BY transaction_date;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2657, ""output_tokens"": 42, ""total_tokens"": 2699}"
+synonym-08,同义词与金额字段歧义,[],True,2026-07-30T02:58:23.510456Z,hard,"[""dim_branch.branch_id = dwd_card_transaction.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",1dca02e79e520214d934737aad2873d4527a6ef896aedf7d86ff25913c62e56b,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    COALESCE(SUM(ct.txn_amount_cny), 0) AS total_txn_amount_cny
+FROM dim_branch b
+LEFT JOIN dwd_card_transaction ct ON b.branch_id = ct.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_amount""], ""result_hash"": ""6cab8c111e82c9961fb7563ef0eb8721fcfbf2e114517039fc3c6fe84aaf98b8"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, SUM(t.txn_amount_cny) AS transaction_amount FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",913.61,,,success,各分行人民币交易金额,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    COALESCE(SUM(ct.txn_amount_cny), 0) AS total_txn_amount_cny
+FROM dim_branch b
+LEFT JOIN dwd_card_transaction ct ON b.branch_id = ct.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2654, ""output_tokens"": 87, ""total_tokens"": 2741}"
+lifecycle-01,生命周期、汇总粒度干扰,[],True,2026-07-30T02:58:24.489117Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",1bb052908936ab822efb0a28c1e7f2e55418edcd15cd304747a1498b55eec114,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",973.05,,,success,在当前正式明细资产中按分行统计交易笔数（场景1）,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2664, ""output_tokens"": 69, ""total_tokens"": 2733}"
+lifecycle-02,生命周期、汇总粒度干扰,[],True,2026-07-30T02:58:25.785846Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",1bb052908936ab822efb0a28c1e7f2e55418edcd15cd304747a1498b55eec114,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1291.2,,,success,在当前正式明细资产中按分行统计交易笔数（场景2）,"```sql
+SELECT
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2664, ""output_tokens"": 69, ""total_tokens"": 2733}"
+lifecycle-03,生命周期、汇总粒度干扰,[],True,2026-07-30T02:58:26.775767Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",1bb052908936ab822efb0a28c1e7f2e55418edcd15cd304747a1498b55eec114,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",985.79,,,success,在当前正式明细资产中按分行统计交易笔数（场景3）,"```sql
+SELECT
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2664, ""output_tokens"": 69, ""total_tokens"": 2733}"
+lifecycle-04,生命周期、汇总粒度干扰,[],True,2026-07-30T02:58:27.624884Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",1bb052908936ab822efb0a28c1e7f2e55418edcd15cd304747a1498b55eec114,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",844.29,,,success,在当前正式明细资产中按分行统计交易笔数（场景4）,"```sql
+SELECT
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2664, ""output_tokens"": 69, ""total_tokens"": 2733}"
+lifecycle-05,生命周期、汇总粒度干扰,[],True,2026-07-30T02:58:28.624282Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",1bb052908936ab822efb0a28c1e7f2e55418edcd15cd304747a1498b55eec114,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",993.65,,,success,在当前正式明细资产中按分行统计交易笔数（场景5）,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2664, ""output_tokens"": 69, ""total_tokens"": 2733}"
+lifecycle-06,生命周期、汇总粒度干扰,[],True,2026-07-30T02:58:29.426045Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",1bb052908936ab822efb0a28c1e7f2e55418edcd15cd304747a1498b55eec114,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",795.28,,,success,在当前正式明细资产中按分行统计交易笔数（场景6）,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2664, ""output_tokens"": 69, ""total_tokens"": 2733}"
+lifecycle-07,生命周期、汇总粒度干扰,[],True,2026-07-30T02:58:32.522697Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",1bb052908936ab822efb0a28c1e7f2e55418edcd15cd304747a1498b55eec114,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",1635.85,,,success,在当前正式明细资产中按分行统计交易笔数（场景7）,"```sql
+SELECT
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2664, ""output_tokens"": 69, ""total_tokens"": 2733}"
+lifecycle-08,生命周期、汇总粒度干扰,[],True,2026-07-30T02:58:33.349766Z,hard,"[""dwd_card_transaction.branch_id = dim_branch.branch_id""]","[""Missing required metric filter: transaction_status = POSTED""]",1bb052908936ab822efb0a28c1e7f2e55418edcd15cd304747a1498b55eec114,True,True,BUSINESS_POLICY_ERROR,Missing required metric filter: transaction_status = POSTED,"SELECT 
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id","{""columns"": [""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status""], ""dimension_ids"": [""branch""], ""expected_status"": ""success"", ""joins"": [""dwd_card_transaction.branch_id = dim_branch.branch_id""], ""metric_ids"": [""transaction_count""], ""result_hash"": ""1a323490441de260c062c3441207bb37b4797134e438c4a55bc0c07ebf71517a"", ""semantic_filters"": [], ""sql"": ""SELECT b.branch_name, COUNT(DISTINCT t.transaction_id) AS transaction_count FROM dwd_card_transaction t JOIN dim_branch b ON t.branch_id = b.branch_id WHERE t.transaction_status = 'POSTED' GROUP BY b.branch_name ORDER BY b.branch_name"", ""tables"": [""dim_branch"", ""dwd_card_transaction""], ""time_range"": {""kind"": ""none""}}",823.25,,,success,在当前正式明细资产中按分行统计交易笔数（场景8）,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    COUNT(*) AS transaction_count
+FROM dwd_card_transaction t
+JOIN dim_branch b ON t.branch_id = b.branch_id
+GROUP BY b.branch_id, b.branch_name
+ORDER BY b.branch_id;
+```","[""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dwd_card_transaction.branch_id""]","[""dim_branch"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2664, ""output_tokens"": 69, ""total_tokens"": 2733}"
+clarification-01,澄清与域外,[],True,2026-07-30T02:58:34.683576Z,medium,"[""dwd_card_transaction.card_id = dim_card.card_id"", ""dim_card.account_id = dim_account.account_id"", ""dwd_card_transaction.branch_id = dim_branch.branch_id"", ""dwd_card_transaction.customer_id = dim_customer.customer_id""]",[],bd6e83bd8fecd57f6e295313d06b29ce7eb9a92517ae23057f01045598abd889,True,True,CLARIFICATION_ERROR,"expected clarification_required, got success","SELECT 
+    t.transaction_id,
+    t.txn_amount_cny,
+    t.transaction_status,
+    t.transaction_date,
+    a.account_type,
+    b.branch_name,
+    b.region,
+    c.customer_type
+FROM dwd_card_transaction t
+JOIN dim_card cd ON t.card_id = cd.card_id
+JOIN dim_account a ON cd.account_id = a.account_id
+JOIN dim_branch b ON t.branch_id = b.branch_id
+JOIN dim_customer c ON t.customer_id = c.customer_id
+ORDER BY t.transaction_date DESC","{""columns"": [], ""dimension_ids"": [], ""expected_status"": ""clarification_required"", ""joins"": [], ""metric_ids"": [], ""result_hash"": null, ""semantic_filters"": [], ""sql"": null, ""tables"": [], ""time_range"": {""kind"": ""none""}}",1328.25,,,success,查询交易情况,"```sql
+SELECT 
+    t.transaction_id,
+    t.txn_amount_cny,
+    t.transaction_status,
+    t.transaction_date,
+    a.account_type,
+    b.branch_name,
+    b.region,
+    c.customer_type
+FROM dwd_card_transaction t
+JOIN dim_card cd ON t.card_id = cd.card_id
+JOIN dim_account a ON cd.account_id = a.account_id
+JOIN dim_branch b ON t.branch_id = b.branch_id
+JOIN dim_customer c ON t.customer_id = c.customer_id
+ORDER BY t.transaction_date DESC;
+```","[""dim_account.account_id"", ""dim_account.account_type"", ""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dim_branch.region"", ""dim_card.account_id"", ""dim_card.card_id"", ""dim_customer.customer_id"", ""dim_customer.customer_type"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.card_id"", ""dwd_card_transaction.customer_id"", ""dwd_card_transaction.transaction_date"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.transaction_status"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_account"", ""dim_branch"", ""dim_card"", ""dim_customer"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2652, ""output_tokens"": 132, ""total_tokens"": 2784}"
+clarification-02,澄清与域外,[],True,2026-07-30T02:58:35.762210Z,medium,[],[],9e3db5354dca5c195238c897f4da0e8d2b3d34edcca2b1d49c8b66c4ec5f5dcb,True,True,CLARIFICATION_ERROR,"expected clarification_required, got success","SELECT txn_amount_cny, transaction_date
+FROM dwd_card_transaction
+ORDER BY transaction_date DESC
+LIMIT 10","{""columns"": [], ""dimension_ids"": [], ""expected_status"": ""clarification_required"", ""joins"": [], ""metric_ids"": [], ""result_hash"": null, ""semantic_filters"": [], ""sql"": null, ""tables"": [], ""time_range"": {""kind"": ""none""}}",1074.47,,,success,看看最近的金额,"```sql
+SELECT txn_amount_cny, transaction_date
+FROM dwd_card_transaction
+ORDER BY transaction_date DESC
+LIMIT 10;
+```",[],"[""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2652, ""output_tokens"": 32, ""total_tokens"": 2684}"
+clarification-03,澄清与域外,[],True,2026-07-30T02:58:37.190672Z,medium,"[""dim_branch.branch_id = dim_account.branch_id"", ""dim_branch.branch_id = dim_customer.home_branch_id"", ""dim_branch.branch_id = dwd_card_transaction.branch_id""]","[""Join is absent from the reviewed Join Graph: LEFT JOIN dim_account AS a ON b.branch_id = a.branch_id"", ""Join is absent from the reviewed Join Graph: LEFT JOIN dim_customer AS c ON b.branch_id = c.home_branch_id""]",43046206bea4c74f9bb8912aae3b88b97b6b6af855adb80ed1cf84be6c8d5910,True,True,CLARIFICATION_ERROR,"expected clarification_required, got success","SELECT 
+    b.branch_id,
+    b.branch_name,
+    b.region,
+    COUNT(DISTINCT a.account_id) AS account_count,
+    COUNT(DISTINCT c.customer_id) AS customer_count,
+    COUNT(DISTINCT ct.transaction_id) AS transaction_count,
+    COALESCE(SUM(ct.txn_amount_cny), 0) AS total_transaction_amount_cny
+FROM dim_branch b
+LEFT JOIN dim_account a ON b.branch_id = a.branch_id
+LEFT JOIN dim_customer c ON b.branch_id = c.home_branch_id
+LEFT JOIN dwd_card_transaction ct ON b.branch_id = ct.branch_id
+GROUP BY b.branch_id, b.branch_name, b.region
+ORDER BY b.branch_id","{""columns"": [], ""dimension_ids"": [], ""expected_status"": ""clarification_required"", ""joins"": [], ""metric_ids"": [], ""result_hash"": null, ""semantic_filters"": [], ""sql"": null, ""tables"": [], ""time_range"": {""kind"": ""none""}}",1418.16,,,success,统计机构数据,"```sql
+SELECT 
+    b.branch_id,
+    b.branch_name,
+    b.region,
+    COUNT(DISTINCT a.account_id) AS account_count,
+    COUNT(DISTINCT c.customer_id) AS customer_count,
+    COUNT(DISTINCT ct.transaction_id) AS transaction_count,
+    COALESCE(SUM(ct.txn_amount_cny), 0) AS total_transaction_amount_cny
+FROM dim_branch b
+LEFT JOIN dim_account a ON b.branch_id = a.branch_id
+LEFT JOIN dim_customer c ON b.branch_id = c.home_branch_id
+LEFT JOIN dwd_card_transaction ct ON b.branch_id = ct.branch_id
+GROUP BY b.branch_id, b.branch_name, b.region
+ORDER BY b.branch_id;
+```","[""dim_account.account_id"", ""dim_account.branch_id"", ""dim_branch.branch_id"", ""dim_branch.branch_name"", ""dim_branch.region"", ""dim_customer.customer_id"", ""dim_customer.home_branch_id"", ""dwd_card_transaction.branch_id"", ""dwd_card_transaction.transaction_id"", ""dwd_card_transaction.txn_amount_cny""]","[""dim_account"", ""dim_branch"", ""dim_customer"", ""dwd_card_transaction""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2652, ""output_tokens"": 171, ""total_tokens"": 2823}"
+unsupported-01,澄清与域外,[],True,2026-07-30T02:58:37.819061Z,medium,[],"[""Table is absent from the published ontology: certified_sql_asset""]",0453750f6afa7f0ea51d7509fc7e51680ade575fd01d000f631ce778f0c86b33,True,True,UNSUPPORTED_CLASSIFICATION_ERROR,"expected unsupported, got success",SELECT * FROM certified_sql_asset WHERE question LIKE '%天气%',"{""columns"": [], ""dimension_ids"": [], ""expected_status"": ""unsupported"", ""joins"": [], ""metric_ids"": [], ""result_hash"": null, ""semantic_filters"": [], ""sql"": null, ""tables"": [], ""time_range"": {""kind"": ""none""}}",625.03,,,success,查询明天的天气,"```sql
+SELECT * FROM certified_sql_asset WHERE question LIKE '%天气%';
+```",[],"[""certified_sql_asset""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2652, ""output_tokens"": 19, ""total_tokens"": 2671}"
+unsupported-02,澄清与域外,[],True,2026-07-30T02:58:38.542996Z,medium,[],"[""Table is absent from the published ontology: certified_sql_asset""]",0453750f6afa7f0ea51d7509fc7e51680ade575fd01d000f631ce778f0c86b33,True,True,UNSUPPORTED_CLASSIFICATION_ERROR,"expected unsupported, got success",SELECT * FROM certified_sql_asset WHERE question LIKE '%股票%' OR question LIKE '%price%',"{""columns"": [], ""dimension_ids"": [], ""expected_status"": ""unsupported"", ""joins"": [], ""metric_ids"": [], ""result_hash"": null, ""semantic_filters"": [], ""sql"": null, ""tables"": [], ""time_range"": {""kind"": ""none""}}",720.87,,,success,查询股票价格,"```sql
+SELECT * FROM certified_sql_asset WHERE question LIKE '%股票%' OR question LIKE '%price%';
+```",[],"[""certified_sql_asset""]",[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2652, ""output_tokens"": 26, ""total_tokens"": 2678}"
+unsupported-03,澄清与域外,[],True,2026-07-30T02:58:39.690576Z,medium,[],[],ca97a31b3a28310f1da7bf1fcf96f7b5910351a76c599e6894c04a1ec4400e8f,True,True,UNSUPPORTED_CLASSIFICATION_ERROR,"expected unsupported, got success",SELECT '抱歉，我是一个SQL生成器，无法写诗。' AS response,"{""columns"": [], ""dimension_ids"": [], ""expected_status"": ""unsupported"", ""joins"": [], ""metric_ids"": [], ""result_hash"": null, ""semantic_filters"": [], ""sql"": null, ""tables"": [], ""time_range"": {""kind"": ""none""}}",1144.51,,,success,帮我写一首诗,"```sql
+SELECT '抱歉，我是一个SQL生成器，无法写诗。' AS response;
+```",[],[],[],,[],271cb981-8076-4956-b660-3272523bf880,,,,,,COMPLETED,False,,,{},"{""input_tokens"": 2653, ""output_tokens"": 21, ""total_tokens"": 2674}"

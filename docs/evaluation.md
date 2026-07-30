@@ -20,7 +20,11 @@ and Gold version names plus the two construction Run IDs, creates T-A through
 T-H sequentially, requires exactly 80 persisted Cases per group, exports one
 Case CSV per group, and asks the API to perform the final fairness comparison.
 It also rejects reused ontology version IDs, bundle/artifact hashes, and
-SQLAsset build IDs.
+SQLAsset build IDs. The runner atomically updates `progress.json` after every
+complete group. A resumed execution re-reads the persisted Run and accepts it
+only when status is COMPLETED, provenance matches the group, and exactly 80
+Cases exist; incomplete or failed Runs are retained and are never spliced into
+a later Run.
 
 V2 metrics add semantic parse, Metric, Dimension, table, column, Join, business
 rule, SQL validity, EXPLAIN, execution, Result Hash, clarification, lifecycle
@@ -30,10 +34,55 @@ define a Gold SQLAsset ID for each Case; it is not inferred from template use.
 
 The PostgreSQL publication prerequisite is complete for the three independent
 versions recorded in
-`reports/ontology_construction_v2/published_versions_v2.json`. The 640-case
-external-provider run remains not run until the fictional benchmark and
-ontology payload is explicitly approved for transmission to DeepSeek and
-DashScope.
+`reports/ontology_construction_v2/published_versions_v2.json`. External
+processing of the fictional benchmark and ontology payload was explicitly
+authorized on 2026-07-30. DashScope Embedding LIVE_PREFLIGHT passed at 1024
+dimensions. An initial DeepSeek Schema LIVE_PREFLIGHT returned HTTP 402 and is
+retained as historical evidence; after the same account was funded, the balance
+check and all eight one-Case strategy preflights passed without changing the
+provider or model.
+
+The formal run completed on Git SHA
+`d9ae4ef12968df5cadb4271af7ff6d1bd885290e` with DeepSeek
+`deepseek-chat`, DashScope `text-embedding-v4`, temperature 0, max output 2048,
+timeout 30 seconds, random seed 20260716, and concurrency 1. All eight Runs are
+`COMPLETED`, each has exactly 80 persisted Cases, and the API fairness
+comparison has no warnings:
+
+| Group | Run ID | Result Hash Accuracy | Main failure categories |
+|---|---|---:|---|
+| T-A | `271cb981-8076-4956-b660-3272523bf880` | 0.013514 | BUSINESS_POLICY_ERROR 74 |
+| T-B | `2371eb9e-3bfd-4634-9fc0-aeadb3334e35` | 0.418919 | RESULT_MISMATCH 25; COLUMN_SELECTION_ERROR 15 |
+| T-C | `5df712d9-144a-4f87-8e02-7ba3528578a7` | 0.459459 | RESULT_MISMATCH 19; COLUMN_SELECTION_ERROR 13 |
+| T-D | `c01e4470-7bfe-48f7-93f3-d17e3c741215` | 0.513514 | RESULT_MISMATCH 15; COLUMN_SELECTION_ERROR 13 |
+| T-E | `3beb8956-a946-4e01-84df-e0dfd627b4e8` | 0.445946 | RESULT_MISMATCH 20; COLUMN_SELECTION_ERROR 13 |
+| T-F | `55cf2612-c40a-44d0-9674-ae881c48d3dc` | 0.500000 | RESULT_MISMATCH 15; COLUMN_SELECTION_ERROR 13 |
+| T-G | `5f181e37-4229-4ffa-92a0-e8dc5d87e5fe` | 0.756757 | RESULT_MISMATCH 15; TABLE_SELECTION_ERROR 3 |
+| T-H | `97630195-dcb5-488a-9c8a-2f751306da8e` | 0.810811 | RESULT_MISMATCH 12; TABLE_SELECTION_ERROR 1 |
+
+Benchmark hash is
+`e3045a0b12c567078aed8f80670e059062ef883583868e2e6387ea75a31ee779`;
+database snapshot hash is
+`8fdbc08b6f19006be80513e7d7a91882e87570dd9593ad35064cdf44ea1cb04f`.
+The exact Run provenance and eight Case CSVs are in
+`reports/text2sql_reviewed_ontology_v2/`.
+
+| Source | Ontology Version | Artifact source hash | Bundle hash | SQLAsset Build |
+|---|---|---|---|---|
+| O-C | `version_9792e7e2f4fa4db9b27cb26a3c076f2c` | `a660a316a9bdb2a26403eee190d4dee6c4118c9af017acf1574ce8abb2609540` | `4544739e14bdebc0ea2e0248153d9387cfd38e5761e992f172819933eb4a0616` | `sqlbuild-8d5ebe518fc14e76a2646e52cc767145` |
+| O-D | `version_23aa2974a54a460694a92024b3d0b1a9` | `09132da1bf5bbbe80a9348d0a73641de7700d7299a9b4f3efab07dea5a9bfdb8` | `024d318c691a5e670621c5364ddadec3471284010838856b9a3ac2bd0fa02987` | `sqlbuild-551264a4ab16456ebc67fef848cf88ce` |
+| Gold | `version_3a17072aa48949f185d167da1e1892e8` | `58c0c6dd1daa88e4dc641fdb6c2045e574e66d9dde484bfe7db3278954c51248` | `c5335c771f809e0e591ea2a3c77e3644e844c1420d5992ac07baf4674c8ab219` | `sqlbuild-b25dced77be84fdbab7e4a460c6c78bc` |
+
+Reviewed O-C is 0.297298 below Gold without SQLAsset and 0.297297 below Gold
+with SQLAsset. Reviewed O-D is 0.310811 below Gold in both conditions. SQLAsset
+adds one observed 0.05405 increment for each ontology source. O-D is lower than
+O-C by about 0.0135 in both conditions; its nine Live construction calls reduce
+the engineering review estimate by only one operation (294 to 293). This is one
+run per group, so it is not evidence of statistical significance or a general
+LLM review-cost reduction. Token metadata is available for Schema and Physical
+RAG; the ontology graph currently does not propagate per-call token metadata
+into `EvaluationCaseResult`, so its zero totals mean unavailable rather than
+zero model use.
 
 ## 四个严格隔离实验组
 

@@ -1,15 +1,3465 @@
 {
-  "evaluation_schema_version": "2.0",
-  "status": "NOT_RUN_EXTERNAL_APPROVAL_REQUIRED",
-  "links": [],
-  "schema": {
-    "construction_candidate_error": null,
-    "reviewed_ontology_change": null,
-    "text2sql_case_error": null
-  },
+  "generated_at": "2026-07-30T05:21:22.699454+00:00",
   "construction_runs": {
-    "REVIEWED_O_C": "construction-0de800c044194393a9317150c2cde05e",
-    "REVIEWED_O_D": "construction-24a6784bc1524aae8242c174d829201f"
+    "REVIEWED_O_C": {
+      "construction_run_id": "construction-0de800c044194393a9317150c2cde05e",
+      "raw_candidate_metrics": {
+        "link_f1": 0.6666666666666666,
+        "metric_f1": 0.8333333333333334,
+        "object_f1": 0.8571428571428571,
+        "binding_f1": 0.8571428571428571,
+        "link_recall": 1.0,
+        "property_f1": 0.8,
+        "dimension_f1": 0.5714285714285715,
+        "metric_recall": 0.8333333333333334,
+        "object_recall": 1.0,
+        "binding_recall": 1.0,
+        "link_precision": 0.5,
+        "object_id_match": 1.0,
+        "property_recall": 1.0,
+        "binding_coverage": 1.0,
+        "dimension_recall": 1.0,
+        "directed_link_f1": 0.6666666666666666,
+        "metric_precision": 0.8333333333333334,
+        "object_precision": 0.75,
+        "physical_join_f1": 0.7058823529411764,
+        "semantic_link_f1": 0.0,
+        "binding_precision": 0.75,
+        "object_name_match": 0.0,
+        "property_precision": 0.6666666666666666,
+        "dimension_precision": 0.4,
+        "link_directed_recall": 1.0,
+        "link_semantic_recall": 0.0,
+        "link_stable_id_match": 1.0,
+        "physical_join_recall": 1.0,
+        "snapshot_consistency": 1.0,
+        "join_left_table_match": 1.0,
+        "link_endpoint_pair_f1": 0.6666666666666666,
+        "join_endpoint_accuracy": 1.0,
+        "join_evidence_coverage": 1.0,
+        "join_left_column_match": 1.0,
+        "join_right_table_match": 1.0,
+        "link_endpoint_accuracy": 1.0,
+        "property_unit_accuracy": 1.0,
+        "join_right_column_match": 1.0,
+        "link_directed_precision": 0.5,
+        "link_direction_accuracy": 1.0,
+        "link_inverse_name_match": 1.0,
+        "link_semantic_precision": 0.0,
+        "physical_join_precision": 0.5454545454545454,
+        "link_business_name_match": 0.0,
+        "object_primary_key_match": 1.0,
+        "object_property_coverage": 0.9722222222222223,
+        "property_synonym_overlap": 0.9230769230769231,
+        "dimension_synonym_overlap": 0.16666666666666666,
+        "join_cardinality_accuracy": 1.0,
+        "link_cardinality_accuracy": 1.0,
+        "link_endpoint_pair_recall": 1.0,
+        "physical_link_consistency": 1.0,
+        "property_nullable_accuracy": 0.23076923076923078,
+        "metric_aggregation_accuracy": 1.0,
+        "object_title_property_match": 0.16666666666666666,
+        "property_data_type_accuracy": 1.0,
+        "property_groupable_accuracy": 1.0,
+        "link_endpoint_pair_precision": 0.5,
+        "primary_key_binding_accuracy": 1.0,
+        "property_filterable_accuracy": 1.0,
+        "dimension_time_grain_accuracy": 1.0,
+        "metric_time_property_accuracy": 0.2,
+        "object_table_binding_accuracy": 1.0,
+        "metric_fixed_filter_exact_match": 1.0,
+        "property_semantic_role_accuracy": 1.0,
+        "metric_filter_support_confidence": 1.0,
+        "metric_measure_property_accuracy": 1.0,
+        "property_column_binding_accuracy": 1.0,
+        "link_to_physical_join_consistency": 1.0,
+        "property_object_ownership_accuracy": 1.0,
+        "dimension_semantic_role_consistency": 1.0,
+        "metric_source_sql_evidence_coverage": 1.0,
+        "metric_supported_dimensions_accuracy": 0.26666666666666666,
+        "dimension_property_reference_accuracy": 0.8333333333333334,
+        "object_boundary_description_similarity": 0.04815380697733639,
+        "property_sensitive_suggestion_accuracy": 0.8076923076923077,
+        "join_direction_independent_endpoint_match": 0.7058823529411764
+      },
+      "reviewed_draft_metrics": {
+        "link_f1": 0.7692307692307693,
+        "metric_f1": 0.9090909090909091,
+        "object_f1": 1.0,
+        "binding_f1": 1.0,
+        "link_recall": 1.0,
+        "property_f1": 0.962962962962963,
+        "dimension_f1": 0.7058823529411764,
+        "fallback_used": false,
+        "metric_recall": 0.8333333333333334,
+        "object_recall": 1.0,
+        "seed_accessed": false,
+        "binding_recall": 1.0,
+        "link_precision": 0.625,
+        "object_id_match": 1.0,
+        "property_recall": 1.0,
+        "binding_coverage": 1.0,
+        "dimension_recall": 1.0,
+        "directed_link_f1": 0.7692307692307693,
+        "metric_precision": 1.0,
+        "object_precision": 1.0,
+        "physical_join_f1": 0.8571428571428571,
+        "semantic_link_f1": 0.7692307692307693,
+        "binding_precision": 1.0,
+        "object_name_match": 1.0,
+        "property_precision": 0.9285714285714286,
+        "dimension_precision": 0.5454545454545454,
+        "link_directed_recall": 1.0,
+        "link_semantic_recall": 1.0,
+        "link_stable_id_match": 1.0,
+        "physical_join_recall": 1.0,
+        "snapshot_consistency": 1.0,
+        "join_left_table_match": 1.0,
+        "link_endpoint_pair_f1": 0.7692307692307693,
+        "publication_succeeded": true,
+        "join_endpoint_accuracy": 1.0,
+        "join_evidence_coverage": null,
+        "join_left_column_match": 1.0,
+        "join_right_table_match": 1.0,
+        "link_endpoint_accuracy": 1.0,
+        "property_unit_accuracy": 1.0,
+        "join_right_column_match": 1.0,
+        "link_directed_precision": 0.625,
+        "link_direction_accuracy": 1.0,
+        "link_inverse_name_match": 1.0,
+        "link_semantic_precision": 0.625,
+        "physical_join_precision": 0.75,
+        "legacy_ontology_accessed": false,
+        "link_business_name_match": 1.0,
+        "object_primary_key_match": 1.0,
+        "object_property_coverage": 1.0,
+        "property_synonym_overlap": 1.0,
+        "strict_validation_passed": true,
+        "dimension_synonym_overlap": 1.0,
+        "join_cardinality_accuracy": 1.0,
+        "link_cardinality_accuracy": 1.0,
+        "link_endpoint_pair_recall": 1.0,
+        "physical_link_consistency": 1.0,
+        "property_nullable_accuracy": 1.0,
+        "metric_aggregation_accuracy": 1.0,
+        "object_title_property_match": 1.0,
+        "property_data_type_accuracy": 1.0,
+        "property_groupable_accuracy": 1.0,
+        "link_endpoint_pair_precision": 0.625,
+        "primary_key_binding_accuracy": 1.0,
+        "property_filterable_accuracy": 1.0,
+        "runtime_activation_succeeded": true,
+        "dimension_time_grain_accuracy": 1.0,
+        "metric_time_property_accuracy": 1.0,
+        "object_table_binding_accuracy": 1.0,
+        "metric_fixed_filter_exact_match": 1.0,
+        "property_semantic_role_accuracy": 1.0,
+        "metric_filter_support_confidence": null,
+        "metric_measure_property_accuracy": 1.0,
+        "property_column_binding_accuracy": 1.0,
+        "link_to_physical_join_consistency": 1.0,
+        "property_object_ownership_accuracy": 1.0,
+        "dimension_semantic_role_consistency": 1.0,
+        "metric_source_sql_evidence_coverage": null,
+        "metric_supported_dimensions_accuracy": 1.0,
+        "dimension_property_reference_accuracy": 1.0,
+        "object_boundary_description_similarity": 1.0,
+        "property_sensitive_suggestion_accuracy": 1.0,
+        "join_direction_independent_endpoint_match": 0.8571428571428571
+      },
+      "review_cost": {
+        "merge_rate": 0.0,
+        "rejection_rate": 0.25773195876288657,
+        "modification_rate": 0.6185567010309279,
+        "edited_field_count": 197,
+        "review_saving_rate": 0.5172413793103448,
+        "semantic_edit_count": 128,
+        "cost_estimation_note": "Engineering operation estimate: one decision plus each edited field; manual creation counts one create operation plus populated fields. It is not measured human time.",
+        "structural_edit_count": 68,
+        "direct_acceptance_rate": 0.12371134020618557,
+        "merged_candidate_count": 0,
+        "review_candidate_count": 97,
+        "deferred_candidate_count": 0,
+        "modified_candidate_count": 60,
+        "rejected_candidate_count": 25,
+        "total_edited_field_count": 197,
+        "resource_type_edit_counts": {
+          "metric": 24,
+          "binding": 13,
+          "property": 79,
+          "dimension": 18,
+          "link_type": 10,
+          "object_type": 29,
+          "physical_join": 24
+        },
+        "manual_creation_operations": 609,
+        "estimated_review_operations": 294,
+        "physical_mapping_edit_count": 1,
+        "accepted_without_change_count": 12,
+        "resource_type_rejection_counts": {
+          "metric": 1,
+          "binding": 2,
+          "property": 11,
+          "dimension": 4,
+          "link_type": 2,
+          "object_type": 2,
+          "physical_join": 3
+        },
+        "manual_creation_resource_counts": {
+          "link": 5,
+          "metric": 6,
+          "object": 6,
+          "binding": 6,
+          "property": 26,
+          "dimension": 6,
+          "physical_join": 6
+        },
+        "manual_creation_field_fill_count": 548,
+        "optional_review_duration_seconds": null,
+        "average_edited_fields_per_modified_candidate": 3.283333333333333,
+        "average_edited_fields_per_retained_candidate": 2.736111111111111
+      },
+      "review_delta": {
+        "link_f1": 0.10256410256410264,
+        "metric_f1": 0.07575757575757569,
+        "object_f1": 0.1428571428571429,
+        "binding_f1": 0.1428571428571429,
+        "link_recall": 0.0,
+        "property_f1": 0.16296296296296298,
+        "dimension_f1": 0.1344537815126049,
+        "metric_recall": 0.0,
+        "object_recall": 0.0,
+        "binding_recall": 0.0,
+        "link_precision": 0.125,
+        "object_id_match": 0.0,
+        "property_recall": 0.0,
+        "binding_coverage": 0.0,
+        "dimension_recall": 0.0,
+        "directed_link_f1": 0.10256410256410264,
+        "metric_precision": 0.16666666666666663,
+        "object_precision": 0.25,
+        "physical_join_f1": 0.1512605042016807,
+        "semantic_link_f1": 0.7692307692307693,
+        "binding_precision": 0.25,
+        "object_name_match": 1.0,
+        "property_precision": 0.261904761904762,
+        "dimension_precision": 0.1454545454545454,
+        "link_directed_recall": 0.0,
+        "link_semantic_recall": 1.0,
+        "link_stable_id_match": 0.0,
+        "physical_join_recall": 0.0,
+        "snapshot_consistency": 0.0,
+        "join_left_table_match": 0.0,
+        "link_endpoint_pair_f1": 0.10256410256410264,
+        "join_endpoint_accuracy": 0.0,
+        "join_evidence_coverage": null,
+        "join_left_column_match": 0.0,
+        "join_right_table_match": 0.0,
+        "link_endpoint_accuracy": 0.0,
+        "property_unit_accuracy": 0.0,
+        "join_right_column_match": 0.0,
+        "link_directed_precision": 0.125,
+        "link_direction_accuracy": 0.0,
+        "link_inverse_name_match": 0.0,
+        "link_semantic_precision": 0.625,
+        "physical_join_precision": 0.20454545454545459,
+        "link_business_name_match": 1.0,
+        "object_primary_key_match": 0.0,
+        "object_property_coverage": 0.02777777777777768,
+        "property_synonym_overlap": 0.07692307692307687,
+        "dimension_synonym_overlap": 0.8333333333333334,
+        "join_cardinality_accuracy": 0.0,
+        "link_cardinality_accuracy": 0.0,
+        "link_endpoint_pair_recall": 0.0,
+        "physical_link_consistency": 0.0,
+        "property_nullable_accuracy": 0.7692307692307692,
+        "metric_aggregation_accuracy": 0.0,
+        "object_title_property_match": 0.8333333333333334,
+        "property_data_type_accuracy": 0.0,
+        "property_groupable_accuracy": 0.0,
+        "link_endpoint_pair_precision": 0.125,
+        "primary_key_binding_accuracy": 0.0,
+        "property_filterable_accuracy": 0.0,
+        "dimension_time_grain_accuracy": 0.0,
+        "metric_time_property_accuracy": 0.8,
+        "object_table_binding_accuracy": 0.0,
+        "metric_fixed_filter_exact_match": 0.0,
+        "property_semantic_role_accuracy": 0.0,
+        "metric_filter_support_confidence": null,
+        "metric_measure_property_accuracy": 0.0,
+        "property_column_binding_accuracy": 0.0,
+        "link_to_physical_join_consistency": 0.0,
+        "property_object_ownership_accuracy": 0.0,
+        "dimension_semantic_role_consistency": 0.0,
+        "metric_source_sql_evidence_coverage": null,
+        "metric_supported_dimensions_accuracy": 0.7333333333333334,
+        "dimension_property_reference_accuracy": 0.16666666666666663,
+        "object_boundary_description_similarity": 0.9518461930226636,
+        "property_sensitive_suggestion_accuracy": 0.1923076923076923,
+        "join_direction_independent_endpoint_match": 0.1512605042016807
+      },
+      "error_analysis": {
+        "raw_candidate_errors": {
+          "link_extra": 5,
+          "metric_extra": 1,
+          "object_extra": 2,
+          "binding_extra": 2,
+          "binding_wrong": 1,
+          "metric_missing": 1,
+          "property_extra": 13,
+          "dimension_extra": 9,
+          "dimension_wrong": 1,
+          "link_name_wrong": 5,
+          "metric_time_wrong": 4,
+          "physical_join_extra": 5,
+          "supported_dimension_wrong": 5
+        },
+        "reviewed_draft_errors": {
+          "link_extra": 3,
+          "metric_missing": 1,
+          "property_extra": 2,
+          "dimension_extra": 5,
+          "physical_join_extra": 2
+        }
+      },
+      "llm_invocation_count": 0,
+      "provenance": {
+        "model": "deterministic-rules-v1",
+        "git_sha": "52c834be2bb9891df87f8111a45252698b76f6b4",
+        "llm_mode": "mock",
+        "provider": "mock",
+        "random_seed": 20260729,
+        "temperature": 0.0,
+        "catalog_mode": "RAW_METADATA",
+        "evidence_mode": "O-C",
+        "llm_invocations": [],
+        "evaluation_stage": "REVIEWED_DRAFT",
+        "construction_mode": "STRICT_CONSTRUCTION",
+        "source_snapshot_hash": "f2cb51e9890d25003c095f8248d25a0a6b81b45e81d3a3d780805d69bbaec93c",
+        "profiling_snapshot_hash": "083425622b014545f0e1723a645fc55574bcd21f7a33fde0369881fc300d4492",
+        "historical_sql_snapshot_hash": "04bc822a88c3ed215630195fedb7cb399ffda01bbd5da5d86b33e89b30bd6aa7"
+      }
+    },
+    "REVIEWED_O_D": {
+      "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f",
+      "raw_candidate_metrics": {
+        "link_f1": 0.6666666666666666,
+        "metric_f1": 0.8333333333333334,
+        "object_f1": 0.8571428571428571,
+        "binding_f1": 0.8571428571428571,
+        "link_recall": 1.0,
+        "property_f1": 0.8,
+        "dimension_f1": 0.5714285714285715,
+        "metric_recall": 0.8333333333333334,
+        "object_recall": 1.0,
+        "binding_recall": 1.0,
+        "link_precision": 0.5,
+        "object_id_match": 1.0,
+        "property_recall": 1.0,
+        "binding_coverage": 1.0,
+        "dimension_recall": 1.0,
+        "directed_link_f1": 0.6666666666666666,
+        "metric_precision": 0.8333333333333334,
+        "object_precision": 0.75,
+        "physical_join_f1": 0.7058823529411764,
+        "semantic_link_f1": 0.0,
+        "binding_precision": 0.75,
+        "object_name_match": 0.0,
+        "property_precision": 0.6666666666666666,
+        "dimension_precision": 0.4,
+        "link_directed_recall": 1.0,
+        "link_semantic_recall": 0.0,
+        "link_stable_id_match": 1.0,
+        "physical_join_recall": 1.0,
+        "snapshot_consistency": 1.0,
+        "join_left_table_match": 1.0,
+        "link_endpoint_pair_f1": 0.6666666666666666,
+        "join_endpoint_accuracy": 1.0,
+        "join_evidence_coverage": 1.0,
+        "join_left_column_match": 1.0,
+        "join_right_table_match": 1.0,
+        "link_endpoint_accuracy": 1.0,
+        "property_unit_accuracy": 1.0,
+        "join_right_column_match": 1.0,
+        "link_directed_precision": 0.5,
+        "link_direction_accuracy": 1.0,
+        "link_inverse_name_match": 0.0,
+        "link_semantic_precision": 0.0,
+        "physical_join_precision": 0.5454545454545454,
+        "link_business_name_match": 0.0,
+        "object_primary_key_match": 1.0,
+        "object_property_coverage": 0.9722222222222223,
+        "property_synonym_overlap": 0.9230769230769231,
+        "dimension_synonym_overlap": 0.16666666666666666,
+        "join_cardinality_accuracy": 1.0,
+        "link_cardinality_accuracy": 1.0,
+        "link_endpoint_pair_recall": 1.0,
+        "physical_link_consistency": 1.0,
+        "property_nullable_accuracy": 0.23076923076923078,
+        "metric_aggregation_accuracy": 1.0,
+        "object_title_property_match": 0.16666666666666666,
+        "property_data_type_accuracy": 1.0,
+        "property_groupable_accuracy": 1.0,
+        "link_endpoint_pair_precision": 0.5,
+        "primary_key_binding_accuracy": 1.0,
+        "property_filterable_accuracy": 1.0,
+        "dimension_time_grain_accuracy": 1.0,
+        "metric_time_property_accuracy": 0.2,
+        "object_table_binding_accuracy": 1.0,
+        "metric_fixed_filter_exact_match": 1.0,
+        "property_semantic_role_accuracy": 1.0,
+        "metric_filter_support_confidence": 1.0,
+        "metric_measure_property_accuracy": 1.0,
+        "property_column_binding_accuracy": 1.0,
+        "link_to_physical_join_consistency": 1.0,
+        "property_object_ownership_accuracy": 1.0,
+        "dimension_semantic_role_consistency": 1.0,
+        "metric_source_sql_evidence_coverage": 1.0,
+        "metric_supported_dimensions_accuracy": 0.26666666666666666,
+        "dimension_property_reference_accuracy": 0.8333333333333334,
+        "object_boundary_description_similarity": 0.02557293839521624,
+        "property_sensitive_suggestion_accuracy": 0.8076923076923077,
+        "join_direction_independent_endpoint_match": 0.7058823529411764
+      },
+      "reviewed_draft_metrics": {
+        "link_f1": 0.7692307692307693,
+        "metric_f1": 0.9090909090909091,
+        "object_f1": 1.0,
+        "binding_f1": 1.0,
+        "link_recall": 1.0,
+        "property_f1": 0.962962962962963,
+        "dimension_f1": 0.7058823529411764,
+        "fallback_used": false,
+        "metric_recall": 0.8333333333333334,
+        "object_recall": 1.0,
+        "seed_accessed": false,
+        "binding_recall": 1.0,
+        "link_precision": 0.625,
+        "object_id_match": 1.0,
+        "property_recall": 1.0,
+        "binding_coverage": 1.0,
+        "dimension_recall": 1.0,
+        "directed_link_f1": 0.7692307692307693,
+        "metric_precision": 1.0,
+        "object_precision": 1.0,
+        "physical_join_f1": 0.8571428571428571,
+        "semantic_link_f1": 0.7692307692307693,
+        "binding_precision": 1.0,
+        "object_name_match": 1.0,
+        "property_precision": 0.9285714285714286,
+        "dimension_precision": 0.5454545454545454,
+        "link_directed_recall": 1.0,
+        "link_semantic_recall": 1.0,
+        "link_stable_id_match": 1.0,
+        "physical_join_recall": 1.0,
+        "snapshot_consistency": 1.0,
+        "join_left_table_match": 1.0,
+        "link_endpoint_pair_f1": 0.7692307692307693,
+        "publication_succeeded": true,
+        "join_endpoint_accuracy": 1.0,
+        "join_evidence_coverage": null,
+        "join_left_column_match": 1.0,
+        "join_right_table_match": 1.0,
+        "link_endpoint_accuracy": 1.0,
+        "property_unit_accuracy": 1.0,
+        "join_right_column_match": 1.0,
+        "link_directed_precision": 0.625,
+        "link_direction_accuracy": 1.0,
+        "link_inverse_name_match": 1.0,
+        "link_semantic_precision": 0.625,
+        "physical_join_precision": 0.75,
+        "legacy_ontology_accessed": false,
+        "link_business_name_match": 1.0,
+        "object_primary_key_match": 1.0,
+        "object_property_coverage": 1.0,
+        "property_synonym_overlap": 1.0,
+        "strict_validation_passed": true,
+        "dimension_synonym_overlap": 1.0,
+        "join_cardinality_accuracy": 1.0,
+        "link_cardinality_accuracy": 1.0,
+        "link_endpoint_pair_recall": 1.0,
+        "physical_link_consistency": 1.0,
+        "property_nullable_accuracy": 1.0,
+        "metric_aggregation_accuracy": 1.0,
+        "object_title_property_match": 1.0,
+        "property_data_type_accuracy": 1.0,
+        "property_groupable_accuracy": 1.0,
+        "link_endpoint_pair_precision": 0.625,
+        "primary_key_binding_accuracy": 1.0,
+        "property_filterable_accuracy": 1.0,
+        "runtime_activation_succeeded": true,
+        "dimension_time_grain_accuracy": 1.0,
+        "metric_time_property_accuracy": 1.0,
+        "object_table_binding_accuracy": 1.0,
+        "metric_fixed_filter_exact_match": 1.0,
+        "property_semantic_role_accuracy": 1.0,
+        "metric_filter_support_confidence": null,
+        "metric_measure_property_accuracy": 1.0,
+        "property_column_binding_accuracy": 1.0,
+        "link_to_physical_join_consistency": 1.0,
+        "property_object_ownership_accuracy": 1.0,
+        "dimension_semantic_role_consistency": 1.0,
+        "metric_source_sql_evidence_coverage": null,
+        "metric_supported_dimensions_accuracy": 1.0,
+        "dimension_property_reference_accuracy": 1.0,
+        "object_boundary_description_similarity": 0.02557293839521624,
+        "property_sensitive_suggestion_accuracy": 1.0,
+        "join_direction_independent_endpoint_match": 0.8571428571428571
+      },
+      "review_cost": {
+        "merge_rate": 0.0,
+        "rejection_rate": 0.25773195876288657,
+        "modification_rate": 0.6185567010309279,
+        "edited_field_count": 196,
+        "review_saving_rate": 0.5188834154351396,
+        "semantic_edit_count": 127,
+        "cost_estimation_note": "Engineering operation estimate: one decision plus each edited field; manual creation counts one create operation plus populated fields. It is not measured human time.",
+        "structural_edit_count": 68,
+        "direct_acceptance_rate": 0.12371134020618557,
+        "merged_candidate_count": 0,
+        "review_candidate_count": 97,
+        "deferred_candidate_count": 0,
+        "modified_candidate_count": 60,
+        "rejected_candidate_count": 25,
+        "total_edited_field_count": 196,
+        "resource_type_edit_counts": {
+          "metric": 24,
+          "binding": 13,
+          "property": 79,
+          "dimension": 18,
+          "link_type": 15,
+          "object_type": 23,
+          "physical_join": 24
+        },
+        "manual_creation_operations": 609,
+        "estimated_review_operations": 293,
+        "physical_mapping_edit_count": 1,
+        "accepted_without_change_count": 12,
+        "resource_type_rejection_counts": {
+          "metric": 1,
+          "binding": 2,
+          "property": 11,
+          "dimension": 4,
+          "link_type": 2,
+          "object_type": 2,
+          "physical_join": 3
+        },
+        "manual_creation_resource_counts": {
+          "link": 5,
+          "metric": 6,
+          "object": 6,
+          "binding": 6,
+          "property": 26,
+          "dimension": 6,
+          "physical_join": 6
+        },
+        "manual_creation_field_fill_count": 548,
+        "optional_review_duration_seconds": null,
+        "average_edited_fields_per_modified_candidate": 3.2666666666666666,
+        "average_edited_fields_per_retained_candidate": 2.7222222222222223
+      },
+      "review_delta": {
+        "link_f1": 0.10256410256410264,
+        "metric_f1": 0.07575757575757569,
+        "object_f1": 0.1428571428571429,
+        "binding_f1": 0.1428571428571429,
+        "link_recall": 0.0,
+        "property_f1": 0.16296296296296298,
+        "dimension_f1": 0.1344537815126049,
+        "metric_recall": 0.0,
+        "object_recall": 0.0,
+        "binding_recall": 0.0,
+        "link_precision": 0.125,
+        "object_id_match": 0.0,
+        "property_recall": 0.0,
+        "binding_coverage": 0.0,
+        "dimension_recall": 0.0,
+        "directed_link_f1": 0.10256410256410264,
+        "metric_precision": 0.16666666666666663,
+        "object_precision": 0.25,
+        "physical_join_f1": 0.1512605042016807,
+        "semantic_link_f1": 0.7692307692307693,
+        "binding_precision": 0.25,
+        "object_name_match": 1.0,
+        "property_precision": 0.261904761904762,
+        "dimension_precision": 0.1454545454545454,
+        "link_directed_recall": 0.0,
+        "link_semantic_recall": 1.0,
+        "link_stable_id_match": 0.0,
+        "physical_join_recall": 0.0,
+        "snapshot_consistency": 0.0,
+        "join_left_table_match": 0.0,
+        "link_endpoint_pair_f1": 0.10256410256410264,
+        "join_endpoint_accuracy": 0.0,
+        "join_evidence_coverage": null,
+        "join_left_column_match": 0.0,
+        "join_right_table_match": 0.0,
+        "link_endpoint_accuracy": 0.0,
+        "property_unit_accuracy": 0.0,
+        "join_right_column_match": 0.0,
+        "link_directed_precision": 0.125,
+        "link_direction_accuracy": 0.0,
+        "link_inverse_name_match": 1.0,
+        "link_semantic_precision": 0.625,
+        "physical_join_precision": 0.20454545454545459,
+        "link_business_name_match": 1.0,
+        "object_primary_key_match": 0.0,
+        "object_property_coverage": 0.02777777777777768,
+        "property_synonym_overlap": 0.07692307692307687,
+        "dimension_synonym_overlap": 0.8333333333333334,
+        "join_cardinality_accuracy": 0.0,
+        "link_cardinality_accuracy": 0.0,
+        "link_endpoint_pair_recall": 0.0,
+        "physical_link_consistency": 0.0,
+        "property_nullable_accuracy": 0.7692307692307692,
+        "metric_aggregation_accuracy": 0.0,
+        "object_title_property_match": 0.8333333333333334,
+        "property_data_type_accuracy": 0.0,
+        "property_groupable_accuracy": 0.0,
+        "link_endpoint_pair_precision": 0.125,
+        "primary_key_binding_accuracy": 0.0,
+        "property_filterable_accuracy": 0.0,
+        "dimension_time_grain_accuracy": 0.0,
+        "metric_time_property_accuracy": 0.8,
+        "object_table_binding_accuracy": 0.0,
+        "metric_fixed_filter_exact_match": 0.0,
+        "property_semantic_role_accuracy": 0.0,
+        "metric_filter_support_confidence": null,
+        "metric_measure_property_accuracy": 0.0,
+        "property_column_binding_accuracy": 0.0,
+        "link_to_physical_join_consistency": 0.0,
+        "property_object_ownership_accuracy": 0.0,
+        "dimension_semantic_role_consistency": 0.0,
+        "metric_source_sql_evidence_coverage": null,
+        "metric_supported_dimensions_accuracy": 0.7333333333333334,
+        "dimension_property_reference_accuracy": 0.16666666666666663,
+        "object_boundary_description_similarity": 0.0,
+        "property_sensitive_suggestion_accuracy": 0.1923076923076923,
+        "join_direction_independent_endpoint_match": 0.1512605042016807
+      },
+      "error_analysis": {
+        "raw_candidate_errors": {
+          "link_extra": 5,
+          "metric_extra": 1,
+          "object_extra": 2,
+          "binding_extra": 2,
+          "binding_wrong": 1,
+          "metric_missing": 1,
+          "property_extra": 13,
+          "dimension_extra": 9,
+          "dimension_wrong": 1,
+          "link_name_wrong": 5,
+          "metric_time_wrong": 4,
+          "physical_join_extra": 5,
+          "supported_dimension_wrong": 5
+        },
+        "reviewed_draft_errors": {
+          "link_extra": 3,
+          "metric_missing": 1,
+          "property_extra": 2,
+          "dimension_extra": 5,
+          "physical_join_extra": 2
+        }
+      },
+      "llm_invocation_count": 9,
+      "provenance": {
+        "model": "deterministic-rules-v1",
+        "git_sha": "52c834be2bb9891df87f8111a45252698b76f6b4",
+        "llm_mode": "live",
+        "provider": "mock",
+        "random_seed": 20260729,
+        "temperature": 0.0,
+        "catalog_mode": "RAW_METADATA",
+        "evidence_mode": "O-D",
+        "llm_invocations": [
+          {
+            "model": "deepseek-chat",
+            "provider": "deepseek",
+            "latency_ms": 3259.167,
+            "max_tokens": 2048,
+            "output_hash": "939afed91004d201dc5fa5d8ac9b21d916eb89e83b24443a83f404a952aa4ae7",
+            "random_seed": 20260729,
+            "retry_count": 0,
+            "temperature": 0,
+            "token_usage": {
+              "input_tokens": 1447,
+              "total_tokens": 1786,
+              "output_tokens": 339,
+              "input_token_details": {
+                "cache_read": 1408
+              },
+              "output_token_details": {}
+            },
+            "prompt_version": "ontology-construction-semantic-v2",
+            "input_evidence_hash": "09b903b4575e6c812e96e13ddfca42a4e92f7e0a24d7d53fb66ce0a624810724",
+            "invalid_output_count": 0
+          },
+          {
+            "model": "deepseek-chat",
+            "provider": "deepseek",
+            "latency_ms": 2965.317,
+            "max_tokens": 2048,
+            "output_hash": "c6d020c144e44c7bcee69a44c8e137a9916cc777266259ada2952afce99f75f8",
+            "random_seed": 20260729,
+            "retry_count": 0,
+            "temperature": 0,
+            "token_usage": {
+              "input_tokens": 1218,
+              "total_tokens": 1523,
+              "output_tokens": 305,
+              "input_token_details": {
+                "cache_read": 1152
+              },
+              "output_token_details": {}
+            },
+            "prompt_version": "ontology-construction-semantic-v2",
+            "input_evidence_hash": "08eec51714458acf55ba0d01b637e3950f0d67c85d3a931ff891a7f8c2fefe80",
+            "invalid_output_count": 0
+          },
+          {
+            "model": "deepseek-chat",
+            "provider": "deepseek",
+            "latency_ms": 2417.904,
+            "max_tokens": 2048,
+            "output_hash": "dd10496339da350f0eb4ec8b95c194ced1fcf0a34ea2e527a36d9b2854e1df37",
+            "random_seed": 20260729,
+            "retry_count": 0,
+            "temperature": 0,
+            "token_usage": {
+              "input_tokens": 1182,
+              "total_tokens": 1443,
+              "output_tokens": 261,
+              "input_token_details": {
+                "cache_read": 1152
+              },
+              "output_token_details": {}
+            },
+            "prompt_version": "ontology-construction-semantic-v2",
+            "input_evidence_hash": "3d40a631bcfd47f8d8cd5682de2f49de19e36950c726507f7e0ad32f78595151",
+            "invalid_output_count": 0
+          },
+          {
+            "model": "deepseek-chat",
+            "provider": "deepseek",
+            "latency_ms": 3217.49,
+            "max_tokens": 2048,
+            "output_hash": "5484acb25c99ed9d15a18abc7171942c3996072eeb42e6b78bdd6c011bbc19d0",
+            "random_seed": 20260729,
+            "retry_count": 0,
+            "temperature": 0,
+            "token_usage": {
+              "input_tokens": 1220,
+              "total_tokens": 1552,
+              "output_tokens": 332,
+              "input_token_details": {
+                "cache_read": 1152
+              },
+              "output_token_details": {}
+            },
+            "prompt_version": "ontology-construction-semantic-v2",
+            "input_evidence_hash": "d119f7b6427d8bd1f837c0861e28bfbabccca85dfe9e9920cd47051e0e97b25b",
+            "invalid_output_count": 0
+          },
+          {
+            "model": "deepseek-chat",
+            "provider": "deepseek",
+            "latency_ms": 2988.656,
+            "max_tokens": 2048,
+            "output_hash": "85b574c9c844934a8808ea75deec58de324ca472cc7eb9f3e1838c2b83307d30",
+            "random_seed": 20260729,
+            "retry_count": 0,
+            "temperature": 0,
+            "token_usage": {
+              "input_tokens": 1181,
+              "total_tokens": 1537,
+              "output_tokens": 356,
+              "input_token_details": {
+                "cache_read": 1152
+              },
+              "output_token_details": {}
+            },
+            "prompt_version": "ontology-construction-semantic-v2",
+            "input_evidence_hash": "cdb32284f5518e9a8af8379308b462ef81af92b044fbb8dfa88d936a3139bdfe",
+            "invalid_output_count": 0
+          },
+          {
+            "model": "deepseek-chat",
+            "provider": "deepseek",
+            "latency_ms": 3484.711,
+            "max_tokens": 2048,
+            "output_hash": "8226a6fd619c608886602fdead88059ed53d6c512bc4f1f3de85f24438c13fe8",
+            "random_seed": 20260729,
+            "retry_count": 0,
+            "temperature": 0,
+            "token_usage": {
+              "input_tokens": 1247,
+              "total_tokens": 1609,
+              "output_tokens": 362,
+              "input_token_details": {
+                "cache_read": 1152
+              },
+              "output_token_details": {}
+            },
+            "prompt_version": "ontology-construction-semantic-v2",
+            "input_evidence_hash": "eeaead6837b6e853bda9c59e88777f07ee36ec362a6dec58637a06e4d6bea3c4",
+            "invalid_output_count": 0
+          },
+          {
+            "model": "deepseek-chat",
+            "provider": "deepseek",
+            "latency_ms": 5213.882,
+            "max_tokens": 2048,
+            "output_hash": "e1a1291541c0e91be3e39e5d59fefc4f543d173e929c0d42abb25bb9c6465064",
+            "random_seed": 20260729,
+            "retry_count": 0,
+            "temperature": 0,
+            "token_usage": {
+              "input_tokens": 3395,
+              "total_tokens": 4008,
+              "output_tokens": 613,
+              "input_token_details": {
+                "cache_read": 3328
+              },
+              "output_token_details": {}
+            },
+            "prompt_version": "ontology-construction-semantic-v2",
+            "input_evidence_hash": "ff58e1fed60d3053a88cb4453735f65a84213099f2814dca04238a418f6891a7",
+            "invalid_output_count": 0
+          },
+          {
+            "model": "deepseek-chat",
+            "provider": "deepseek",
+            "latency_ms": 2878.018,
+            "max_tokens": 2048,
+            "output_hash": "d20eddaaf56a494ad450cf1e0c88439de4a1fdb646dfdfd25c9f4625c584c197",
+            "random_seed": 20260729,
+            "retry_count": 0,
+            "temperature": 0,
+            "token_usage": {
+              "input_tokens": 1441,
+              "total_tokens": 1777,
+              "output_tokens": 336,
+              "input_token_details": {
+                "cache_read": 1408
+              },
+              "output_token_details": {}
+            },
+            "prompt_version": "ontology-construction-semantic-v2",
+            "input_evidence_hash": "6f5084b790337cd8d81cbff2fc989c524273706010894788aea43316327cd93f",
+            "invalid_output_count": 0
+          },
+          {
+            "model": "deepseek-chat",
+            "provider": "deepseek",
+            "latency_ms": 2758.557,
+            "max_tokens": 2048,
+            "output_hash": "9adc9838c0522f51496a54b09701efccbd1ec378588a7fcaa5b957deb93ff9d0",
+            "random_seed": 20260729,
+            "retry_count": 0,
+            "temperature": 0,
+            "token_usage": {
+              "input_tokens": 865,
+              "total_tokens": 1236,
+              "output_tokens": 371,
+              "input_token_details": {
+                "cache_read": 768
+              },
+              "output_token_details": {}
+            },
+            "prompt_version": "ontology-construction-link-semantics-v2",
+            "input_evidence_hash": "7e3921957a7d3d4f8db64610b7e9df692c66c06082621986c50f51f4eb76ee8f",
+            "invalid_output_count": 0
+          }
+        ],
+        "evaluation_stage": "REVIEWED_DRAFT",
+        "construction_mode": "STRICT_CONSTRUCTION",
+        "source_snapshot_hash": "f2cb51e9890d25003c095f8248d25a0a6b81b45e81d3a3d780805d69bbaec93c",
+        "profiling_snapshot_hash": "083425622b014545f0e1723a645fc55574bcd21f7a33fde0369881fc300d4492",
+        "historical_sql_snapshot_hash": "04bc822a88c3ed215630195fedb7cb399ffda01bbd5da5d86b33e89b30bd6aa7"
+      }
+    }
   },
-  "reason": "No formal T-A through T-H Case results were generated because external provider payload approval was not granted."
+  "query_failures": {
+    "T-A": [
+      {
+        "case_id": "basic-01",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-02",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-03",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-04",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-05",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-06",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-07",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-08",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-09",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-10",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-01",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-02",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-03",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-04",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-05",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-06",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-07",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-08",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-09",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-10",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-01",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-02",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-03",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-04",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-05",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-06",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-07",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-08",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-09",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-10",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-01",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-02",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-03",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-04",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-05",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-06",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-07",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-08",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-09",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-10",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "top-01",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "top-02",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "top-03",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "top-04",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "top-05",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "top-06",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "top-07",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "top-08",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-01",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-02",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-03",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-04",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-05",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-06",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-07",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-08",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-09",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-10",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-01",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-02",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-03",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-04",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-05",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-06",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-07",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED; Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-08",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "lifecycle-01",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "lifecycle-02",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "lifecycle-03",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "lifecycle-04",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "lifecycle-05",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "lifecycle-06",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "lifecycle-07",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "lifecycle-08",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: transaction_status = POSTED",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "clarification-01",
+        "failure_category": "CLARIFICATION_ERROR",
+        "failure_reason": "expected clarification_required, got success",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "clarification-02",
+        "failure_category": "CLARIFICATION_ERROR",
+        "failure_reason": "expected clarification_required, got success",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "clarification-03",
+        "failure_category": "CLARIFICATION_ERROR",
+        "failure_reason": "expected clarification_required, got success",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "unsupported-01",
+        "failure_category": "UNSUPPORTED_CLASSIFICATION_ERROR",
+        "failure_reason": "expected unsupported, got success",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "unsupported-02",
+        "failure_category": "UNSUPPORTED_CLASSIFICATION_ERROR",
+        "failure_reason": "expected unsupported, got success",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "unsupported-03",
+        "failure_category": "UNSUPPORTED_CLASSIFICATION_ERROR",
+        "failure_reason": "expected unsupported, got success",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      }
+    ],
+    "T-B": [
+      {
+        "case_id": "basic-01",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-04",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-05",
+        "failure_category": "TABLE_SELECTION_ERROR",
+        "failure_reason": "strategy produced no usable physical assets",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-06",
+        "failure_category": "TABLE_SELECTION_ERROR",
+        "failure_reason": "strategy produced no usable physical assets",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-07",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-09",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "basic-10",
+        "failure_category": "TABLE_SELECTION_ERROR",
+        "failure_reason": "strategy produced no usable physical assets",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-01",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-04",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-05",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-07",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-08",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "dimension-10",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-02",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-05",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-07",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-08",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "join-10",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-01",
+        "failure_category": "TABLE_SELECTION_ERROR",
+        "failure_reason": "generated SQL table set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-02",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-03",
+        "failure_category": "TABLE_SELECTION_ERROR",
+        "failure_reason": "generated SQL table set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-04",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-05",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-07",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-08",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-10",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-05",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-06",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-08",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-01",
+        "failure_category": "BUSINESS_POLICY_ERROR",
+        "failure_reason": "Missing required metric filter: card_type = CREDIT",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-04",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-05",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-08",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "clarification-01",
+        "failure_category": "CLARIFICATION_ERROR",
+        "failure_reason": "expected clarification_required, got success",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "clarification-02",
+        "failure_category": "CLARIFICATION_ERROR",
+        "failure_reason": "expected clarification_required, got success",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "clarification-03",
+        "failure_category": "CLARIFICATION_ERROR",
+        "failure_reason": "expected clarification_required, got success",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "unsupported-01",
+        "failure_category": "UNSUPPORTED_CLASSIFICATION_ERROR",
+        "failure_reason": "expected unsupported, got success",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "unsupported-02",
+        "failure_category": "UNSUPPORTED_CLASSIFICATION_ERROR",
+        "failure_reason": "expected unsupported, got success",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "unsupported-03",
+        "failure_category": "UNSUPPORTED_CLASSIFICATION_ERROR",
+        "failure_reason": "expected unsupported, got failed",
+        "ontology_source": "NONE",
+        "construction_run_id": null
+      }
+    ],
+    "T-C": [
+      {
+        "case_id": "basic-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "basic-09",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-01",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-02",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-03",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-04",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-05",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-06",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-07",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-08",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-09",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-10",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-01",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-04",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-07",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-08",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-01",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-04",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-05",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-07",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-08",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-10",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "synonym-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "synonym-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-01",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-02",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-04",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-05",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-06",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-07",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-08",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      }
+    ],
+    "T-D": [
+      {
+        "case_id": "basic-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "basic-09",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-01",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-02",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-03",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-04",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-05",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-06",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-07",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-08",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-09",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "join-10",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-01",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-04",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-07",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-08",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "filter-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-05",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-08",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "complex-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "synonym-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "synonym-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-01",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-02",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-04",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-05",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-06",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-07",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      },
+      {
+        "case_id": "lifecycle-08",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_C",
+        "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+      }
+    ],
+    "T-E": [
+      {
+        "case_id": "basic-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "basic-09",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-01",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-02",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-03",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-04",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-05",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-06",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-07",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-08",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-09",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-10",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-01",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-04",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-05",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-07",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-08",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-01",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-04",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-05",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-07",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-08",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-10",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "synonym-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "synonym-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-01",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-02",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-04",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-05",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-06",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-07",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-08",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      }
+    ],
+    "T-F": [
+      {
+        "case_id": "basic-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "basic-09",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-01",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-02",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-03",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-04",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-05",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-06",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-07",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-08",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-09",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "join-10",
+        "failure_category": "SEMANTIC_PARSE_ERROR",
+        "failure_reason": "expected success, got failed",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-01",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-04",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-05",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-07",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-08",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "filter-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-05",
+        "failure_category": "TABLE_SELECTION_ERROR",
+        "failure_reason": "strategy produced no usable physical assets",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-08",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "complex-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "synonym-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "synonym-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-01",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-02",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-03",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-04",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-05",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-06",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-07",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      },
+      {
+        "case_id": "lifecycle-08",
+        "failure_category": "COLUMN_SELECTION_ERROR",
+        "failure_reason": "generated SQL column set differs from Gold",
+        "ontology_source": "REVIEWED_O_D",
+        "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+      }
+    ],
+    "T-G": [
+      {
+        "case_id": "filter-01",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-04",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-07",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-01",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-02",
+        "failure_category": "TABLE_SELECTION_ERROR",
+        "failure_reason": "strategy produced no usable physical assets",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-04",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-05",
+        "failure_category": "TABLE_SELECTION_ERROR",
+        "failure_reason": "strategy produced no usable physical assets",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-07",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-08",
+        "failure_category": "TABLE_SELECTION_ERROR",
+        "failure_reason": "strategy produced no usable physical assets",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-10",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      }
+    ],
+    "T-H": [
+      {
+        "case_id": "filter-01",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-02",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-04",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-07",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "filter-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-02",
+        "failure_category": "TABLE_SELECTION_ERROR",
+        "failure_reason": "strategy produced no usable physical assets",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-03",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-05",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-08",
+        "failure_category": "PROVIDER_ERROR",
+        "failure_reason": "Filter concept branch has no unambiguous binding",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "complex-09",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      },
+      {
+        "case_id": "synonym-06",
+        "failure_category": "RESULT_MISMATCH",
+        "failure_reason": "execution result hash differs from Gold",
+        "ontology_source": "GOLD",
+        "construction_run_id": null
+      }
+    ]
+  },
+  "result_hash_accuracy_deltas": {
+    "o_c_vs_schema_without_assets": 0.445945,
+    "o_c_vs_physical_rag_without_assets": 0.04054,
+    "o_d_vs_o_c_without_assets": -0.013513,
+    "o_d_vs_o_c_with_assets": -0.013514,
+    "o_c_gap_to_gold_without_assets": -0.297298,
+    "o_c_gap_to_gold_with_assets": -0.297297,
+    "o_d_gap_to_gold_without_assets": -0.310811,
+    "o_d_gap_to_gold_with_assets": -0.310811,
+    "sql_asset_gain_o_c": 0.054055,
+    "sql_asset_gain_o_d": 0.054054,
+    "sql_asset_gain_gold": 0.054054
+  },
+  "case_outcome_comparisons": {
+    "o_c_without_assets_vs_gold": {
+      "left_group": "T-C",
+      "right_group": "T-G",
+      "left_failed_right_succeeded_count": 22,
+      "left_failed_right_succeeded": [
+        {
+          "case_id": "basic-03",
+          "question": "查询交易笔数",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "basic-09",
+          "question": "统计流水笔数",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "filter-08",
+          "question": "查询近60天APP和POS渠道信用卡交易金额",
+          "left_failure_category": "RESULT_MISMATCH",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-01",
+          "question": "按分行统计交易笔数",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-02",
+          "question": "按客户类型统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-03",
+          "question": "按商户类别统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-04",
+          "question": "按分行统计交易笔数",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-05",
+          "question": "按客户类型和商户类别统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-06",
+          "question": "按商户类别和分行统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-07",
+          "question": "按分行和客户类型统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-08",
+          "question": "按客户类型和商户类别统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-09",
+          "question": "按商户类别和分行统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-10",
+          "question": "按分行和客户类型统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-01",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景1）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-02",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景2）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-03",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景3）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-04",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景4）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-05",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景5）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-06",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景6）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-07",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景7）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-08",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景8）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "synonym-03",
+          "question": "按渠道统计流水笔数",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        }
+      ],
+      "left_succeeded_right_failed_count": 0,
+      "left_succeeded_right_failed": []
+    },
+    "o_c_with_assets_vs_gold": {
+      "left_group": "T-D",
+      "right_group": "T-H",
+      "left_failed_right_succeeded_count": 22,
+      "left_failed_right_succeeded": [
+        {
+          "case_id": "basic-03",
+          "question": "查询交易笔数",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "basic-09",
+          "question": "统计流水笔数",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "filter-08",
+          "question": "查询近60天APP和POS渠道信用卡交易金额",
+          "left_failure_category": "RESULT_MISMATCH",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-01",
+          "question": "按分行统计交易笔数",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-02",
+          "question": "按客户类型统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-03",
+          "question": "按商户类别统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-04",
+          "question": "按分行统计交易笔数",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-05",
+          "question": "按客户类型和商户类别统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-06",
+          "question": "按商户类别和分行统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-07",
+          "question": "按分行和客户类型统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-08",
+          "question": "按客户类型和商户类别统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-09",
+          "question": "按商户类别和分行统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "join-10",
+          "question": "按分行和客户类型统计交易笔数",
+          "left_failure_category": "SEMANTIC_PARSE_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-01",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景1）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-02",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景2）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-03",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景3）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-04",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景4）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-05",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景5）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-06",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景6）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-07",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景7）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "lifecycle-08",
+          "question": "在当前正式明细资产中按分行统计交易笔数（场景8）",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        },
+        {
+          "case_id": "synonym-03",
+          "question": "按渠道统计流水笔数",
+          "left_failure_category": "COLUMN_SELECTION_ERROR",
+          "right_failure_category": null
+        }
+      ],
+      "left_succeeded_right_failed_count": 0,
+      "left_succeeded_right_failed": []
+    },
+    "o_d_without_assets_vs_o_c": {
+      "left_group": "T-E",
+      "right_group": "T-C",
+      "left_failed_right_succeeded_count": 1,
+      "left_failed_right_succeeded": [
+        {
+          "case_id": "filter-05",
+          "question": "查询2026年7月信用卡交易金额",
+          "left_failure_category": "RESULT_MISMATCH",
+          "right_failure_category": null
+        }
+      ],
+      "left_succeeded_right_failed_count": 0,
+      "left_succeeded_right_failed": []
+    },
+    "o_d_with_assets_vs_o_c": {
+      "left_group": "T-F",
+      "right_group": "T-D",
+      "left_failed_right_succeeded_count": 1,
+      "left_failed_right_succeeded": [
+        {
+          "case_id": "filter-05",
+          "question": "查询2026年7月信用卡交易金额",
+          "left_failure_category": "RESULT_MISMATCH",
+          "right_failure_category": null
+        }
+      ],
+      "left_succeeded_right_failed_count": 0,
+      "left_succeeded_right_failed": []
+    }
+  },
+  "interpretation": {
+    "association_kind": "descriptive_single_run",
+    "statistical_significance_claimed": false,
+    "raw_f1_predicts_result_accuracy": false,
+    "reviewed_f1_guarantees_result_accuracy": false,
+    "llm_review_operations_delta": -1,
+    "llm_review_saving_rate_delta": 0.001642,
+    "llm_observed_lower_cost_single_run": true,
+    "llm_cost_reduction_supported_beyond_single_run": false,
+    "automatic_ontology_replaces_human_review": false,
+    "ontology_token_usage_note": "Ontology strategy token metadata is not propagated into EvaluationCaseResult; reported zero totals mean unavailable, not zero model usage."
+  }
 }

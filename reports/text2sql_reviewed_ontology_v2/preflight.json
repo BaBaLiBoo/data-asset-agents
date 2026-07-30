@@ -1,0 +1,205 @@
+{
+  "preflight_schema_version": "2.0",
+  "generated_at": "2026-07-30T10:55:02.9537984+08:00",
+  "status": "PASSED",
+  "formal_experiment_started": true,
+  "completed_formal_groups": [
+    "T-A",
+    "T-B",
+    "T-C",
+    "T-D",
+    "T-E",
+    "T-F",
+    "T-G",
+    "T-H"
+  ],
+  "persisted_formal_case_count": 640,
+  "authorization": {
+    "fictional_minibank_external_processing_authorized": true,
+    "authorized_purpose": "T-A through T-H formal Text-to-SQL experiment",
+    "secrets_in_output": false
+  },
+  "workspace": {
+    "branch": "feature/text2sql-mvp",
+    "git_commit_sha": "d9ae4ef12968df5cadb4271af7ff6d1bd885290e",
+    "python_version": "3.12.13",
+    "env_git_ignored": true,
+    "docker_engine": "HEALTHY",
+    "postgres": "HEALTHY",
+    "api": "HEALTHY",
+    "streamlit": "HEALTHY"
+  },
+  "provider_configuration": {
+    "llm_mode": "live",
+    "chat": {
+      "configured": true,
+      "provider": "deepseek",
+      "model": "deepseek-chat",
+      "base_url_host": "api.deepseek.com",
+      "key_present": true
+    },
+    "embedding": {
+      "configured": true,
+      "provider": "aliyun",
+      "model": "text-embedding-v4",
+      "base_url_host": "dashscope.aliyuncs.com",
+      "key_present": true,
+      "configured_dimensions": 1024
+    }
+  },
+  "reproducibility": {
+    "benchmark_version": "minibank-text2sql-v1:e3045a0b12c5",
+    "benchmark_hash": "e3045a0b12c567078aed8f80670e059062ef883583868e2e6387ea75a31ee779",
+    "database_snapshot_hash": "8fdbc08b6f19006be80513e7d7a91882e87570dd9593ad35064cdf44ea1cb04f",
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "embedding_provider": "aliyun",
+    "embedding_model": "text-embedding-v4",
+    "temperature": 0.0,
+    "max_output_tokens": 2048,
+    "timeout_seconds": 30,
+    "provider_max_retries": 2,
+    "random_seed": 20260716,
+    "concurrency": 1
+  },
+  "ontology_versions": {
+    "REVIEWED_O_C": {
+      "version_name": "quality-v2-reviewed-o-c",
+      "construction_run_id": "construction-0de800c044194393a9317150c2cde05e",
+      "ontology_version_id": "version_9792e7e2f4fa4db9b27cb26a3c076f2c",
+      "version_status": "PUBLISHED",
+      "artifact_id": "artifact-version_9792e7e2f4fa4db9b27cb26a3c076f2c",
+      "artifact_status": "READY",
+      "artifact_source_hash": "a660a316a9bdb2a26403eee190d4dee6c4118c9af017acf1574ce8abb2609540",
+      "bundle_hash": "4544739e14bdebc0ea2e0248153d9387cfd38e5761e992f172819933eb4a0616",
+      "compiler_version": "1",
+      "ontology_index_build_id": "ontology-index-c81f700c9e024fdc809da87bff391325",
+      "ontology_index_status": "READY",
+      "sql_asset_build_id": "sqlbuild-8d5ebe518fc14e76a2646e52cc767145",
+      "sql_asset_build_status": "READY",
+      "construction_mode": "STRICT_CONSTRUCTION",
+      "seed_accessed": false,
+      "fallback_used": false,
+      "legacy_ontology_accessed": false
+    },
+    "REVIEWED_O_D": {
+      "version_name": "quality-v2-reviewed-o-d-live-safe",
+      "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f",
+      "ontology_version_id": "version_23aa2974a54a460694a92024b3d0b1a9",
+      "version_status": "PUBLISHED",
+      "artifact_id": "artifact-version_23aa2974a54a460694a92024b3d0b1a9",
+      "artifact_status": "READY",
+      "artifact_source_hash": "09132da1bf5bbbe80a9348d0a73641de7700d7299a9b4f3efab07dea5a9bfdb8",
+      "bundle_hash": "024d318c691a5e670621c5364ddadec3471284010838856b9a3ac2bd0fa02987",
+      "compiler_version": "1",
+      "ontology_index_build_id": "ontology-index-80d96f5fe97a4de8925fc7abfa179ec8",
+      "ontology_index_status": "READY",
+      "sql_asset_build_id": "sqlbuild-551264a4ab16456ebc67fef848cf88ce",
+      "sql_asset_build_status": "READY",
+      "construction_mode": "STRICT_CONSTRUCTION",
+      "seed_accessed": false,
+      "fallback_used": false,
+      "legacy_ontology_accessed": false
+    },
+    "GOLD": {
+      "version_name": "quality-v2-gold-independent",
+      "construction_run_id": null,
+      "ontology_version_id": "version_3a17072aa48949f185d167da1e1892e8",
+      "version_status": "PUBLISHED",
+      "artifact_id": "artifact-version_3a17072aa48949f185d167da1e1892e8",
+      "artifact_status": "READY",
+      "artifact_source_hash": "58c0c6dd1daa88e4dc641fdb6c2045e574e66d9dde484bfe7db3278954c51248",
+      "bundle_hash": "c5335c771f809e0e591ea2a3c77e3644e844c1420d5992ac07baf4674c8ab219",
+      "compiler_version": "1",
+      "ontology_index_build_id": "ontology-index-e390a3c6c4d04942817ba415a5a734c2",
+      "ontology_index_status": "READY",
+      "sql_asset_build_id": "sqlbuild-b25dced77be84fdbab7e4a460c6c78bc",
+      "sql_asset_build_status": "READY",
+      "construction_mode": "LEGACY_COMPAT"
+    }
+  },
+  "isolation": {
+    "ontology_version_ids_pairwise_distinct": true,
+    "bundle_hashes_pairwise_distinct": true,
+    "artifact_source_hashes_pairwise_distinct": true,
+    "sql_asset_build_ids_pairwise_distinct": true
+  },
+  "live_preflight": {
+    "dashscope_embedding": {
+      "status": "PASSED",
+      "actual_dimensions": 1024,
+      "expected_dimensions": 1024
+    },
+    "deepseek_structured_output": {
+      "status": "PASSED",
+      "run_id": "dfb152e5-2f1c-4540-a5f5-0f4378d60f7f",
+      "persisted_case_count": 1,
+      "case_status": "COMPLETED",
+      "failure_type": null,
+      "provider_response_category": "SUCCESS",
+      "runner_retry_count": 0,
+      "provider_configured_max_retries": 2,
+      "recovered": true,
+      "structured_output_present": true,
+      "superseded_failed_run_id": "827062c3-c4e2-408f-af33-982ec757d2d3"
+    },
+    "strategy_checks": {
+      "schema": {
+        "status": "COMPLETED",
+        "run_id": "861d186e-2bd4-4593-bc85-0c80b473766f",
+        "persisted_case_count": 1,
+        "failure_category": "BUSINESS_POLICY_ERROR"
+      },
+      "physical_rag": {
+        "status": "COMPLETED",
+        "run_id": "f995f72b-e5da-46eb-94eb-aff7cf413766",
+        "persisted_case_count": 1,
+        "failure_category": "COLUMN_SELECTION_ERROR"
+      },
+      "o_c_no_sql_asset": {
+        "status": "COMPLETED",
+        "run_id": "dfb152e5-2f1c-4540-a5f5-0f4378d60f7f",
+        "persisted_case_count": 1,
+        "failure_category": null
+      },
+      "o_c_full": {
+        "status": "COMPLETED",
+        "run_id": "4d4bd3cd-1ec5-4893-9136-bb7909705225",
+        "persisted_case_count": 1,
+        "failure_category": null
+      },
+      "o_d_no_sql_asset": {
+        "status": "COMPLETED",
+        "run_id": "1ecf87bd-9b0f-4323-ae5b-72090ea22d58",
+        "persisted_case_count": 1,
+        "failure_category": null
+      },
+      "o_d_full": {
+        "status": "COMPLETED",
+        "run_id": "6e8cb4f7-6c04-4577-b95d-77a1d963f2c0",
+        "persisted_case_count": 1,
+        "failure_category": null
+      },
+      "gold_no_sql_asset": {
+        "status": "COMPLETED",
+        "run_id": "8adc73f8-9ec5-49d5-ad90-93401cf1acdd",
+        "persisted_case_count": 1,
+        "failure_category": null
+      },
+      "gold_full": {
+        "status": "COMPLETED",
+        "run_id": "018c781a-837f-4bc0-81ba-2bf3ce92a91e",
+        "persisted_case_count": 1,
+        "failure_category": null
+      }
+    }
+  },
+  "blocker": {
+    "type": null,
+    "provider": null,
+    "category": null,
+    "recoverable_by_runner": null,
+    "required_external_change": null,
+    "formal_downstream_experiment_closed": true
+  }
+}

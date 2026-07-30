@@ -1,0 +1,44 @@
+{
+  "progress_schema_version": "1.0",
+  "status": "COMPLETED",
+  "completed_groups": {
+    "T-A": "271cb981-8076-4956-b660-3272523bf880",
+    "T-B": "2371eb9e-3bfd-4634-9fc0-aeadb3334e35",
+    "T-C": "5df712d9-144a-4f87-8e02-7ba3528578a7",
+    "T-D": "c01e4470-7bfe-48f7-93f3-d17e3c741215",
+    "T-E": "3beb8956-a946-4e01-84df-e0dfd627b4e8",
+    "T-F": "55cf2612-c40a-44d0-9674-ae881c48d3dc",
+    "T-G": "5f181e37-4229-4ffa-92a0-e8dc5d87e5fe",
+    "T-H": "97630195-dcb5-488a-9c8a-2f751306da8e"
+  },
+  "failed_attempts": [],
+  "artifacts": {
+    "REVIEWED_O_C": {
+      "ontology_version_id": "version_9792e7e2f4fa4db9b27cb26a3c076f2c",
+      "version": "quality-v2-reviewed-o-c",
+      "artifact_id": "artifact-version_9792e7e2f4fa4db9b27cb26a3c076f2c",
+      "artifact_hash": "a660a316a9bdb2a26403eee190d4dee6c4118c9af017acf1574ce8abb2609540",
+      "bundle_hash": "4544739e14bdebc0ea2e0248153d9387cfd38e5761e992f172819933eb4a0616",
+      "construction_run_id": "construction-0de800c044194393a9317150c2cde05e"
+    },
+    "REVIEWED_O_D": {
+      "ontology_version_id": "version_23aa2974a54a460694a92024b3d0b1a9",
+      "version": "quality-v2-reviewed-o-d-live-safe",
+      "artifact_id": "artifact-version_23aa2974a54a460694a92024b3d0b1a9",
+      "artifact_hash": "09132da1bf5bbbe80a9348d0a73641de7700d7299a9b4f3efab07dea5a9bfdb8",
+      "bundle_hash": "024d318c691a5e670621c5364ddadec3471284010838856b9a3ac2bd0fa02987",
+      "construction_run_id": "construction-24a6784bc1524aae8242c174d829201f"
+    },
+    "GOLD": {
+      "ontology_version_id": "version_3a17072aa48949f185d167da1e1892e8",
+      "version": "quality-v2-gold-independent",
+      "artifact_id": "artifact-version_3a17072aa48949f185d167da1e1892e8",
+      "artifact_hash": "58c0c6dd1daa88e4dc641fdb6c2045e574e66d9dde484bfe7db3278954c51248",
+      "bundle_hash": "c5335c771f809e0e591ea2a3c77e3644e844c1420d5992ac07baf4674c8ab219",
+      "construction_run_id": null
+    }
+  },
+  "concurrency": 1,
+  "updated_at": "2026-07-30T05:21:22.739377+00:00",
+  "persisted_case_count": 640
+}
