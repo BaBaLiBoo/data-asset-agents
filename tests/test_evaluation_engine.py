@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -23,6 +24,14 @@ from data_asset_agents.evaluation.strategies import StrategyRouter
 from data_asset_agents.ontology.service import OntologyService
 from data_asset_agents.text2sql.models import ExecutionResult
 from data_asset_agents.validation import EvaluationPolicyInspector
+from scripts.run_text2sql_reviewed_ontology_v2 import (
+    GROUPS,
+    _atomic_write_json,
+    _case_outcome_comparison,
+    _load_progress,
+    _result_delta,
+    _validate_group_row,
+)
 
 
 def test_benchmark_contract_and_80_case_distribution() -> None:
@@ -612,3 +621,104 @@ def test_compare_rejects_completed_run_with_incomplete_case_coverage(
     repository.save_run(run.model_copy(update={"status": "COMPLETED"}))
     with pytest.raises(DataAssetAgentsError, match="case coverage"):
         service.compare([run.run_id], "data/benchmark/text2sql_v1.json")
+
+
+def _formal_group_response() -> dict[str, Any]:
+    return {
+        "run": {
+            "run_id": "formal-t-a",
+            "status": "COMPLETED",
+            "experiment_group": "T-A",
+            "strategy_variant": "schema",
+            "sql_asset_enabled": False,
+            "ontology_source": "NONE",
+            "run_kind": "live",
+            "concurrency": 1,
+            "max_cases": None,
+        },
+        "metrics": {"case_count": 80},
+    }
+
+
+def test_formal_runner_resumes_only_complete_eighty_case_group() -> None:
+    cases = [{"case_id": f"case-{index}"} for index in range(80)]
+    row = _validate_group_row(
+        GROUPS[0],
+        _formal_group_response(),
+        cases,
+        concurrency=1,
+    )
+    assert row["run"]["run_id"] == "formal-t-a"
+    assert len(row["cases"]) == 80
+
+    with pytest.raises(RuntimeError, match="79 cases instead of 80"):
+        _validate_group_row(
+            GROUPS[0],
+            _formal_group_response(),
+            cases[:-1],
+            concurrency=1,
+        )
+
+
+def test_formal_runner_progress_is_atomic_and_schema_checked(tmp_path: Path) -> None:
+    progress = tmp_path / "progress.json"
+    payload = {
+        "progress_schema_version": "1.0",
+        "status": "IN_PROGRESS",
+        "completed_groups": {"T-A": "formal-t-a"},
+        "failed_attempts": [],
+    }
+    _atomic_write_json(progress, payload)
+    assert _load_progress(progress) == payload
+    assert not (tmp_path / "progress.json.tmp").exists()
+
+    _atomic_write_json(progress, {"progress_schema_version": "unsupported"})
+    with pytest.raises(RuntimeError, match="Unsupported resume manifest"):
+        _load_progress(progress)
+
+
+def test_formal_runner_reports_paired_case_outcomes_and_metric_delta() -> None:
+    groups = {
+        "T-C": {
+            "metrics": {"result_hash_accuracy": 0.5},
+            "cases": [
+                {
+                    "case_id": "case-a",
+                    "question": "A",
+                    "success": False,
+                    "failure_category": "SEMANTIC_PARSE_ERROR",
+                },
+                {
+                    "case_id": "case-b",
+                    "question": "B",
+                    "success": True,
+                    "failure_category": None,
+                },
+            ],
+        },
+        "T-G": {
+            "metrics": {"result_hash_accuracy": 0.75},
+            "cases": [
+                {
+                    "case_id": "case-a",
+                    "question": "A",
+                    "success": True,
+                    "failure_category": None,
+                },
+                {
+                    "case_id": "case-b",
+                    "question": "B",
+                    "success": False,
+                    "failure_category": "RESULT_MISMATCH",
+                },
+            ],
+        },
+    }
+
+    comparison = _case_outcome_comparison(groups, "T-C", "T-G")
+
+    assert _result_delta(groups, "T-C", "T-G") == -0.25
+    assert comparison["left_failed_right_succeeded_count"] == 1
+    assert comparison["left_failed_right_succeeded"][0]["case_id"] == "case-a"
+    assert comparison["left_succeeded_right_failed_count"] == 1
+    assert comparison["left_succeeded_right_failed"][0]["case_id"] == "case-b"
