@@ -7,19 +7,28 @@ import streamlit as st
 
 
 class StateKey(StrEnum):
-    PAGE = "daa.page"
-    WORKBENCH_STEP = "daa.workbench.step"
+    CURRENT_PAGE = "daa.page"
+    PENDING_PAGE = "daa.pending_page"
+    SELECTED_DATA_SOURCE = "daa.selected_data_source"
+    SELECTED_ONTOLOGY_VERSION = "daa.selected_ontology_version"
     SNAPSHOT_ID = "daa.ontology.snapshot_id"
     SNAPSHOT_PAYLOAD = "daa.ontology.snapshot_payload"
     CONSTRUCTION_RUN_ID = "daa.ontology.construction_run_id"
-    CANDIDATE_ID = "daa.ontology.candidate_id"
+    CURRENT_CANDIDATE_ID = "daa.ontology.candidate_id"
     CURRENT_DRAFT_ID = "daa.ontology.current_draft_id"
     DRAFT_REVISION = "daa.ontology.draft_revision"
     DRAFT_HASH = "daa.ontology.draft_hash"
-    LAST_PUBLISHED_VERSION = "daa.ontology.last_published_version"
-    QUERY_RESULT = "daa.query.result"
-    DEMO_STATUS = "daa.demo.status"
+    BUILD_STEP = "daa.ontology.build_step"
+    CHAT_MESSAGES = "daa.chat.messages"
+    LAST_QUERY_RESULT = "daa.query.result"
+    AI_STATUS = "daa.ai.status"
     FORM_BUFFER_PREFIX = "daa.form."
+    # Compatibility aliases for hidden legacy Streamlit functions.
+    WORKBENCH_STEP = BUILD_STEP
+    CANDIDATE_ID = CURRENT_CANDIDATE_ID
+    LAST_PUBLISHED_VERSION = SELECTED_ONTOLOGY_VERSION
+    QUERY_RESULT = LAST_QUERY_RESULT
+    DEMO_STATUS = "daa.demo.status"
 
 
 FINAL_CANDIDATE_STATUSES = {"ACCEPTED", "MODIFIED", "REJECTED", "MERGED"}
@@ -35,6 +44,21 @@ def set_value(key: StateKey, value: Any) -> None:
 
 def clear_value(key: StateKey) -> None:
     st.session_state.pop(str(key), None)
+
+
+def request_navigation(page: str) -> None:
+    st.session_state[str(StateKey.PENDING_PAGE)] = page
+
+
+def apply_pending_navigation(allowed_pages: list[str]) -> str:
+    pending = st.session_state.pop(str(StateKey.PENDING_PAGE), None)
+    current = st.session_state.get(str(StateKey.CURRENT_PAGE))
+    if pending in allowed_pages:
+        current = pending
+    if current not in allowed_pages:
+        current = allowed_pages[0]
+    st.session_state[str(StateKey.CURRENT_PAGE)] = current
+    return current
 
 
 def remember_draft(draft: dict[str, Any]) -> None:

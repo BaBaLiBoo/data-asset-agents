@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 import streamlit as st
@@ -17,6 +18,7 @@ from state import (
     completion_ratio,
     get_value,
     remember_draft,
+    request_navigation,
     set_value,
 )
 
@@ -29,6 +31,10 @@ RESOURCE_ENDPOINTS = {
     "link_type": "link-types",
     "physical_join": "physical-joins",
 }
+
+
+def _developer_mode() -> bool:
+    return os.getenv("DEVELOPER_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _table_columns(table_assets: list[dict[str, Any]]) -> dict[str, list[str]]:
@@ -361,17 +367,18 @@ def _candidate_page(run: dict[str, Any], candidates: list[dict[str, Any]]) -> No
             disabled=readonly,
             key_prefix=f"candidate.{candidate['candidate_id']}",
         )
-        with st.expander("高级 JSON 编辑"):
-            raw_json = st.text_area(
-                "修改后的 JSON",
-                json.dumps(edited, ensure_ascii=False, indent=2),
-                height=220,
-                disabled=readonly,
-            )
-            try:
-                edited = json.loads(raw_json)
-            except json.JSONDecodeError as exc:
-                st.error(f"JSON 格式错误：{exc}")
+        if _developer_mode():
+            with st.expander("高级 JSON 编辑"):
+                raw_json = st.text_area(
+                    "修改后的 JSON",
+                    json.dumps(edited, ensure_ascii=False, indent=2),
+                    height=220,
+                    disabled=readonly,
+                )
+                try:
+                    edited = json.loads(raw_json)
+                except json.JSONDecodeError as exc:
+                    st.error(f"JSON 格式错误：{exc}")
     with right:
         st.markdown("#### 最终资源预览与 Diff")
         st.json(edited)
@@ -409,7 +416,8 @@ def _candidate_page(run: dict[str, Any], candidates: list[dict[str, Any]]) -> No
         submit_disabled = True
         st.warning("MERGE 必须选择有效目标。")
     if decision == "REJECT" and not comment:
-        st.info("REJECT 可以填写拒绝原因，建议说明业务理由。")
+        submit_disabled = True
+        st.info("REJECT 必须填写拒绝原因，建议说明业务理由。")
     if cols[3].button("提交审核", type="primary", disabled=submit_disabled):
         if edited.get("id") != candidate["current_resource"].get("id"):
             st.error("Stable ID 不允许修改。")
@@ -719,7 +727,7 @@ def _publish_page(detail: dict[str, Any]) -> None:
     if last_version and st.button("设为当前在线本体并进入智能问数", use_container_width=True):
         try:
             client.post(f"/api/v1/ontology/versions/{last_version}/activate", timeout=180)
-            set_value(StateKey.PAGE, "智能问数")
+            request_navigation("智能体 Demo")
             success("在线 OntologyService 已切换。")
             st.rerun()
         except Exception as exc:

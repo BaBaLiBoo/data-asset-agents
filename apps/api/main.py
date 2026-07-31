@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import io
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -8,7 +9,8 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Res
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 
 from data_asset_agents.core.config import get_settings
 from data_asset_agents.core.errors import (
@@ -520,6 +522,147 @@ def _actor(request: Request) -> str:
     return request.headers.get("x-actor", "ontology-manager-api")
 
 
+def _demo_table_allowlist() -> list[str]:
+    catalog = load_governed_catalog(Path("data/governed_catalog/minibank_tables.json"))
+    return [item.name for item in catalog if item.status == "ACTIVE" and item.selectable]
+
+
+def _quote_identifier(identifier: str) -> str:
+    if not identifier.replace("_", "").isalnum() or identifier[0].isdigit():
+        raise HTTPException(status_code=500, detail=f"Unsafe allowlisted identifier: {identifier}")
+    return f'"{identifier}"'
+
+
+def _demo_table_counts(request: Request) -> list[dict[str, Any]]:
+    tables = _demo_table_allowlist()
+    rows: list[dict[str, Any]] = []
+    with request.app.state.executor.engine.connect() as connection:
+        for table_name in tables:
+            qualified = f"{_quote_identifier('public')}.{_quote_identifier(table_name)}"
+            exists = connection.execute(
+                text("SELECT to_regclass(:table_name) IS NOT NULL"),
+                {"table_name": f"public.{table_name}"},
+            ).scalar()
+            count = 0
+            if exists:
+                count = connection.execute(text(f"SELECT count(*) FROM {qualified}")).scalar() or 0
+            rows.append({"table": table_name, "exists": bool(exists), "rows": int(count)})
+    return rows
+
+
+def _demo_data_status(request: Request) -> dict[str, Any]:
+    tables = _demo_table_counts(request)
+    total_rows = sum(item["rows"] for item in tables)
+    ready = bool(tables) and all(item["exists"] for item in tables) and total_rows > 0
+    payload = "|".join(f"{item['table']}:{item['rows']}" for item in tables)
+    return {
+        "data_source_id": "minibank-postgres",
+        "ready": ready,
+        "table_count": len(tables),
+        "total_rows": total_rows,
+        "data_snapshot_hash": hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+        "tables": tables,
+    }
+
+
+def _demo_ai_status(request: Request) -> dict[str, Any]:
+    settings = request.app.state.settings
+    chat_configured = bool(settings.llm_api_key.get_secret_value())
+    embedding_configured = bool(settings.embedding_api_key.get_secret_value())
+    live_ready = (
+        settings.llm_mode == "live"
+        and chat_configured
+        and embedding_configured
+    )
+    blocking: list[str] = []
+    if settings.llm_mode == "live" and not chat_configured:
+        blocking.append("LLM_API_KEY 未配置")
+    if settings.llm_mode == "live" and not embedding_configured:
+        blocking.append("EMBEDDING_API_KEY 未配置")
+    return {
+        "mode": settings.llm_mode,
+        "require_live_ai": settings.demo_require_live_ai,
+        "live_ready": live_ready,
+        "blocking_reason": "；".join(blocking),
+        "chat": {
+            "provider": settings.llm_provider,
+            "model": settings.llm_model,
+            "configured": chat_configured,
+            "reachable": None if settings.llm_mode == "live" else True,
+        },
+        "embedding": {
+            "provider": settings.embedding_provider,
+            "model": settings.embedding_model,
+            "configured": embedding_configured,
+            "reachable": None if settings.llm_mode == "live" else True,
+        },
+    }
+
+
+def _demo_source_payload(request: Request) -> list[dict[str, Any]]:
+    settings = request.app.state.settings
+    database_url = make_url(settings.database_url)
+    data_status = _demo_data_status(request)
+    sources = request.app.state.ontology_manager.repository.list_data_sources()
+    return [
+        {
+            **item.model_dump(mode="json"),
+            "display_name": "MiniBank PostgreSQL",
+            "host": database_url.host,
+            "port": database_url.port,
+            "database": database_url.database,
+            "schema_name": "public",
+            "healthy": request.app.state.executor.ping(),
+            "table_count": data_status["table_count"],
+            "total_rows": data_status["total_rows"],
+        }
+        for item in sources
+    ]
+
+
+def _demo_display_name(version_name: str, settings: Any) -> str:
+    if version_name == settings.demo_ontology_version_name:
+        return settings.demo_ontology_display_name
+    if "o-d" in version_name.lower() or "llm" in version_name.lower():
+        return "AI 增强候选审核版本"
+    if "o-c" in version_name.lower() or "reviewed" in version_name.lower():
+        return "自动候选审核版本"
+    return version_name
+
+
+def _demo_ontology_payload(request: Request) -> list[dict[str, Any]]:
+    settings = request.app.state.settings
+    versions = request.app.state.ontology_repository.list_versions()
+    rows: list[dict[str, Any]] = []
+    for version in versions:
+        try:
+            artifact = request.app.state.ontology_manager.compiled_artifact(version.id)
+            artifact_status = artifact.status
+            bundle_hash = artifact.bundle_hash
+        except Exception:
+            artifact_status = "MISSING"
+            bundle_hash = ""
+        resource_count = version.concept_count + version.mapping_count + version.join_count
+        rows.append(
+            {
+                **version.model_dump(mode="json"),
+                "version_name": version.version,
+                "display_name": _demo_display_name(version.version, settings),
+                "artifact_status": artifact_status,
+                "bundle_hash": bundle_hash,
+                "data_source_ids": ["minibank-postgres"],
+                "resource_count": resource_count,
+                "resource_counts": {
+                    "total": resource_count,
+                    "concepts": version.concept_count,
+                    "mappings": version.mapping_count,
+                    "joins": version.join_count,
+                },
+            }
+        )
+    return rows
+
+
 @app.exception_handler(UnsupportedQueryError)
 async def unsupported_query_handler(_: Request, exc: UnsupportedQueryError):
     from fastapi.responses import JSONResponse
@@ -708,6 +851,65 @@ def ontology_demo_status(
             "example_query_checks": example_query_checks,
         }
     )
+
+
+@app.get("/api/v1/demo/data-sources")
+def demo_data_sources(request: Request) -> list[dict[str, Any]]:
+    return _demo_source_payload(request)
+
+
+@app.get("/api/v1/demo/data-status")
+def demo_data_status(request: Request) -> dict[str, Any]:
+    return _demo_data_status(request)
+
+
+@app.post("/api/v1/demo/data-initialize")
+def demo_data_initialize(request: Request) -> dict[str, Any]:
+    before = _demo_data_status(request)
+    if before["ready"]:
+        return {**before, "message": "MiniBank 演示数据已初始化。"}
+    ddl_path = Path("data/ddl/001_schema.sql")
+    seed_path = Path("data/seed/002_seed.sql")
+    missing_tables = any(not item["exists"] for item in before["tables"])
+    statements = seed_path.read_text(encoding="utf-8")
+    if missing_tables:
+        statements = f"{ddl_path.read_text(encoding='utf-8')}\n{statements}"
+    with request.app.state.executor.engine.begin() as connection:
+        for statement in statements.split(";"):
+            sql = statement.strip()
+            if sql:
+                connection.exec_driver_sql(sql)
+    request.app.state.executor.set_ontology(request.app.state.ontology.bundle)
+    after = _demo_data_status(request)
+    return {**after, "message": "MiniBank 演示数据已导入。"}
+
+
+@app.get("/api/v1/demo/ontologies")
+def demo_ontologies(request: Request) -> list[dict[str, Any]]:
+    return _demo_ontology_payload(request)
+
+
+@app.get("/api/v1/demo/ai-status")
+def demo_ai_status(request: Request) -> dict[str, Any]:
+    return _demo_ai_status(request)
+
+
+@app.get("/api/v1/demo/runtime-status")
+def demo_runtime_status(request: Request) -> dict[str, Any]:
+    current = request.app.state.ontology_repository.get_current_version()
+    status_payload = ontology_demo_status(request, run_example_checks=False)
+    return {
+        "data_sources": _demo_source_payload(request),
+        "data_status": _demo_data_status(request),
+        "ontologies": _demo_ontology_payload(request),
+        "current_version": current.model_dump(mode="json") if current else None,
+        "ai_status": _demo_ai_status(request),
+        "runtime": request.app.state.ontology_runtime,
+        "artifact": status_payload.get("current_artifact"),
+        "ontology_index": status_payload.get("ontology_index"),
+        "sql_asset_build": status_payload.get("sql_asset_build"),
+        "resource_counts": status_payload.get("resource_counts"),
+    }
 
 
 @app.post("/api/v1/query", response_model=QueryResponse)

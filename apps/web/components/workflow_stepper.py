@@ -2,19 +2,15 @@ from __future__ import annotations
 
 import streamlit as st
 
-WORKFLOW_STEPS = [
-    "数据源扫描",
-    "自动构建",
-    "候选审核",
-    "草稿完善",
-    "校验发布",
-    "完成",
-]
+WORKFLOW_STEPS = ["选择数据源", "准备数据", "自动构建", "人工审核", "草稿完善", "发布本体"]
 
 
-def render_stepper(completed: set[str], current: str) -> None:
-    columns = st.columns(len(WORKFLOW_STEPS))
-    for index, step in enumerate(WORKFLOW_STEPS, start=1):
+def render_stepper(
+    completed: set[str], current: str, steps: list[str] | None = None
+) -> None:
+    active_steps = steps or WORKFLOW_STEPS
+    columns = st.columns(len(active_steps))
+    for index, step in enumerate(active_steps, start=1):
         if step == current:
             state = "进行中"
         elif step in completed:

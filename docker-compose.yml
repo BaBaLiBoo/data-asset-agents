@@ -59,6 +59,8 @@ services:
       ONTOLOGY_PATH: ${ONTOLOGY_PATH:-ontology/retail_banking}
       HISTORICAL_SQL_PATH: ${HISTORICAL_SQL_PATH:-data/historical_sql/examples.json}
       DEMO_MODE: ${DEMO_MODE:-true}
+      DEVELOPER_MODE: ${DEVELOPER_MODE:-false}
+      DEMO_REQUIRE_LIVE_AI: ${DEMO_REQUIRE_LIVE_AI:-true}
       DEMO_ONTOLOGY_VERSION_NAME: ${DEMO_ONTOLOGY_VERSION_NAME:-quality-v2-gold-independent}
       DEMO_ONTOLOGY_DISPLAY_NAME: ${DEMO_ONTOLOGY_DISPLAY_NAME:-MiniBank 正式业务本体 v1.0}
       EVALUATION_BENCHMARK_PATH: ${EVALUATION_BENCHMARK_PATH:-data/benchmark/text2sql_v1.json}
@@ -85,6 +87,8 @@ services:
       API_BASE_URL: ${WEB_API_BASE_URL:-http://api:8000}
       GITHUB_SHA: ${GIT_COMMIT_SHA:-unknown}
       DEMO_MODE: ${DEMO_MODE:-true}
+      DEVELOPER_MODE: ${DEVELOPER_MODE:-false}
+      DEMO_REQUIRE_LIVE_AI: ${DEMO_REQUIRE_LIVE_AI:-true}
       DEMO_ONTOLOGY_VERSION_NAME: ${DEMO_ONTOLOGY_VERSION_NAME:-quality-v2-gold-independent}
       DEMO_ONTOLOGY_DISPLAY_NAME: ${DEMO_ONTOLOGY_DISPLAY_NAME:-MiniBank 正式业务本体 v1.0}
     ports:

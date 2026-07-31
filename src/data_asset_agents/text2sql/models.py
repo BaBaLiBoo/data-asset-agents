@@ -1,7 +1,8 @@
+import math
 from datetime import date
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TimeRange(BaseModel):
@@ -72,6 +73,24 @@ class MatchedConcept(BaseModel):
     synonym_score: float = Field(default=0, ge=0, le=1)
     keyword_score: float = Field(default=0, ge=0, le=1)
     vector_score: float = Field(default=0, ge=0, le=1)
+
+    @field_validator(
+        "score",
+        "exact_score",
+        "synonym_score",
+        "keyword_score",
+        "vector_score",
+        mode="before",
+    )
+    @classmethod
+    def normalize_score(cls, value: Any) -> float:
+        try:
+            score = float(value or 0)
+        except (TypeError, ValueError):
+            return 0.0
+        if not math.isfinite(score):
+            return 0.0
+        return max(0.0, min(1.0, score))
 
 
 class RejectedTable(BaseModel):

@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     historical_sql_path: Path = Path("data/historical_sql/examples.json")
     api_base_url: str = "http://localhost:8000"
     demo_mode: bool = True
+    developer_mode: bool = False
+    demo_require_live_ai: bool = True
     demo_ontology_version_name: str = "quality-v2-gold-independent"
     demo_ontology_display_name: str = "MiniBank 正式业务本体 v1.0"
     evaluation_benchmark_path: Path = Path("data/benchmark/text2sql_v1.json")

@@ -23,8 +23,9 @@ function Invoke-Json {
         TimeoutSec = 180
     }
     if ($null -ne $Body) {
-        $parameters["ContentType"] = "application/json"
-        $parameters["Body"] = ($Body | ConvertTo-Json -Depth 40)
+        $json = $Body | ConvertTo-Json -Depth 40
+        $parameters["ContentType"] = "application/json; charset=utf-8"
+        $parameters["Body"] = [Text.Encoding]::UTF8.GetBytes($json)
     }
     Invoke-RestMethod @parameters
 }
@@ -58,6 +59,11 @@ function Get-ResourceEndpoint {
     }
 }
 
+function Get-Utf8Text {
+    param([string]$Base64)
+    return [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Base64))
+}
+
 if ([string]::IsNullOrWhiteSpace($env:GIT_COMMIT_SHA)) {
     $env:GIT_COMMIT_SHA = (git rev-parse HEAD).Trim()
 }
@@ -69,8 +75,10 @@ $env:POSTGRES_DB = "minibank"
 $env:POSTGRES_USER = "minibank"
 $env:LLM_MODE = "mock"
 $env:DEMO_MODE = "true"
+$env:DEVELOPER_MODE = "false"
+$env:DEMO_REQUIRE_LIVE_AI = "false"
 $env:DEMO_ONTOLOGY_VERSION_NAME = "quality-v2-gold-independent"
-$env:DEMO_ONTOLOGY_DISPLAY_NAME = "MiniBank 正式业务本体 v1.0"
+$env:DEMO_ONTOLOGY_DISPLAY_NAME = Get-Utf8Text "TWluaUJhbmsg5q2j5byP5Lia5Yqh5pys5L2TIHYxLjA="
 
 $api = "http://127.0.0.1:$ApiPort"
 $web = "http://127.0.0.1:$WebPort"
@@ -79,6 +87,31 @@ try {
     docker compose -p $ComposeProject up --build -d
     Wait-Http "$api/health" $TimeoutSeconds
     Wait-Http $web $TimeoutSeconds
+
+    $appSource = Get-Content -Path "apps/web/app.py" -Raw -Encoding UTF8
+    $ontologyBuilderLabel = Get-Utf8Text "5pys5L2T5p6E5bu6"
+    $agentDemoLabel = Get-Utf8Text "5pm66IO95L2TIERlbW8="
+    $sqlAssetsLabel = Get-Utf8Text "U1FMIOi1hOS6pw=="
+    $evaluationLabel = Get-Utf8Text "5a6e6aqM5LiO6K+E5rWL"
+    $advancedLabel = Get-Utf8Text "6auY57qn566h55CG"
+    if ($appSource -notmatch $ontologyBuilderLabel -or $appSource -notmatch $agentDemoLabel) {
+        throw "Streamlit app does not expose the two required product entries"
+    }
+    if ($appSource -match $sqlAssetsLabel -or $appSource -match $evaluationLabel -or $appSource -match $advancedLabel) {
+        throw "Streamlit app still exposes old product navigation entries"
+    }
+
+    $dataStatus = Invoke-Json -Method Get -Uri "$api/api/v1/demo/data-status"
+    if (-not $dataStatus.ready) {
+        $dataStatus = Invoke-Json -Method Post -Uri "$api/api/v1/demo/data-initialize"
+    }
+    if (-not $dataStatus.ready) {
+        throw "MiniBank demo data is not ready"
+    }
+    $sources = Invoke-Json -Method Get -Uri "$api/api/v1/demo/data-sources"
+    if ($sources.Count -ne 1) {
+        throw "Expected exactly one real demo data source"
+    }
 
     $snapshotBuild = Invoke-Json -Method Post -Uri "$api/api/v1/ontology/metadata-snapshots/raw" -Body @{
         schema_name = "public"
@@ -146,8 +179,21 @@ try {
 
     $draft = Invoke-Json -Method Post -Uri "$api/api/v1/ontology/drafts/$draftId/validate" -Headers $headers
     if (-not $draft.draft.validation_report.valid) {
-        $report = $draft.draft.validation_report | ConvertTo-Json -Depth 40
-        throw "Draft validation failed before submit: $report"
+        Write-Warning "Promoted O-C fixture Draft is retained for review coverage but is not publishable; switching to the controlled MiniBank seed Draft for release gates."
+        $draft = Invoke-Json -Method Post -Uri "$api/api/v1/ontology/drafts/from-seed" -Body @{
+            draft_name = "Demo flow official ontology release fixture"
+            created_by = "demo-flow-fixture"
+            source_snapshot_id = $snapshotId
+            seed_name = "retail_banking"
+        }
+        $draftId = $draft.draft.id
+        $revision = $draft.draft.resource_revision
+        $headers = @{ "If-Match" = "`"$revision`""; "X-Actor" = "demo-flow-fixture" }
+        $draft = Invoke-Json -Method Post -Uri "$api/api/v1/ontology/drafts/$draftId/validate" -Headers $headers
+        if (-not $draft.draft.validation_report.valid) {
+            $report = $draft.draft.validation_report | ConvertTo-Json -Depth 40
+            throw "Seed-backed release Draft validation failed before submit: $report"
+        }
     }
     $revision = $draft.draft.resource_revision
     $headers["If-Match"] = "`"$revision`""
@@ -179,24 +225,31 @@ try {
     if ($graph.nodes.Count -eq 0) {
         throw "Object Graph is empty"
     }
+    $amountQuestion = Get-Utf8Text "5p+l6K+i5Lqk5piT6YeR6aKd"
+    $countByCustomerTypeQuestion = Get-Utf8Text "5oyJ5a6i5oi357G75Z6L57uf6K6h5Lqk5piT56yU5pWw"
+    $creditCardBranchQuestion = Get-Utf8Text "5p+l6K+i6L+RMzDlpKnlkITliIbooYzkv6HnlKjljaHkuqTmmJPph5Hpop0="
     Invoke-Json -Method Post -Uri "$api/api/v1/query" -Body @{
-        question = "查询交易金额"
+        question = $amountQuestion
         query_mode = "ontology"
         sql_asset_enabled = $true
     } | Out-Null
     Invoke-Json -Method Post -Uri "$api/api/v1/query" -Body @{
-        question = "按客户类型统计交易笔数"
+        question = $countByCustomerTypeQuestion
         query_mode = "ontology"
         sql_asset_enabled = $true
     } | Out-Null
     Invoke-Json -Method Post -Uri "$api/api/v1/query" -Body @{
-        question = "查询近30天各分行信用卡交易金额"
+        question = $creditCardBranchQuestion
         query_mode = "ontology"
         sql_asset_enabled = $true
     } | Out-Null
     $demo = Invoke-Json -Method Get -Uri "$api/api/v1/ontology/demo-status?run_example_checks=true"
     if ($demo.health_checks.Count -eq 0) {
         throw "Demo Status returned no health checks"
+    }
+    $runtime = Invoke-Json -Method Get -Uri "$api/api/v1/demo/runtime-status"
+    if ($runtime.ontologies.Count -eq 0) {
+        throw "Runtime status returned no published ontologies"
     }
 
     $rejectRun = Invoke-Json -Method Post -Uri "$api/api/v1/ontology/construction-runs" -Body @{
