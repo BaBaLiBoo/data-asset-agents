@@ -1,0 +1,108 @@
+GET http://127.0.0.1:8000/health
+Accept: application/json
+
+###
+
+POST http://127.0.0.1:8000/api/v1/chat
+Content-Type: application/json
+Accept: application/json
+X-User-Id: u_10086
+
+{
+  "conversationId": "conv_sql_0001",
+  "message": "使用Hive SQL统计最近30天各分行新增客户数",
+  "preferredScene": "SQL_GENERATION",
+  "context": {
+    "sqlDialect": "HIVE_SQL",
+    "schemaScope": ["card_dm"]
+  }
+}
+
+###
+# 将上一次响应中的 taskId、result.resultId 填入下方变量
+@taskId = task_replace_me
+@resultId = result_replace_me
+
+POST http://127.0.0.1:8000/api/v1/feedback
+Content-Type: application/json
+Accept: application/json
+X-User-Id: u_10086
+
+{
+  "taskId": "{{taskId}}",
+  "resultId": "{{resultId}}",
+  "decision": "ACCEPT",
+  "reasonCodes": [],
+  "comment": "",
+  "retry": false
+}
+
+###
+
+GET http://127.0.0.1:8000/api/v1/tasks/{{taskId}}
+Accept: application/json
+
+###
+
+GET http://127.0.0.1:8000/api/v1/tasks/{{taskId}}/results
+Accept: application/json
+
+###
+
+GET http://127.0.0.1:8000/api/v1/conversations
+Accept: application/json
+X-User-Id: u_10086
+
+###
+
+GET http://127.0.0.1:8000/api/v1/conversations/conv_sql_0001/messages
+Accept: application/json
+X-User-Id: u_10086
+
+###
+
+DELETE http://127.0.0.1:8000/api/v1/conversations/conv_sql_0001
+Accept: application/json
+X-User-Id: u_10086
+
+###
+
+# 注意：此请求会将 u_10086 的全部会话从历史列表中隐藏。
+DELETE http://127.0.0.1:8000/api/v1/conversations
+Accept: application/json
+X-User-Id: u_10086
+
+###
+
+POST http://127.0.0.1:8000/api/v1/chat
+Content-Type: application/json
+Accept: application/json
+X-User-Id: u_10086
+
+{
+  "conversationId": "conv_asset_0001",
+  "message": "准备新增客户月度活跃度指标，请检查能否复用已有资产",
+  "preferredScene": "ASSET_DUPLICATE",
+  "context": {
+    "department": "数据管理部",
+    "projectCode": "DATA_MIDDLE_PLATFORM",
+    "metadataVersion": "meta_2026_07"
+  }
+}
+
+###
+
+POST http://127.0.0.1:8000/api/v1/chat
+Content-Type: application/json
+Accept: application/json
+X-User-Id: u_10086
+
+{
+  "conversationId": "conv_sql_0001",
+  "message": "使用Hive SQL统计最近90天各分行新增客户数",
+  "preferredScene": "SQL_GENERATION",
+  "context": {
+    "sqlDialect": "HIVE_SQL",
+    "schemaScope": ["card_dm"]
+  }
+}

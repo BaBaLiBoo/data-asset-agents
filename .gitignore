@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.idea/
+data/*.db
+data/*.db-shm
+data/*.db-wal
